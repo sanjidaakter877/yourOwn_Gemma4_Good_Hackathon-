@@ -1,14 +1,16 @@
 # yourOwn
 
-A local-first Gemma 4 care companion for Alzheimer's patients, families, and doctors.
+A Gemma 4 care companion for Alzheimer's patients, families, and doctors.
 
-yourOwn is a hackathon prototype for the Gemma 4 Good Hackathon. It helps an Alzheimer's patient during moments of confusion by combining voice, text, GPS, meal and medication schedules, family memory notes, doctor instructions, camera context, and severity tracking over time.
+Live demo: https://your-own-gemma4-good-hackathon.vercel.app
 
-The goal is not to replace caregivers or clinicians. The goal is to give patients calm, grounded support between human care moments while giving families and doctors better context.
+yourOwn is a Gemma 4 Good Hackathon prototype designed to support Alzheimer's patients during moments of confusion. It combines patient messages, voice, GPS context, meal and medication schedules, family memory notes, doctor instructions, camera context, and severity tracking into one calm care assistant experience.
+
+The goal is not to replace caregivers, clinicians, or emergency services. The goal is to give patients grounded support between human care moments while giving families and doctors clearer context about what is happening over time.
 
 ## Why It Matters
 
-Alzheimer's patients can become scared, lost, or unsure about basic daily events:
+Alzheimer's patients may become scared, lost, or unsure about daily events:
 
 - Where am I?
 - Did I eat?
@@ -16,40 +18,40 @@ Alzheimer's patients can become scared, lost, or unsure about basic daily events
 - Who is this person?
 - Why am I scared?
 
-Generic chatbots do not know the patient's care context. Simple reminder apps do not reason about the moment. yourOwn uses Gemma 4 with structured patient context so responses can be safer, calmer, and more personal.
+Generic chatbots do not know the patient's care context. Reminder apps can notify, but they do not reason about the patient's current situation. yourOwn uses Gemma 4 with structured patient context so responses can be calmer, safer, and more personal.
 
 ## Core Features
 
-- Patient companion with voice, text, GPS, camera context, and live monitoring
-- Mobile-first patient UI with large actions and simple language
-- Meal and medication alarms for breakfast, lunch, dinner, and medication times
-- Family dashboard for memories, safe places, schedules, and family photos
+- Patient companion with text, voice, location, camera context, and live monitoring
+- Mobile-first patient interface with large actions and simple language
+- Meal and medication schedule awareness
+- Family memory support for familiar people, safe places, and routines
 - Doctor dashboard for care notes, medication guidance, follow-up, and severity trends
-- Local care-event history to track whether confusion/risk appears stable, improving, or worsening
+- Local care-event history to track whether confusion and risk appear stable, improving, or worsening
 - Grounded care reasoning layer that checks schedule, context, and risk before responding
-- Local-first Gemma usage through Ollama
+- Local-first Gemma 4 usage through Ollama for sensitive care data
 
 ## How Gemma 4 Is Used
 
-Gemma 4 is used as the care reasoning and language layer. The backend does not send only a raw chat message. It builds a structured care context containing:
+Gemma 4 powers the care reasoning and patient-facing response layer. The backend builds a structured care context before asking the model to respond. That context can include:
 
-- patient speech or typed message
-- current time and schedule
+- Patient speech or typed message
+- Current time and schedule
 - GPS/location status
-- safe places
-- doctor notes
-- family notes and memory summaries
-- visual concern selected by the patient
-- recent care events
-- risk and grounding signals
+- Safe places
+- Doctor notes
+- Family notes and memory summaries
+- Visual concern selected by the patient
+- Recent care events
+- Risk and grounding signals
 
-Gemma then generates a short, patient-facing response. The app also applies deterministic care checks so it does not repeat medication or meal instructions when they are not due.
+Gemma 4 then generates a short, supportive response. The app also applies deterministic checks around meals, medication, and risk so the answer is grounded in the patient's care context.
 
 ## Local-First Design
 
 yourOwn is designed to run Gemma locally through Ollama. This matters because Alzheimer's care data can include sensitive location, medication, family, and medical context.
 
-Local-first means patient context can be processed close to the user instead of relying on a hosted AI API for every interaction.
+The deployed Vercel app provides the public frontend experience. For the full AI-assisted demo, run the backend locally with Ollama or host the backend separately.
 
 ## Tech Stack
 
@@ -71,8 +73,8 @@ Backend:
 AI / Model:
 
 - Gemma 4 through Ollama
-- Optional fine-tuning/domain adaptation notebook under `backend/finetune_colab.ipynb`
-- Optional adapter artifacts under `backend/models/gemma4-medical-ft/`
+- Optional fine-tuning/domain adaptation notebook in `backend/finetune_colab.ipynb`
+- Optional adapter artifacts in `backend/models/gemma4-medical-ft/`
 
 ## Project Structure
 
@@ -90,7 +92,6 @@ yourOwn/
       memory.js              Reads/writes care events and memory data
       ollama.js              Gemma/Ollama integration
       realtime-alerts.js     WebSocket alert foundation
-      advanced-alert-ml.js   Risk and alert support
     server.js                Express backend entry point
   frontend/
     app/
@@ -120,7 +121,7 @@ If your local model name is different, update `OLLAMA_MODEL` in `backend/.env`.
 
 ## Environment Variables
 
-Create `backend/.env`:
+Create `backend/.env` from `backend/.env.example`:
 
 ```env
 OLLAMA_URL=http://localhost:11434
@@ -131,11 +132,11 @@ ELEVENLABS_API_KEY=your_api_key_here
 ELEVENLABS_VOICE_ID=your_voice_id_here
 ```
 
-Do not commit real API keys.
+Do not commit real API keys, tokens, passwords, or private environment files.
 
 ## Run Locally
 
-Install backend dependencies:
+Start the backend:
 
 ```bash
 cd backend
@@ -143,13 +144,7 @@ npm install
 npm start
 ```
 
-The backend runs on:
-
-```text
-http://localhost:5000
-```
-
-Install frontend dependencies:
+Start the frontend in another terminal:
 
 ```bash
 cd frontend
@@ -157,24 +152,17 @@ npm install
 npm run dev
 ```
 
-The frontend runs on:
-
-```text
-http://localhost:3000
-```
-
 ## Demo Flow
 
 A strong demo scenario:
 
-1. Open the patient mobile view.
-2. Simulate a patient saying: "I'm scared. Where am I?"
-3. Start live monitoring or press Speak.
-4. Show the app using voice, GPS, time, and care context to respond calmly.
-5. Trigger or show meal/medication schedule logic.
-6. Open the family dashboard and upload family memory/photo information.
-7. Open the doctor dashboard and show care notes plus severity trend.
-8. Explain that Gemma 4 is running locally through Ollama.
+1. Open the patient view.
+2. Simulate a patient saying, "I'm scared. Where am I?"
+3. Show the app using voice, location, time, and care context to respond calmly.
+4. Show meal or medication schedule awareness.
+5. Open the family dashboard and show memory or safe-place context.
+6. Open the doctor dashboard and show notes plus severity trends.
+7. Explain that Gemma 4 can run locally through Ollama for privacy-sensitive care support.
 
 ## Hackathon Tracks
 
@@ -192,19 +180,17 @@ Potentially relevant if the fine-tuning work is polished and published:
 
 yourOwn is a prototype care-support system. It is not a medical device, diagnostic tool, emergency service, or replacement for professional clinical judgment. Medication and care instructions should be configured and reviewed by qualified caregivers or clinicians.
 
-## Submission Assets To Prepare
+## Submission Assets
 
-- Kaggle writeup under 1,500 words
-- Public YouTube demo video under 3 minutes
 - Public GitHub repository
-- Public live demo or downloadable demo files
+- Public live demo
+- Public YouTube demo video under 3 minutes
+- Kaggle writeup under 1,500 words
 - Cover image and media gallery assets
 
 ## License
 
-This hackathon submission is licensed under Creative Commons Attribution 4.0
-International (CC-BY 4.0), except for third-party dependencies, models, tools,
-and assets, which remain under their respective licenses.
+This hackathon submission is licensed under Creative Commons Attribution 4.0 International (CC-BY 4.0), except for third-party dependencies, models, tools, and assets, which remain under their respective licenses.
 
 Full license text:
 
