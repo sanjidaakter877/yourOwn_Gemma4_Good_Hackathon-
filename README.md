@@ -1,10 +1,10 @@
 # yourOwn
 
-A Gemma 4 care companion for Alzheimer's patients, families, and doctors.
+A care companion for Alzheimer's patients, families, and doctors, powered by Gemma 4.
 
 Live demo: https://your-own-gemma4-good-hackathon.vercel.app
 
-yourOwn is a Gemma 4 Good Hackathon prototype designed to support Alzheimer's patients during moments of confusion. It combines patient messages, voice, GPS context, meal and medication schedules, family memory notes, doctor instructions, camera context, and severity tracking into one calm care assistant experience.
+yourOwn is a prototype built for the Gemma 4 Good Hackathon. It is designed to support Alzheimer's patients during moments of confusion by combining patient messages, voice, GPS context, meal and medication schedules, family memory notes, doctor instructions, camera context, and severity tracking into one calm care assistant experience.
 
 The goal is not to replace caregivers, clinicians, or emergency services. The goal is to give patients grounded support between human care moments while giving families and doctors clearer context about what is happening over time.
 
