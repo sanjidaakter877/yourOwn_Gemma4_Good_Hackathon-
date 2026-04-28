@@ -1,0 +1,251 @@
+{
+  "patientProfile": {
+    "id": "patient_001",
+    "name": "John Doe",
+    "dateOfBirth": "1950-05-15",
+    "age": 74,
+    "diagnosisDate": "2023-06-01",
+    "type": "Alzheimer's Disease",
+    "currentStage": "mild",
+    "caregiversIds": ["caregiver_001"],
+    "doctorIds": ["doctor_001"],
+    "permissionsGranted": {
+      "gps": true,
+      "microphone": true,
+      "vision": true,
+      "heartRate": false
+    }
+  },
+  "medicalHistory": {
+    "patientId": "patient_001",
+    "mmseScores": [
+      {
+        "date": "2023-06-01",
+        "score": 24,
+        "stage": "mild"
+      },
+      {
+        "date": "2024-01-15",
+        "score": 20,
+        "stage": "moderate"
+      },
+      {
+        "date": "2024-10-01",
+        "score": 18,
+        "stage": "moderate"
+      }
+    ],
+    "gdsStagingHistory": [
+      {
+        "date": "2023-06-01",
+        "stage": 3,
+        "description": "Mild cognitive decline"
+      },
+      {
+        "date": "2024-01-15",
+        "stage": 4,
+        "description": "Moderate cognitive decline"
+      },
+      {
+        "date": "2024-10-01",
+        "stage": 4,
+        "description": "Moderate cognitive decline"
+      }
+    ],
+    "medications": [
+      {
+        "name": "Donepezil",
+        "dosage": "10mg",
+        "frequency": "once daily",
+        "startDate": "2023-06-15",
+        "interactions": []
+      },
+      {
+        "name": "Memantine",
+        "dosage": "20mg",
+        "frequency": "twice daily",
+        "startDate": "2023-12-01",
+        "interactions": []
+      }
+    ],
+    "comorbidities": [
+      "Hypertension",
+      "Type 2 Diabetes"
+    ],
+    "allergies": [
+      {
+        "medication": "NSAIDs",
+        "reaction": "GI upset"
+      }
+    ]
+  },
+  "voiceProfiles": {
+    "patientId": "patient_001",
+    "profiles": [
+      {
+        "id": "voice_caregiver_sarah",
+        "name": "Sarah (Daughter)",
+        "relationship": "daughter",
+        "voiceFingerprint": "base64_encoded_audio_features",
+        "sampleCount": 15,
+        "reliability": 0.94,
+        "lastUpdated": "2024-10-15",
+        "customResponses": {
+          "greeting": "Hi Sarah! It's good to hear from you.",
+          "emotion": "warm"
+        }
+      },
+      {
+        "id": "voice_doctor_smith",
+        "name": "Dr. Smith",
+        "relationship": "doctor",
+        "voiceFingerprint": "base64_encoded_audio_features",
+        "sampleCount": 8,
+        "reliability": 0.89,
+        "lastUpdated": "2024-09-20",
+        "customResponses": {
+          "greeting": "Hello Dr. Smith. How can I help?",
+          "emotion": "professional"
+        }
+      }
+    ]
+  },
+  "behavioralLog": {
+    "patientId": "patient_001",
+    "entries": [
+      {
+        "timestamp": "2024-10-15T14:30:00Z",
+        "type": "confusion",
+        "severity": "moderate",
+        "description": "Patient couldn't remember caregiver's name",
+        "source": "conversation_analysis",
+        "context": "Spoke with Sarah for 20 minutes",
+        "gemmaAnalysis": "Pattern consistent with stage 4 cognitive decline"
+      },
+      {
+        "timestamp": "2024-10-15T09:45:00Z",
+        "type": "medication_adherence",
+        "severity": "low",
+        "description": "Missed morning Donepezil",
+        "source": "reminder_system",
+        "action_taken": "Caregiver notified"
+      },
+      {
+        "timestamp": "2024-10-14T18:20:00Z",
+        "type": "wandering",
+        "severity": "high",
+        "description": "Left home without destination for 45 minutes",
+        "source": "gps_tracking",
+        "maxDistance": "2.3 km",
+        "action_taken": "Caregiver retrieved patient"
+      },
+      {
+        "timestamp": "2024-10-14T10:00:00Z",
+        "type": "mood_change",
+        "severity": "moderate",
+        "description": "Unusually irritable during conversation",
+        "source": "voice_emotion_analysis",
+        "possibleCauses": ["medication timing", "sleep deprivation", "pain"]
+      }
+    ]
+  },
+  "alertHistory": {
+    "patientId": "patient_001",
+    "alerts": [
+      {
+        "id": "alert_20241015_001",
+        "timestamp": "2024-10-15T10:32:00Z",
+        "severity": "HIGH",
+        "type": "wandering_detected",
+        "description": "Patient left geofence boundary",
+        "location": "2.1 km from home",
+        "action": "SMS + Push notification sent to caregivers",
+        "resolved": true,
+        "resolutionTime": "00:15:00"
+      },
+      {
+        "id": "alert_20241014_001",
+        "timestamp": "2024-10-14T08:00:00Z",
+        "severity": "MEDIUM",
+        "type": "medication_missed",
+        "description": "Morning medication not taken",
+        "action": "Audio reminder played + caregiver notified",
+        "resolved": true
+      },
+      {
+        "id": "alert_20241013_001",
+        "timestamp": "2024-10-13T14:30:00Z",
+        "severity": "LOW",
+        "type": "pattern_detected",
+        "description": "Increased confusion pattern detected vs. baseline",
+        "recommendation": "Consider doctor consultation",
+        "resolved": false
+      }
+    ]
+  },
+  "progressionAnalysis": {
+    "patientId": "patient_001",
+    "lastAnalysis": "2024-10-15T00:00:00Z",
+    "trend": "gradual_decline",
+    "declineRate": "2-3 points per 6 months on MMSE",
+    "currentStageConfidence": 0.87,
+    "predictedNextStage": {
+      "stage": 5,
+      "timelineMonths": "6-12",
+      "confidence": 0.72
+    },
+    "riskFactors": [
+      "Hypertension not well controlled",
+      "Irregular sleep pattern"
+    ],
+    "protectiveFactors": [
+      "Good medication compliance",
+      "Active family involvement"
+    ],
+    "recommendations": [
+      "Increase cognitive stimulation activities",
+      "Monitor blood pressure more frequently",
+      "Consider increase in Memantine dosage - consult with Dr. Smith"
+    ]
+  },
+  "doctorNotes": {
+    "patientId": "patient_001",
+    "notes": [
+      {
+        "date": "2024-10-01",
+        "doctorId": "doctor_001",
+        "note": "MMSE score declined from 20 to 18. Recommend maintaining current medication. Family reports increased wandering behavior.",
+        "observations": [
+          "Speech slightly more repetitive",
+          "Difficulty recognizing familiar faces occasionally"
+        ]
+      },
+      {
+        "date": "2024-01-15",
+        "doctorId": "doctor_001",
+        "note": "Started on Memantine. Patient tolerating well. MMSE 20/30. GDS stage 4.",
+        "observations": []
+      }
+    ]
+  },
+  "caregiverObservations": {
+    "patientId": "patient_001",
+    "observations": [
+      {
+        "date": "2024-10-15",
+        "caregiverId": "caregiver_001",
+        "relationship": "daughter",
+        "observation": "Dad asked me the same question about his appointment 5 times today. More forgetful than usual. Seems more anxious.",
+        "moodLevel": 4,
+        "tags": ["confusion", "anxiety", "repetitive_questions"]
+      },
+      {
+        "date": "2024-10-14",
+        "caregiverId": "caregiver_001",
+        "observation": "Good day. Recognized me immediately. Had pleasant afternoon watching old photos together.",
+        "moodLevel": 7,
+        "tags": ["recognition", "positive_mood", "engagement"]
+      }
+    ]
+  }
+}

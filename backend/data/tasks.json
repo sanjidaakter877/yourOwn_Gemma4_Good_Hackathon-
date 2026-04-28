@@ -1,0 +1,29 @@
+[
+  {
+    "task_id": "t001",
+    "name": "morning routine",
+    "rooms": ["bedroom", "bathroom", "kitchen"],
+    "objects": ["toothbrush", "mug", "kettle"],
+    "time_buckets": ["morning"],
+    "speech_clues": ["what now", "morning", "breakfast"],
+    "default_next_step": "breakfast and morning medicine"
+  },
+  {
+    "task_id": "t002",
+    "name": "family visit",
+    "rooms": ["living room"],
+    "objects": ["sofa", "tea cup", "photo frame"],
+    "time_buckets": ["afternoon", "evening"],
+    "speech_clues": ["who is this", "who was here"],
+    "default_next_step": "sit together and talk calmly"
+  },
+  {
+    "task_id": "t003",
+    "name": "medical reminder",
+    "rooms": ["clinic", "living room", "bedroom"],
+    "objects": ["pill box", "medicine", "bag"],
+    "time_buckets": ["morning", "evening"],
+    "speech_clues": ["doctor", "medicine", "what did the doctor say"],
+    "default_next_step": "follow the medication instruction"
+  }
+]

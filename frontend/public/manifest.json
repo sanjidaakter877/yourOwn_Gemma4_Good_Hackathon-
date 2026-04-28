@@ -1,0 +1,82 @@
+{
+  "name": "yourOwn - Alzheimer's Companion",
+  "short_name": "yourOwn",
+  "description": "AI-powered companion for Alzheimer's care, powered by Gemma 4",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#1a5f7a",
+  "background_color": "#ffffff",
+  "categories": ["healthcare", "medical", "accessibility"],
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/patient-dashboard.png",
+      "type": "image/png",
+      "sizes": "540x720",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/screenshots/doctor-dashboard.png",
+      "type": "image/png",
+      "sizes": "1920x1080",
+      "form_factor": "wide"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Patient Dashboard",
+      "short_name": "Patient",
+      "description": "Voice interaction and alerts",
+      "url": "/app/patient/dashboard",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Doctor Dashboard",
+      "short_name": "Doctor",
+      "description": "Patient monitoring and analytics",
+      "url": "/app/doctor/dashboard",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    }
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "files": [
+        {
+          "name": "attachment",
+          "accept": ["image/*", "application/pdf"]
+        }
+      ]
+    }
+  },
+  "protocol_handlers": [
+    {
+      "protocol": "web+yourown",
+      "url": "/protocol?url=%s"
+    }
+  ],
+  "prefer_related_applications": false
+}

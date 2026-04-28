@@ -1,0 +1,868 @@
+[
+  {
+    "id": "care_1777342325696",
+    "timestamp": "2026-04-28T02:12:05.692Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "I am scared. Where am I?",
+    "response": {
+      "reassurance": "Mary, you are safe and not alone.",
+      "context": "You are likely at home. It is 10:12 PM, night. This looks like No meal or medication due right now. Anna visits most afternoons. Doctor instruction: Take the blue pill after dinner.",
+      "next_step": "Follow the doctor note: Take the blue pill after dinner."
+    },
+    "risk": {
+      "level": "high",
+      "score": 0.62,
+      "flags": [
+        "distress",
+        "possible_wandering",
+        "night_safety"
+      ],
+      "reasons": [
+        "Patient used distress or fear language.",
+        "Speech suggests the patient may feel lost or displaced.",
+        "Known place matched: home.",
+        "Nighttime confusion carries higher safety risk."
+      ]
+    },
+    "evidence": [
+      "Support mode: emotional_support (0.89 confidence).",
+      "Patient said: \"I am scared. Where am I?\".",
+      "Place engine matched likely place: home.",
+      "Time context: 10:12 PM night.",
+      "Family note: Anna visits most afternoons..",
+      "Doctor note: Take the blue pill after dinner..",
+      "Risk signal: Patient used distress or fear language.",
+      "Risk signal: Speech suggests the patient may feel lost or displaced.",
+      "Risk signal: Known place matched: home.",
+      "Risk signal: Nighttime confusion carries higher safety risk."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Check on Mary now. Risk level is high.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": true,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is night",
+      "routine_hint": "prepare for sleep",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    }
+  },
+  {
+    "id": "care_1777341781596",
+    "timestamp": "2026-04-28T02:03:01.594Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "I am confused",
+    "response": {
+      "reassurance": "Mary, you are okay.",
+      "context": "You are likely at home. It is 10:02 PM, night. Earlier, you had lunch. This looks like No meal or medication due right now. Anna visits most afternoons. Doctor instruction: Take the blue pill after dinner.",
+      "next_step": "Follow the doctor note: Take the blue pill after dinner."
+    },
+    "risk": {
+      "level": "low",
+      "score": 0.22,
+      "flags": [
+        "night_safety"
+      ],
+      "reasons": [
+        "Known place matched: home.",
+        "Nighttime confusion carries higher safety risk."
+      ]
+    },
+    "evidence": [
+      "Support mode: general_support (0.66 confidence).",
+      "Patient said: \"I am confused\".",
+      "Place engine matched likely place: home.",
+      "Time context: 10:02 PM night.",
+      "Recent event: had lunch.",
+      "Family note: Anna visits most afternoons..",
+      "Doctor note: Take the blue pill after dinner..",
+      "Risk signal: Known place matched: home.",
+      "Risk signal: Nighttime confusion carries higher safety risk."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Review this moment when available. Risk level is low.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": false,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is night",
+      "routine_hint": "prepare for sleep",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    }
+  },
+  {
+    "id": "care_1777341720326",
+    "timestamp": "2026-04-28T02:02:00.324Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "I am scared. Where am I?",
+    "response": {
+      "reassurance": "Mary, you are safe and not alone.",
+      "context": "You are likely at home. It is 10:01 PM, night. This looks like No meal or medication due right now. Anna visits most afternoons. Doctor instruction: Take the blue pill after dinner.",
+      "next_step": "Follow the doctor note: Take the blue pill after dinner."
+    },
+    "risk": {
+      "level": "high",
+      "score": 0.62,
+      "flags": [
+        "distress",
+        "possible_wandering",
+        "night_safety"
+      ],
+      "reasons": [
+        "Patient used distress or fear language.",
+        "Speech suggests the patient may feel lost or displaced.",
+        "Known place matched: home.",
+        "Nighttime confusion carries higher safety risk."
+      ]
+    },
+    "evidence": [
+      "Support mode: emotional_support (0.92 confidence).",
+      "Patient said: \"I am scared. Where am I?\".",
+      "Place engine matched likely place: home.",
+      "Time context: 10:01 PM night.",
+      "Recent event: had lunch.",
+      "Family note: Anna visits most afternoons..",
+      "Doctor note: Take the blue pill after dinner..",
+      "Risk signal: Patient used distress or fear language.",
+      "Risk signal: Speech suggests the patient may feel lost or displaced.",
+      "Risk signal: Known place matched: home.",
+      "Risk signal: Nighttime confusion carries higher safety risk."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Check on Mary now. Risk level is high.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": true,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is night",
+      "routine_hint": "prepare for sleep",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    }
+  },
+  {
+    "id": "care_1777337955365",
+    "timestamp": "2026-04-28T00:59:15.362Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "[outro jingle]",
+    "response": {
+      "reassurance": "Mary, you are okay.",
+      "context": "You are likely at home. It is 08:59 PM, evening. daughter Anna may be nearby. Where am I? Your next routine is Prepare for sleep. Anna visits most afternoons. Doctor instruction: Take the blue pill after dinner.",
+      "next_step": "Follow the doctor note: Take the blue pill after dinner."
+    },
+    "risk": {
+      "level": "medium",
+      "score": 0.39,
+      "flags": [
+        "visual_medication_check",
+        "medicine_visible"
+      ],
+      "reasons": [
+        "Visual context requests medication verification.",
+        "Image labels include medication-related objects.",
+        "Known place matched: home.",
+        "Known person context available: daughter Anna."
+      ]
+    },
+    "evidence": [
+      "Support mode: general_support (0.71 confidence).",
+      "Patient said: \"[outro jingle]\".",
+      "Place engine matched likely place: home.",
+      "Time context: 08:59 PM evening.",
+      "Next routine: 21:00 Prepare for sleep.",
+      "Known nearby person context: daughter Anna.",
+      "Recent event: had lunch.",
+      "Family note: Anna visits most afternoons..",
+      "Doctor note: Take the blue pill after dinner..",
+      "Visual context: Camera sees a blue pill bottle on the kitchen table..",
+      "Image labels: blue pill bottle, kitchen table.",
+      "Retrieved memory: Where am I?."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are and focus on Prepare for sleep.",
+      "caregiver_action": "Review this moment when available. Risk level is medium.",
+      "doctor_action": "Review medication, injury, or safety risk before giving new instructions.",
+      "alert_family": false,
+      "alert_doctor": true,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [
+        "daughter Anna"
+      ],
+      "time_context": "It is evening",
+      "routine_hint": "dinner and evening medicine",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "daughter Anna",
+    "visual_context": {
+      "description": "Camera sees a blue pill bottle on the kitchen table.",
+      "labels": [
+        "blue pill bottle",
+        "kitchen table"
+      ],
+      "concern": "medicine_check"
+    }
+  },
+  {
+    "id": "care_1777337831145",
+    "timestamp": "2026-04-28T00:57:11.142Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "Where am I?",
+    "response": {
+      "reassurance": "Mary, you are safe.",
+      "context": "You are likely at home. It is 08:57 PM, evening. daughter Anna may be nearby. Is this my medicine? Your next routine is Prepare for sleep. Anna visits most afternoons. Doctor instruction: Take the blue pill after dinner.",
+      "next_step": "Follow the doctor note: Take the blue pill after dinner."
+    },
+    "risk": {
+      "level": "emergency",
+      "score": 0.81,
+      "flags": [
+        "disorientation",
+        "possible_wandering",
+        "visual_medication_check",
+        "medicine_visible"
+      ],
+      "reasons": [
+        "Patient used orientation/confusion language.",
+        "Speech suggests the patient may feel lost or displaced.",
+        "Visual context requests medication verification.",
+        "Image labels include medication-related objects.",
+        "Known place matched: home.",
+        "Known person context available: daughter Anna."
+      ]
+    },
+    "evidence": [
+      "Support mode: orientation (0.85 confidence).",
+      "Patient said: \"Where am I?\".",
+      "Place engine matched likely place: home.",
+      "Time context: 08:57 PM evening.",
+      "Next routine: 21:00 Prepare for sleep.",
+      "Known nearby person context: daughter Anna.",
+      "Recent event: had lunch.",
+      "Family note: Anna visits most afternoons..",
+      "Doctor note: Take the blue pill after dinner..",
+      "Visual context: Camera sees a blue pill bottle on the kitchen table..",
+      "Image labels: blue pill bottle, kitchen table.",
+      "Retrieved memory: Is this my medicine?."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are and focus on Prepare for sleep.",
+      "caregiver_action": "Check on Mary now. Risk level is emergency.",
+      "doctor_action": "Review medication, injury, or safety risk before giving new instructions.",
+      "alert_family": true,
+      "alert_doctor": true,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [
+        "daughter Anna"
+      ],
+      "time_context": "It is evening",
+      "routine_hint": "dinner and evening medicine",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "daughter Anna",
+    "visual_context": {
+      "description": "Camera sees a blue pill bottle on the kitchen table.",
+      "labels": [
+        "blue pill bottle",
+        "kitchen table"
+      ],
+      "concern": "medicine_check"
+    }
+  },
+  {
+    "id": "care_1777337377436",
+    "timestamp": "2026-04-28T00:49:37.434Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "Is this my medicine?",
+    "response": {
+      "reassurance": "Mary, you are okay.",
+      "context": "You are likely at home. It is 08:49 PM, evening. daughter Anna may be nearby. Where am I? Your next routine is Prepare for sleep. Anna visits most afternoons. Doctor instruction: Take the blue pill after dinner.",
+      "next_step": "Follow the doctor note: Take the blue pill after dinner."
+    },
+    "risk": {
+      "level": "high",
+      "score": 0.59,
+      "flags": [
+        "medication_safety",
+        "visual_medication_check",
+        "medicine_visible"
+      ],
+      "reasons": [
+        "Speech mentions medication, which requires extra caution.",
+        "Visual context requests medication verification.",
+        "Image labels include medication-related objects.",
+        "Known place matched: home.",
+        "Known person context available: daughter Anna."
+      ]
+    },
+    "evidence": [
+      "Support mode: general_support (0.71 confidence).",
+      "Patient said: \"Is this my medicine?\".",
+      "Place engine matched likely place: home.",
+      "Time context: 08:49 PM evening.",
+      "Next routine: 21:00 Prepare for sleep.",
+      "Known nearby person context: daughter Anna.",
+      "Recent event: had lunch.",
+      "Family note: Anna visits most afternoons..",
+      "Doctor note: Take the blue pill after dinner..",
+      "Visual context: Camera sees a blue pill bottle on the kitchen table..",
+      "Image labels: blue pill bottle, kitchen table.",
+      "Retrieved memory: Where am I?."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are and focus on Prepare for sleep.",
+      "caregiver_action": "Check on Mary now. Risk level is high.",
+      "doctor_action": "Review medication, injury, or safety risk before giving new instructions.",
+      "alert_family": true,
+      "alert_doctor": true,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [
+        "daughter Anna"
+      ],
+      "time_context": "It is evening",
+      "routine_hint": "dinner and evening medicine",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "daughter Anna",
+    "visual_context": {
+      "description": "Camera sees a blue pill bottle on the kitchen table.",
+      "labels": [
+        "blue pill bottle",
+        "kitchen table"
+      ],
+      "concern": "medicine_check"
+    }
+  },
+  {
+    "id": "care_1777337370729",
+    "timestamp": "2026-04-28T00:49:30.727Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "Where am I?",
+    "response": {
+      "reassurance": "Mary, you are safe.",
+      "context": "You are likely at home. It is 08:49 PM, evening. daughter Anna may be nearby. Where am I? Your next routine is Prepare for sleep. Anna visits most afternoons. Doctor instruction: Take the blue pill after dinner.",
+      "next_step": "Follow the doctor note: Take the blue pill after dinner."
+    },
+    "risk": {
+      "level": "emergency",
+      "score": 0.81,
+      "flags": [
+        "disorientation",
+        "possible_wandering",
+        "visual_medication_check",
+        "medicine_visible"
+      ],
+      "reasons": [
+        "Patient used orientation/confusion language.",
+        "Speech suggests the patient may feel lost or displaced.",
+        "Visual context requests medication verification.",
+        "Image labels include medication-related objects.",
+        "Known place matched: home.",
+        "Known person context available: daughter Anna."
+      ]
+    },
+    "evidence": [
+      "Support mode: orientation (0.85 confidence).",
+      "Patient said: \"Where am I?\".",
+      "Place engine matched likely place: home.",
+      "Time context: 08:49 PM evening.",
+      "Next routine: 21:00 Prepare for sleep.",
+      "Known nearby person context: daughter Anna.",
+      "Recent event: had lunch.",
+      "Family note: Anna visits most afternoons..",
+      "Doctor note: Take the blue pill after dinner..",
+      "Visual context: Camera sees a blue pill bottle on the kitchen table..",
+      "Image labels: blue pill bottle, kitchen table.",
+      "Retrieved memory: Where am I?."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are and focus on Prepare for sleep.",
+      "caregiver_action": "Check on Mary now. Risk level is emergency.",
+      "doctor_action": "Review medication, injury, or safety risk before giving new instructions.",
+      "alert_family": true,
+      "alert_doctor": true,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [
+        "daughter Anna"
+      ],
+      "time_context": "It is evening",
+      "routine_hint": "dinner and evening medicine",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "daughter Anna",
+    "visual_context": {
+      "description": "Camera sees a blue pill bottle on the kitchen table.",
+      "labels": [
+        "blue pill bottle",
+        "kitchen table"
+      ],
+      "concern": "medicine_check"
+    }
+  },
+  {
+    "id": "care_1777337359607",
+    "timestamp": "2026-04-28T00:49:19.606Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "Where am I?",
+    "response": {
+      "reassurance": "Mary, you are safe.",
+      "context": "You are likely at home. It is 08:49 PM, evening. daughter Anna may be nearby. Where am I? I am scared. Is this my medicine? Your next routine is Prepare for sleep. Anna visits most afternoons. Doctor instruction: Take the blue pill after dinner.",
+      "next_step": "Follow the doctor note: Take the blue pill after dinner."
+    },
+    "risk": {
+      "level": "emergency",
+      "score": 0.81,
+      "flags": [
+        "disorientation",
+        "possible_wandering",
+        "visual_medication_check",
+        "medicine_visible"
+      ],
+      "reasons": [
+        "Patient used orientation/confusion language.",
+        "Speech suggests the patient may feel lost or displaced.",
+        "Visual context requests medication verification.",
+        "Image labels include medication-related objects.",
+        "Known place matched: home.",
+        "Known person context available: daughter Anna."
+      ]
+    },
+    "evidence": [
+      "Support mode: orientation (0.85 confidence).",
+      "Patient said: \"Where am I?\".",
+      "Place engine matched likely place: home.",
+      "Time context: 08:49 PM evening.",
+      "Next routine: 21:00 Prepare for sleep.",
+      "Known nearby person context: daughter Anna.",
+      "Recent event: had lunch.",
+      "Family note: Anna visits most afternoons..",
+      "Doctor note: Take the blue pill after dinner..",
+      "Visual context: Camera sees a blue pill bottle on the kitchen table..",
+      "Image labels: blue pill bottle, kitchen table.",
+      "Retrieved memory: Where am I? I am scared. Is this my medicine?."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are and focus on Prepare for sleep.",
+      "caregiver_action": "Check on Mary now. Risk level is emergency.",
+      "doctor_action": "Review medication, injury, or safety risk before giving new instructions.",
+      "alert_family": true,
+      "alert_doctor": true,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [
+        "daughter Anna"
+      ],
+      "time_context": "It is evening",
+      "routine_hint": "dinner and evening medicine",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "daughter Anna",
+    "visual_context": {
+      "description": "Camera sees a blue pill bottle on the kitchen table.",
+      "labels": [
+        "blue pill bottle",
+        "kitchen table"
+      ],
+      "concern": "medicine_check"
+    }
+  },
+  {
+    "id": "care_1777316725966",
+    "timestamp": "2026-04-27T19:05:25.964Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "Where am I? I am scared. Is this my medicine?",
+    "response": {
+      "reassurance": "Mary, you are safe and not alone.",
+      "context": "You are likely at home kitchen. It is 03:05 PM, afternoon. daughter Anna may be nearby. Your next routine is Dinner and evening medicine. Anna is Mary's daughter and checks on her every evening. Doctor instruction: Take the blue pill only after dinner with caregiver confirmation.",
+      "next_step": "Follow the doctor note: Take the blue pill only after dinner with caregiver confirmation."
+    },
+    "risk": {
+      "level": "emergency",
+      "score": 0.98,
+      "flags": [
+        "distress",
+        "possible_wandering",
+        "medication_safety",
+        "visual_medication_check",
+        "medicine_visible"
+      ],
+      "reasons": [
+        "Patient used distress or fear language.",
+        "Speech suggests the patient may feel lost or displaced.",
+        "Speech mentions medication, which requires extra caution.",
+        "Visual context requests medication verification.",
+        "Image labels include medication-related objects.",
+        "Known place matched: home kitchen.",
+        "Known person context available: daughter Anna."
+      ]
+    },
+    "evidence": [
+      "Support mode: emotional_support (0.97 confidence).",
+      "Patient said: \"Where am I? I am scared. Is this my medicine?\".",
+      "Place engine matched likely place: home kitchen.",
+      "Time context: 03:05 PM afternoon.",
+      "Next routine: 19:00 Dinner and evening medicine.",
+      "Known nearby person context: daughter Anna.",
+      "Recent event: had lunch and rested in the living room.",
+      "Family note: Anna is Mary's daughter and checks on her every evening..",
+      "Doctor note: Take the blue pill only after dinner with caregiver confirmation..",
+      "Visual context: Camera sees a blue pill bottle on the kitchen table..",
+      "Image labels: blue pill bottle, kitchen table.",
+      "Retrieved memory: Where am I? I am scared. Is this my medicine?."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are and focus on Dinner and evening medicine.",
+      "caregiver_action": "Check on Mary now. Risk level is emergency.",
+      "doctor_action": "Review medication, injury, or safety risk before giving new instructions.",
+      "alert_family": true,
+      "alert_doctor": true,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home kitchen",
+      "likely_people": [
+        "daughter Anna"
+      ],
+      "time_context": "It is afternoon",
+      "routine_hint": "meal or snack time",
+      "gps_match": null
+    },
+    "location_name": "home kitchen",
+    "nearby_person": "daughter Anna",
+    "visual_context": {
+      "description": "Camera sees a blue pill bottle on the kitchen table.",
+      "labels": [
+        "blue pill bottle",
+        "kitchen table"
+      ],
+      "concern": "medicine_check"
+    }
+  },
+  {
+    "id": "care_1777316718498",
+    "timestamp": "2026-04-27T19:05:18.494Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "Where am I?",
+    "response": {
+      "reassurance": "Mary, you are safe.",
+      "context": "You are likely at home. It is 03:04 PM, afternoon. daughter Anna may be nearby. Where am I? I am scared. Is this my medicine? Your next routine is Dinner and evening medicine. Anna visits most afternoons. Doctor instruction: Take the blue pill after dinner.",
+      "next_step": "Follow the doctor note: Take the blue pill after dinner."
+    },
+    "risk": {
+      "level": "emergency",
+      "score": 0.81,
+      "flags": [
+        "disorientation",
+        "possible_wandering",
+        "visual_medication_check",
+        "medicine_visible"
+      ],
+      "reasons": [
+        "Patient used orientation/confusion language.",
+        "Speech suggests the patient may feel lost or displaced.",
+        "Visual context requests medication verification.",
+        "Image labels include medication-related objects.",
+        "Known place matched: home.",
+        "Known person context available: daughter Anna."
+      ]
+    },
+    "evidence": [
+      "Support mode: orientation (0.85 confidence).",
+      "Patient said: \"Where am I?\".",
+      "Place engine matched likely place: home.",
+      "Time context: 03:04 PM afternoon.",
+      "Next routine: 19:00 Dinner and evening medicine.",
+      "Known nearby person context: daughter Anna.",
+      "Recent event: had lunch.",
+      "Family note: Anna visits most afternoons..",
+      "Doctor note: Take the blue pill after dinner..",
+      "Visual context: Camera sees a blue pill bottle on the kitchen table..",
+      "Image labels: blue pill bottle, kitchen table.",
+      "Retrieved memory: Where am I? I am scared. Is this my medicine?."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are and focus on Dinner and evening medicine.",
+      "caregiver_action": "Check on Mary now. Risk level is emergency.",
+      "doctor_action": "Review medication, injury, or safety risk before giving new instructions.",
+      "alert_family": true,
+      "alert_doctor": true,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [
+        "daughter Anna"
+      ],
+      "time_context": "It is afternoon",
+      "routine_hint": "rest, tea, or family visit",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "daughter Anna",
+    "visual_context": {
+      "description": "Camera sees a blue pill bottle on the kitchen table.",
+      "labels": [
+        "blue pill bottle",
+        "kitchen table"
+      ],
+      "concern": "medicine_check"
+    }
+  },
+  {
+    "id": "care_1777312892360",
+    "timestamp": "2026-04-27T18:01:32.359Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "Where am I? I am scared. Is this my medicine?",
+    "response": {
+      "reassurance": "Mary, you are safe and not alone.",
+      "context": "You are likely at kitchen. It is 7:14 PM, evening. daughter Anna may be nearby. Your next routine is Dinner and evening medicine.",
+      "next_step": "Next, focus on Dinner and evening medicine."
+    },
+    "risk": {
+      "level": "emergency",
+      "score": 0.98,
+      "flags": [
+        "distress",
+        "possible_wandering",
+        "medication_safety",
+        "visual_medication_check",
+        "medicine_visible"
+      ],
+      "reasons": [
+        "Patient used distress or fear language.",
+        "Speech suggests the patient may feel lost or displaced.",
+        "Speech mentions medication, which requires extra caution.",
+        "Visual context requests medication verification.",
+        "Image labels include medication-related objects.",
+        "Known place matched: kitchen.",
+        "Known person context available: daughter Anna."
+      ]
+    },
+    "evidence": [
+      "Support mode: emotional_support (0.97 confidence).",
+      "Patient said: \"Where am I? I am scared. Is this my medicine?\".",
+      "Place engine matched likely place: kitchen.",
+      "Time context: 7:14 PM evening.",
+      "Next routine: 19:00 Dinner and evening medicine.",
+      "Known nearby person context: daughter Anna.",
+      "Recent event: had lunch.",
+      "Visual context: Camera sees a blue pill bottle on the kitchen table..",
+      "Image labels: blue pill bottle, kitchen table.",
+      "Retrieved memory: Hey, I want to eat something..",
+      "Retrieved memory: Where am I?.",
+      "Retrieved memory: Where am I?."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are and focus on Dinner and evening medicine.",
+      "caregiver_action": "Check on Mary now. Risk level is emergency.",
+      "doctor_action": "Review medication, injury, or safety risk before giving new instructions.",
+      "alert_family": true,
+      "alert_doctor": true,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "kitchen",
+      "likely_people": [
+        "daughter Anna"
+      ],
+      "time_context": "It is evening",
+      "routine_hint": "meal or snack time",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "daughter Anna",
+    "visual_context": {
+      "description": "Camera sees a blue pill bottle on the kitchen table.",
+      "labels": [
+        "blue pill bottle",
+        "kitchen table"
+      ],
+      "concern": "medicine_check"
+    }
+  }
+]

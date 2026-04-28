@@ -1,0 +1,26 @@
+[
+  {
+    "id": "home",
+    "name": "Home",
+    "lat": 40.7128,
+    "lng": -74.006,
+    "radiusMeters": 120,
+    "meaning": "This is your home. You are safe here."
+  },
+  {
+    "id": "clinic",
+    "name": "Clinic",
+    "lat": 40.7138,
+    "lng": -74.001,
+    "radiusMeters": 150,
+    "meaning": "This is your clinic for appointments."
+  },
+  {
+    "id": "daughter_home",
+    "name": "Daughter Anna's House",
+    "lat": 40.715,
+    "lng": -74.01,
+    "radiusMeters": 150,
+    "meaning": "This is your daughter Anna's house. She often helps you here."
+  }
+]

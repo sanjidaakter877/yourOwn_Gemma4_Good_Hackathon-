@@ -1,0 +1,14 @@
+[
+  {
+    "name": "Anna",
+    "relationship": "daughter",
+    "language": "English",
+    "notes": "Usually visits in the afternoon"
+  },
+  {
+    "name": "Mrs. Lee",
+    "relationship": "neighbor",
+    "language": "English",
+    "notes": "Often greets Mary in the morning"
+  }
+]

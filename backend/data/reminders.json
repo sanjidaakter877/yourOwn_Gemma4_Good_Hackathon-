@@ -1,0 +1,12 @@
+[
+  {
+    "id": "r001",
+    "title": "Morning medicine",
+    "time": "morning"
+  },
+  {
+    "id": "r002",
+    "title": "Evening medicine",
+    "time": "evening"
+  }
+]

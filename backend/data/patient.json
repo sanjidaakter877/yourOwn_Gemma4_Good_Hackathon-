@@ -1,0 +1,16 @@
+{
+  "name": "Mary",
+  "mainLanguage": "English",
+  "knownPlaces": [
+    "home",
+    "daughter Anna's house",
+    "clinic",
+    "park"
+  ],
+  "routines": {
+    "morning": "breakfast and morning medicine",
+    "afternoon": "rest, tea, or family visit",
+    "evening": "dinner and evening medicine",
+    "night": "prepare for sleep"
+  }
+}

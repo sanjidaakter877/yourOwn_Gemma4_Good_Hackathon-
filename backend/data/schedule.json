@@ -1,0 +1,32 @@
+[
+  {
+    "time": "08:00",
+    "label": "Breakfast",
+    "alarm": true,
+    "kind": "breakfast"
+  },
+  {
+    "time": "08:15",
+    "label": "Morning medication",
+    "alarm": true,
+    "kind": "medication"
+  },
+  {
+    "time": "12:30",
+    "label": "Lunch",
+    "alarm": true,
+    "kind": "lunch"
+  },
+  {
+    "time": "19:00",
+    "label": "Dinner",
+    "alarm": true,
+    "kind": "dinner"
+  },
+  {
+    "time": "19:30",
+    "label": "Evening medication",
+    "alarm": true,
+    "kind": "medication"
+  }
+]
