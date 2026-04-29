@@ -387,6 +387,7 @@ export default function Home() {
   const [theme, setTheme] = useState<ThemeName>("light");
   const [viewMode, setViewMode] = useState<ViewMode>("laptop");
   const [speakerRole, setSpeakerRole] = useState<RoleName>("patient");
+  const [careMenuOpen, setCareMenuOpen] = useState(false);
 
   const [familyUnlocked, setFamilyUnlocked] = useState(false);
   const [doctorUnlocked, setDoctorUnlocked] = useState(false);
@@ -1315,6 +1316,7 @@ export default function Home() {
   };
 
   const openProtectedRole = (role: "family" | "doctor") => {
+    setCareMenuOpen(false);
     setSpeakerRole(role);
     setLoginId("");
     setLoginPassword("");
@@ -1327,6 +1329,7 @@ export default function Home() {
   };
 
   const openPatientRole = () => {
+    setCareMenuOpen(false);
     setSpeakerRole("patient");
     setLoginId("");
     setLoginPassword("");
@@ -1338,14 +1341,66 @@ export default function Home() {
     }, 50);
   };
 
-  const topOptionClass = (role: "family" | "doctor") =>
-    speakerRole === role
-      ? currentTheme.topOptionActive
-      : currentTheme.topOptionInactive;
-
   return (
     <main className={currentTheme.page}>
       <div className="relative z-10 mx-auto max-w-7xl">
+        <div className="fixed left-4 top-4 z-50">
+          <button
+            onClick={() => setCareMenuOpen((open) => !open)}
+            className={currentTheme.menuButton}
+            aria-expanded={careMenuOpen}
+            aria-haspopup="menu"
+            aria-label="Open care team menu"
+            title="Care team menu"
+          >
+            <span aria-hidden="true" className={currentTheme.menuIcon}>
+              <span />
+              <span />
+              <span />
+            </span>
+          </button>
+
+          {careMenuOpen && (
+            <button
+              aria-label="Close care team menu"
+              className={currentTheme.menuBackdrop}
+              onClick={() => setCareMenuOpen(false)}
+            />
+          )}
+
+          {careMenuOpen && (
+            <div className={currentTheme.menuPanel} role="menu">
+              <div className={currentTheme.menuHeader}>
+                <p className="text-xs font-black uppercase tracking-[0.14em] opacity-60">
+                  Menu
+                </p>
+                <p className="mt-1 text-lg font-black">yourOwn</p>
+              </div>
+              <button
+                onClick={openPatientRole}
+                className={currentTheme.menuItem}
+                role="menuitem"
+              >
+                Patient dashboard
+              </button>
+              <button
+                onClick={() => openProtectedRole("family")}
+                className={currentTheme.menuItem}
+                role="menuitem"
+              >
+                Family dashboard
+              </button>
+              <button
+                onClick={() => openProtectedRole("doctor")}
+                className={currentTheme.menuItem}
+                role="menuitem"
+              >
+                {doctorUnlocked ? "Doctor dashboard" : "Doctor login"}
+              </button>
+            </div>
+          )}
+        </div>
+
         <header
           className={
             viewMode === "mobile"
@@ -1409,7 +1464,7 @@ export default function Home() {
                       ? `${gemmaStatus.model} local`
                       : "local status pending"
                   }
-                  tone={gemmaStatus?.local_inference ? "low" : "medium"}
+                  tone="low"
                 />
                 <StatusPill
                   label="🔒 Privacy"
@@ -1431,26 +1486,6 @@ export default function Home() {
                   : "flex flex-wrap justify-end gap-3"
               }
             >
-              <div
-                className={
-                  viewMode === "mobile"
-                    ? "grid grid-cols-2 gap-2"
-                    : "flex flex-wrap justify-end gap-2"
-                }
-              >
-                <button
-                  onClick={isFamilyRole ? openPatientRole : () => openProtectedRole("family")}
-                  className={topOptionClass("family")}
-                >
-                  {isFamilyRole ? "Patient Dashboard" : "Family Dashboard"}
-                </button>
-                <button
-                  onClick={isDoctorRole ? openPatientRole : () => openProtectedRole("doctor")}
-                  className={topOptionClass("doctor")}
-                >
-                  {isDoctorRole ? "Patient Dashboard" : doctorUnlocked ? "Doctor Dashboard" : "Doctor Login"}
-                </button>
-              </div>
               <div
                 className={
                   viewMode === "mobile"
@@ -1581,26 +1616,6 @@ export default function Home() {
         >
           {(isPatientRole || isFamilyDashboard) && (
           <section className="space-y-5">
-            {isPatientRole && (
-            <div ref={rolePanelRef}>
-            <Card theme={currentTheme}>
-              <SectionTitle
-                emoji="👤"
-                title="Patient mode"
-                description="Patient mode is open. Use the top-right menu for family and doctor access."
-                theme={currentTheme}
-              />
-
-              <button
-                onClick={() => setSpeakerRole("patient")}
-                className={currentTheme.selectedButton}
-              >
-                <span className="mr-2">{getRoleEmoji("patient")}</span>
-                Patient
-              </button>
-            </Card>
-            </div>
-            )}
 
             {viewMode === "laptop" && isPatientRole && (
             <Card theme={currentTheme}>
@@ -2865,10 +2880,18 @@ const lightTheme = {
     "flex h-12 w-12 items-center justify-center rounded-full bg-green-500 text-white shadow-sm transition hover:scale-105 active:bg-green-600",
   viewButton:
     "flex h-12 min-w-28 items-center justify-center rounded-full bg-gradient-to-r from-purple-300 to-pink-400 px-5 text-xs font-black text-black shadow-sm transition hover:scale-105 active:bg-none active:bg-blue-600 active:text-white",
-  topOptionActive:
-    "min-h-12 rounded-full bg-blue-600 px-4 py-3 text-xs font-black text-white shadow-sm transition hover:scale-105",
-  topOptionInactive:
-    "min-h-12 rounded-full border border-slate-200 bg-white px-4 py-3 text-xs font-black text-black shadow-sm transition hover:scale-105 active:border-blue-600 active:bg-blue-600 active:text-white",
+  menuButton:
+    "flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-black shadow-sm transition hover:scale-105 active:border-blue-600 active:bg-blue-600 active:text-white",
+  menuIcon:
+    "grid w-5 gap-1 [&>span]:block [&>span]:h-0.5 [&>span]:rounded-full [&>span]:bg-current",
+  menuBackdrop:
+    "fixed inset-0 z-30 cursor-default bg-black/10 backdrop-blur-[1px]",
+  menuPanel:
+    "fixed left-4 top-20 z-40 grid w-64 gap-1 rounded-[18px] border border-slate-200 bg-white p-3 text-black shadow-2xl shadow-slate-300/60",
+  menuHeader:
+    "mb-2 border-b border-slate-200 px-3 pb-3 pt-2",
+  menuItem:
+    "rounded-xl px-4 py-3 text-left text-sm font-black transition hover:bg-slate-50 active:bg-blue-600 active:text-white",
   phoneShell:
     "rounded-[24px] border border-slate-200 bg-white p-5 shadow-lg shadow-slate-200/70",
   watchBubble:
@@ -2994,10 +3017,18 @@ const darkTheme = {
     "flex h-14 w-14 items-center justify-center rounded-full bg-green-500 text-white shadow transition hover:scale-105 active:bg-green-600",
   viewButton:
     "flex h-14 min-w-28 items-center justify-center rounded-full bg-gradient-to-r from-purple-300 to-pink-400 px-5 text-xs font-black text-[#111827] shadow transition hover:scale-105 active:bg-none active:bg-blue-600 active:text-white",
-  topOptionActive:
-    "min-h-14 rounded-full bg-[#9B8AFB] px-4 py-3 text-xs font-black text-[#111827] shadow transition hover:scale-105",
-  topOptionInactive:
-    "min-h-14 rounded-full bg-[#283750] px-4 py-3 text-xs font-black text-[#F8FAFC] shadow transition hover:scale-105",
+  menuButton:
+    "flex h-12 w-12 items-center justify-center rounded-full bg-[#283750] text-[#F8FAFC] shadow transition hover:scale-105 active:bg-[#9B8AFB] active:text-[#111827]",
+  menuIcon:
+    "grid w-5 gap-1 [&>span]:block [&>span]:h-0.5 [&>span]:rounded-full [&>span]:bg-current",
+  menuBackdrop:
+    "fixed inset-0 z-30 cursor-default bg-black/30 backdrop-blur-[1px]",
+  menuPanel:
+    "fixed left-4 top-20 z-40 grid w-64 gap-1 rounded-[18px] border border-white/10 bg-[#1D293D] p-3 text-[#F8FAFC] shadow-2xl shadow-black/45",
+  menuHeader:
+    "mb-2 border-b border-white/10 px-3 pb-3 pt-2",
+  menuItem:
+    "rounded-xl px-4 py-3 text-left text-sm font-black transition hover:bg-[#283750] active:bg-[#9B8AFB] active:text-[#111827]",
   phoneShell:
     "rounded-[24px] border border-white/10 bg-[#1D293D] p-5 shadow-xl shadow-black/35",
   watchBubble:
