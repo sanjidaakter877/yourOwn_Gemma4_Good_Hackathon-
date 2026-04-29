@@ -455,6 +455,7 @@ export default function Home() {
   const lastAlarmKeyRef = useRef("");
   const speechRecognitionRef = useRef<any>(null);
   const liveMonitoringRef = useRef(false);
+  const rolePanelRef = useRef<HTMLDivElement | null>(null);
 
   const currentTheme = theme === "light" ? lightTheme : darkTheme;
 
@@ -671,6 +672,12 @@ export default function Home() {
   const isProtectedRoleLocked =
     (speakerRole === "family" && !familyUnlocked) ||
     (speakerRole === "doctor" && !doctorUnlocked);
+  const isPatientRole = speakerRole === "patient";
+  const isFamilyRole = speakerRole === "family";
+  const isDoctorRole = speakerRole === "doctor";
+  const isFamilyDashboard = isFamilyRole && familyUnlocked;
+  const isDoctorDashboard = isDoctorRole && doctorUnlocked;
+  const isCareTeamDashboard = isFamilyDashboard || isDoctorDashboard;
 
   const canModifyCareInfo =
     (speakerRole === "family" && familyUnlocked) ||
@@ -1307,6 +1314,35 @@ export default function Home() {
     }
   };
 
+  const openProtectedRole = (role: "family" | "doctor") => {
+    setSpeakerRole(role);
+    setLoginId("");
+    setLoginPassword("");
+    window.setTimeout(() => {
+      rolePanelRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    }, 50);
+  };
+
+  const openPatientRole = () => {
+    setSpeakerRole("patient");
+    setLoginId("");
+    setLoginPassword("");
+    window.setTimeout(() => {
+      rolePanelRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    }, 50);
+  };
+
+  const topOptionClass = (role: "family" | "doctor") =>
+    speakerRole === role
+      ? currentTheme.topOptionActive
+      : currentTheme.topOptionInactive;
+
   return (
     <main className={currentTheme.page}>
       <div className="relative z-10 mx-auto max-w-7xl">
@@ -1391,10 +1427,37 @@ export default function Home() {
             <div
               className={
                 viewMode === "mobile"
-                  ? "grid grid-cols-[auto_1fr] gap-3"
-                  : "flex flex-wrap gap-3"
+                  ? "grid gap-3"
+                  : "flex flex-wrap justify-end gap-3"
               }
             >
+              <div
+                className={
+                  viewMode === "mobile"
+                    ? "grid grid-cols-2 gap-2"
+                    : "flex flex-wrap justify-end gap-2"
+                }
+              >
+                <button
+                  onClick={isFamilyRole ? openPatientRole : () => openProtectedRole("family")}
+                  className={topOptionClass("family")}
+                >
+                  {isFamilyRole ? "Patient Dashboard" : "Family Dashboard"}
+                </button>
+                <button
+                  onClick={isDoctorRole ? openPatientRole : () => openProtectedRole("doctor")}
+                  className={topOptionClass("doctor")}
+                >
+                  {isDoctorRole ? "Patient Dashboard" : doctorUnlocked ? "Doctor Dashboard" : "Doctor Login"}
+                </button>
+              </div>
+              <div
+                className={
+                  viewMode === "mobile"
+                    ? "grid grid-cols-[auto_1fr] gap-3"
+                    : "flex flex-wrap justify-end gap-3"
+                }
+              >
               <button
                 onClick={() => setTheme(theme === "light" ? "dark" : "light")}
                 className={currentTheme.themeButton}
@@ -1417,9 +1480,10 @@ export default function Home() {
               </button>
             </div>
           </div>
+          </div>
         </header>
 
-        {viewMode === "mobile" && (
+        {viewMode === "mobile" && isPatientRole && (
           <MobilePatientMode
             currentClock={currentClock}
             currentTheme={currentTheme}
@@ -1441,7 +1505,7 @@ export default function Home() {
           />
         )}
 
-        {viewMode === "laptop" && (
+        {viewMode === "laptop" && isPatientRole && (
         <section className="mt-6 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
           <div className={currentTheme.demoPanel}>
             <p className="text-xs font-black uppercase tracking-[0.16em] text-[#6D8B7A]">
@@ -1470,68 +1534,75 @@ export default function Home() {
         </section>
         )}
 
+        {isProtectedRoleLocked && (
+          <section ref={rolePanelRef} className="mx-auto mt-6 max-w-md">
+            <Card theme={currentTheme}>
+              <SectionTitle
+                emoji={getRoleEmoji(speakerRole)}
+                title={`${speakerRole} login`}
+                description="Sign in to open the protected dashboard."
+                theme={currentTheme}
+              />
+
+              <div className="mt-4 grid gap-3">
+                <input
+                  value={loginId}
+                  onChange={(e) => setLoginId(e.target.value)}
+                  placeholder="ID"
+                  className={currentTheme.input}
+                />
+                <input
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  placeholder="Password"
+                  type="password"
+                  className={currentTheme.input}
+                />
+                <button onClick={unlockRole} className={currentTheme.softButton}>
+                  Unlock {speakerRole}
+                </button>
+                <p className={currentTheme.miniText}>
+                  Care team login: family / 1234 or doctor / 1234
+                </p>
+              </div>
+            </Card>
+          </section>
+        )}
+
+        {!isProtectedRoleLocked && (
         <div
           className={
-            viewMode === "mobile"
+            isDoctorDashboard
+              ? "mt-6 grid gap-6"
+              : viewMode === "mobile"
               ? "mx-auto mt-6 grid max-w-md gap-6"
               : "mt-6 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]"
           }
         >
+          {(isPatientRole || isFamilyDashboard) && (
           <section className="space-y-5">
+            {isPatientRole && (
+            <div ref={rolePanelRef}>
             <Card theme={currentTheme}>
               <SectionTitle
                 emoji="👤"
-                title="Mode"
-                description="Patient is open. Family and doctor are protected."
+                title="Patient mode"
+                description="Patient mode is open. Use the top-right menu for family and doctor access."
                 theme={currentTheme}
               />
 
-              <div className={currentTheme.segment}>
-                {roleOptions.map((role) => (
-                  <button
-                    key={role.value}
-                    onClick={() => setSpeakerRole(role.value)}
-                    className={
-                      speakerRole === role.value
-                        ? currentTheme.segmentActive
-                        : currentTheme.segmentInactive
-                    }
-                  >
-                    <span className="block text-xl">{getRoleEmoji(role.value)}</span>
-                    {role.label}
-                  </button>
-                ))}
-              </div>
-
-              {isProtectedRoleLocked && (
-                <div className="mt-4 grid gap-3">
-                  <input
-                    value={loginId}
-                    onChange={(e) => setLoginId(e.target.value)}
-                    placeholder="ID"
-                    className={currentTheme.input}
-                  />
-                  <input
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    placeholder="Password"
-                    type="password"
-                    className={currentTheme.input}
-                  />
-                  <button
-                    onClick={unlockRole}
-                    className={currentTheme.softButton}
-                  >
-                    Unlock {speakerRole}
-                  </button>
-                  <p className={currentTheme.miniText}>
-                    Care team login: family / 1234 or doctor / 1234
-                  </p>
-                </div>
-              )}
+              <button
+                onClick={() => setSpeakerRole("patient")}
+                className={currentTheme.selectedButton}
+              >
+                <span className="mr-2">{getRoleEmoji("patient")}</span>
+                Patient
+              </button>
             </Card>
+            </div>
+            )}
 
-            {viewMode === "laptop" && (
+            {viewMode === "laptop" && isPatientRole && (
             <Card theme={currentTheme}>
               <SectionTitle
                 emoji="🎙️"
@@ -1591,6 +1662,7 @@ export default function Home() {
               </Card>
             )}
 
+            {isPatientRole && (
             <Card theme={currentTheme}>
               <SectionTitle
                 emoji="📷"
@@ -1691,7 +1763,9 @@ export default function Home() {
                 Camera labels feed Gemma evidence and safety risk.
               </StatusBox>
             </Card>
+            )}
 
+            {(isPatientRole || isFamilyDashboard) && (
             <Card theme={currentTheme}>
               <SectionTitle
                 emoji="📍"
@@ -1725,7 +1799,9 @@ export default function Home() {
 
               <StatusBox theme={currentTheme}>{gpsStatus}</StatusBox>
             </Card>
+            )}
 
+            {(isPatientRole || isFamilyDashboard) && (
             <Card theme={currentTheme}>
               <SectionTitle
                 emoji="🕒"
@@ -1817,7 +1893,9 @@ export default function Home() {
                 </div>
               )}
             </Card>
+            )}
 
+            {(isPatientRole || isFamilyDashboard) && (
             <Card theme={currentTheme}>
               <SectionTitle
                 emoji="📓"
@@ -1840,10 +1918,12 @@ export default function Home() {
                 ))}
               </div>
             </Card>
+            )}
           </section>
+          )}
 
           <section className="space-y-5">
-            {viewMode === "laptop" && (
+            {viewMode === "laptop" && isPatientRole && (
             <Card theme={currentTheme}>
               <SectionTitle
                 emoji="💬"
@@ -1866,7 +1946,7 @@ export default function Home() {
             </Card>
             )}
 
-            {speakerRole === "doctor" && doctorUnlocked && (
+            {isDoctorDashboard && (
               <DoctorDashboard
                 clinicalAssessment={clinicalAssessment}
                 currentTheme={currentTheme}
@@ -1884,7 +1964,7 @@ export default function Home() {
               />
             )}
 
-            {speakerRole === "family" && familyUnlocked && (
+            {isFamilyDashboard && (
               <FamilyPhotoDashboard
                 currentTheme={currentTheme}
                 onPhotoUpload={handlePhotoUpload}
@@ -1896,6 +1976,7 @@ export default function Home() {
               />
             )}
 
+            {isFamilyDashboard && (
             <Card theme={currentTheme}>
               <SectionTitle
                 emoji="🧠"
@@ -1969,16 +2050,6 @@ export default function Home() {
                     />
                   </Field>
                 )}
-
-                {speakerRole === "doctor" && doctorUnlocked && (
-                  <Field label="Doctor quick instruction" theme={currentTheme}>
-                    <textarea
-                      value={doctorNote}
-                      onChange={(e) => setDoctorNote(e.target.value)}
-                      className={`${currentTheme.input} min-h-[86px] resize-none`}
-                    />
-                  </Field>
-                )}
               </div>
 
               {canModifyCareInfo && (
@@ -1990,9 +2061,11 @@ export default function Home() {
                 </div>
               )}
             </Card>
+            )}
 
           </section>
         </div>
+        )}
       </div>
     </main>
   );
@@ -2792,6 +2865,10 @@ const lightTheme = {
     "flex h-12 w-12 items-center justify-center rounded-full bg-green-500 text-white shadow-sm transition hover:scale-105 active:bg-green-600",
   viewButton:
     "flex h-12 min-w-28 items-center justify-center rounded-full bg-gradient-to-r from-purple-300 to-pink-400 px-5 text-xs font-black text-black shadow-sm transition hover:scale-105 active:bg-none active:bg-blue-600 active:text-white",
+  topOptionActive:
+    "min-h-12 rounded-full bg-blue-600 px-4 py-3 text-xs font-black text-white shadow-sm transition hover:scale-105",
+  topOptionInactive:
+    "min-h-12 rounded-full border border-slate-200 bg-white px-4 py-3 text-xs font-black text-black shadow-sm transition hover:scale-105 active:border-blue-600 active:bg-blue-600 active:text-white",
   phoneShell:
     "rounded-[24px] border border-slate-200 bg-white p-5 shadow-lg shadow-slate-200/70",
   watchBubble:
@@ -2917,6 +2994,10 @@ const darkTheme = {
     "flex h-14 w-14 items-center justify-center rounded-full bg-green-500 text-white shadow transition hover:scale-105 active:bg-green-600",
   viewButton:
     "flex h-14 min-w-28 items-center justify-center rounded-full bg-gradient-to-r from-purple-300 to-pink-400 px-5 text-xs font-black text-[#111827] shadow transition hover:scale-105 active:bg-none active:bg-blue-600 active:text-white",
+  topOptionActive:
+    "min-h-14 rounded-full bg-[#9B8AFB] px-4 py-3 text-xs font-black text-[#111827] shadow transition hover:scale-105",
+  topOptionInactive:
+    "min-h-14 rounded-full bg-[#283750] px-4 py-3 text-xs font-black text-[#F8FAFC] shadow transition hover:scale-105",
   phoneShell:
     "rounded-[24px] border border-white/10 bg-[#1D293D] p-5 shadow-xl shadow-black/35",
   watchBubble:
