@@ -64,6 +64,9 @@ function buildContext({ profile = {}, signals = {} }) {
     visualDescription: safeString(signals.visualDescription, ""),
     visualConcern: safeString(signals.visualConcern, ""),
     capturedImageAvailable: Boolean(signals.capturedImage),
+    capturedImage: safeString(signals.capturedImage, ""),
+    humeEmotion: signals.humeEmotion || null,
+    behaviorAnalysis: signals.behaviorAnalysis || null,
 
     scheduleNow: signals.scheduleNow || null,
     dailyLog: Array.isArray(signals.dailyLog) ? signals.dailyLog : [],

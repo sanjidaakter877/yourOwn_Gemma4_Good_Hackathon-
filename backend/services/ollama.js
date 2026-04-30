@@ -146,7 +146,9 @@ function buildPrompt({
       visual_description: context.visualDescription,
       image_labels: context.imageLabels,
       visual_concern: context.visualConcern,
-      camera_frame_available: context.capturedImageAvailable
+      camera_frame_available: context.capturedImageAvailable,
+      hume_expression_signal: context.humeEmotion,
+      behavior_analysis: context.behaviorAnalysis
     },
     support_mode: scored.mode,
     confidence: scored.confidence,
@@ -176,6 +178,7 @@ Behavior rules:
 - Do not overload the patient.
 - Never pretend to know something with certainty if the signal is weak.
 - Use phrases like "It looks like..." or "I think..." when uncertain.
+- Treat Hume and behavior analysis as possible expression/support cues, not proof of the patient's inner feelings or a diagnosis.
 - Do not invent medical instructions.
 - Use doctor notes as safety context, but do not repeat medication instructions unless medication is due or the patient asks about medicine.
 - If a family note exists, use it as trusted context.

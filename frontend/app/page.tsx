@@ -336,8 +336,59 @@ type AssistResponse = {
     original_language: string;
     interpreted_text: string;
   };
+  family_alert?: FamilyAlertResult;
   audio_base64?: string | null;
   audio_mime_type?: string | null;
+};
+
+type FamilyAlertResult = {
+  sent: boolean;
+  reason?: string;
+  alert?: FamilyAlert;
+  sms?: {
+    attempted?: boolean;
+    success?: boolean;
+  };
+};
+
+type FamilyAlert = {
+  id: string;
+  timestamp: string;
+  type: string;
+  severity: string;
+  message: string;
+  caregiverName?: string;
+  location?: {
+    latitude: number;
+    longitude: number;
+    accuracyMeters?: number | null;
+    matchedPlace?: {
+      name: string;
+      distance_meters: number;
+    } | null;
+  };
+};
+
+type CareContact = {
+  name: string;
+  relationship: string;
+  phone: string;
+  email: string;
+  language?: string;
+  notes?: string;
+  notify?: boolean;
+};
+
+type CareSettings = {
+  home: {
+    lat: number;
+    lng: number;
+    radiusMeters: number;
+    address?: string;
+    meaning?: string;
+  };
+  primaryCaregiver: CareContact | null;
+  contacts: CareContact[];
 };
 
 type GemmaStatus = {
@@ -447,6 +498,9 @@ export default function Home() {
   const [error, setError] = useState("");
   const [gemmaStatus, setGemmaStatus] = useState<GemmaStatus | null>(null);
   const [severityTrend, setSeverityTrend] = useState<SeverityTrend | null>(null);
+  const [careSettings, setCareSettings] = useState<CareSettings | null>(null);
+  const [settingsStatus, setSettingsStatus] = useState("");
+  const [familyAlerts, setFamilyAlerts] = useState<FamilyAlert[]>([]);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -456,6 +510,10 @@ export default function Home() {
   const lastAlarmKeyRef = useRef("");
   const speechRecognitionRef = useRef<any>(null);
   const liveMonitoringRef = useRef(false);
+  const liveAssistInFlightRef = useRef(false);
+  const quietCheckIntervalRef = useRef<number | null>(null);
+  const lastLiveSpeechAtRef = useRef(0);
+  const lastQuietAssistAtRef = useRef(0);
   const rolePanelRef = useRef<HTMLDivElement | null>(null);
 
   const currentTheme = theme === "light" ? lightTheme : darkTheme;
@@ -529,14 +587,41 @@ export default function Home() {
     }
   };
 
+  const fetchCareSettings = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/care-settings");
+      if (!res.ok) return;
+      const data: CareSettings = await res.json();
+      setCareSettings(data);
+    } catch {
+      setCareSettings(null);
+    }
+  };
+
+  const fetchFamilyAlerts = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/care-settings/alerts/mary");
+      if (!res.ok) return;
+      const data: { alerts: FamilyAlert[] } = await res.json();
+      setFamilyAlerts(data.alerts || []);
+    } catch {
+      setFamilyAlerts([]);
+    }
+  };
+
   useEffect(() => {
     fetchSeverityTrend();
+    fetchCareSettings();
+    fetchFamilyAlerts();
   }, []);
 
   useEffect(() => {
     return () => {
       cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
       speechRecognitionRef.current?.stop?.();
+      if (quietCheckIntervalRef.current !== null) {
+        window.clearInterval(quietCheckIntervalRef.current);
+      }
     };
   }, []);
 
@@ -689,6 +774,14 @@ export default function Home() {
     (speakerRole === "family" && familyUnlocked) ||
     (speakerRole === "doctor" && doctorUnlocked);
 
+  useEffect(() => {
+    if (!isFamilyDashboard) return;
+    fetchCareSettings();
+    fetchFamilyAlerts();
+    const timer = window.setInterval(fetchFamilyAlerts, 15000);
+    return () => window.clearInterval(timer);
+  }, [isFamilyDashboard]);
+
   const updateScheduleItem = (
     index: number,
     field: "time" | "label",
@@ -758,6 +851,163 @@ export default function Home() {
 
   const removePhotoMemory = (id: string) => {
     setPhotoMemories((items) => items.filter((item) => item.id !== id));
+  };
+
+  const updateHomeSetting = (
+    field: "lat" | "lng" | "radiusMeters" | "address",
+    value: string
+  ) => {
+    setCareSettings((settings) => {
+      const current = settings || {
+        home: { lat: 0, lng: 0, radiusMeters: 120, address: "" },
+        primaryCaregiver: null,
+        contacts: [blankCareContact()]
+      };
+
+      return {
+        ...current,
+        home: {
+          ...current.home,
+          [field]:
+            field === "address"
+              ? value
+              : Number.isFinite(Number(value))
+                ? Number(value)
+                : 0
+        }
+      };
+    });
+  };
+
+  const updateCaregiverSetting = (
+    index: number,
+    field: "name" | "relationship" | "phone" | "email" | "notes",
+    value: string
+  ) => {
+    setCareSettings((settings) => {
+      const current = settings || {
+        home: { lat: 0, lng: 0, radiusMeters: 120, address: "" },
+        primaryCaregiver: null,
+        contacts: []
+      };
+      const contacts = [...(current.contacts?.length ? current.contacts : [blankCareContact()])];
+      contacts[index] = {
+        ...(contacts[index] || blankCareContact()),
+        [field]: value
+      };
+
+      return {
+        ...current,
+        primaryCaregiver: contacts[0] || null,
+        contacts
+      };
+    });
+  };
+
+  const updateCaregiverNotify = (index: number, notify: boolean) => {
+    setCareSettings((settings) => {
+      const current = settings || {
+        home: { lat: 0, lng: 0, radiusMeters: 120, address: "" },
+        primaryCaregiver: null,
+        contacts: []
+      };
+      const contacts = [...(current.contacts?.length ? current.contacts : [blankCareContact()])];
+      contacts[index] = {
+        ...(contacts[index] || blankCareContact()),
+        notify
+      };
+
+      return {
+        ...current,
+        primaryCaregiver: contacts[0] || null,
+        contacts
+      };
+    });
+  };
+
+  const addCaregiverContact = () => {
+    setCareSettings((settings) => {
+      const current = settings || {
+        home: { lat: 0, lng: 0, radiusMeters: 120, address: "" },
+        primaryCaregiver: null,
+        contacts: []
+      };
+      const contacts = [...(current.contacts || []), blankCareContact()];
+      return {
+        ...current,
+        primaryCaregiver: contacts[0] || null,
+        contacts
+      };
+    });
+  };
+
+  const removeCaregiverContact = (index: number) => {
+    setCareSettings((settings) => {
+      const current = settings || {
+        home: { lat: 0, lng: 0, radiusMeters: 120, address: "" },
+        primaryCaregiver: null,
+        contacts: []
+      };
+      const contacts = (current.contacts || []).filter((_, itemIndex) => itemIndex !== index);
+      return {
+        ...current,
+        primaryCaregiver: contacts[0] || null,
+        contacts
+      };
+    });
+  };
+
+  const useCurrentGpsAsHome = () => {
+    if (typeof latitude !== "number" || typeof longitude !== "number") {
+      setSettingsStatus("Get live GPS first, then save it as home.");
+      return;
+    }
+
+    setCareSettings((settings) => {
+      const current = settings || {
+        home: { lat: latitude, lng: longitude, radiusMeters: 120, address: "" },
+        primaryCaregiver: null,
+        contacts: [blankCareContact()]
+      };
+
+      return {
+        ...current,
+        home: {
+          ...current.home,
+          lat: Number(latitude.toFixed(6)),
+          lng: Number(longitude.toFixed(6)),
+          radiusMeters: current.home.radiusMeters || 120
+        }
+      };
+    });
+    setSettingsStatus("Current GPS copied into home settings.");
+  };
+
+  const saveCareSettings = async () => {
+    if (!careSettings) return;
+
+    setSettingsStatus("Saving alert setup...");
+
+    try {
+      const res = await fetch("http://localhost:5000/api/care-settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(careSettings)
+      });
+
+      const data: CareSettings & { error?: string } = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not save settings");
+
+      setCareSettings(data);
+      setSettingsStatus("Alert setup saved.");
+      await fetchFamilyAlerts();
+    } catch (err: unknown) {
+      setSettingsStatus(
+        err instanceof Error ? err.message : "Could not save alert setup."
+      );
+    }
   };
 
   const getLiveCompanionText = () =>
@@ -1060,15 +1310,22 @@ export default function Home() {
     }
   };
 
-  const sendLiveMonitoringAssist = async (transcript: string) => {
-    if (loading) return;
+  const sendLiveMonitoringAssist = async (
+    transcript: string,
+    source: "speech" | "quiet_check" = "speech"
+  ) => {
+    if (liveAssistInFlightRef.current) return;
 
+    liveAssistInFlightRef.current = true;
     setLoading(true);
     setError("");
     setSpeechText(transcript);
 
     try {
       const payload = getPayload();
+      const behaviorSignals = source === "quiet_check"
+        ? { noProgress: true, quietPause: true, hesitation: true, source: "timer" }
+        : { hesitation: hasHesitationPattern(transcript), source: "speech" };
       const res = await fetch("http://localhost:5000/assist", {
         method: "POST",
         headers: {
@@ -1079,7 +1336,8 @@ export default function Home() {
           signals: {
             ...payload.signals,
             speakerRole: "patient",
-            speechText: transcript
+            speechText: transcript,
+            behaviorSignals
           }
         })
       });
@@ -1088,7 +1346,11 @@ export default function Home() {
       if (!res.ok) throw new Error(data?.error || "Live monitor request failed");
 
       setResult(data);
-      addLog(`Live monitor heard: ${transcript}`);
+      addLog(
+        source === "quiet_check"
+          ? "Live monitor noticed quiet uncertainty"
+          : `Live monitor heard: ${transcript}`
+      );
       fetchSeverityTrend();
       await playAudio(data);
     } catch (err: unknown) {
@@ -1096,8 +1358,38 @@ export default function Home() {
         err instanceof Error ? err.message : "Could not process live monitoring";
       setError(message);
     } finally {
+      liveAssistInFlightRef.current = false;
       setLoading(false);
     }
+  };
+
+  const clearQuietCheckTimer = () => {
+    if (quietCheckIntervalRef.current === null) return;
+    window.clearInterval(quietCheckIntervalRef.current);
+    quietCheckIntervalRef.current = null;
+  };
+
+  const startQuietCheckTimer = () => {
+    clearQuietCheckTimer();
+    lastLiveSpeechAtRef.current = Date.now();
+    lastQuietAssistAtRef.current = 0;
+
+    quietCheckIntervalRef.current = window.setInterval(() => {
+      if (!liveMonitoringRef.current || liveAssistInFlightRef.current) return;
+
+      const nowMs = Date.now();
+      const quietForMs = nowMs - lastLiveSpeechAtRef.current;
+      const quietCooldownMs = nowMs - lastQuietAssistAtRef.current;
+
+      if (quietForMs < 20000 || quietCooldownMs < 60000) return;
+
+      lastQuietAssistAtRef.current = nowMs;
+      const quietPrompt =
+        "The patient has been quiet for a while during live monitoring and may be unsure, paused, or losing their train of thought. Use GPS, time, routine, and camera context if available. Do not diagnose.";
+
+      setLiveMonitoringStatus("Quiet pause noticed. Checking context gently...");
+      sendLiveMonitoringAssist(quietPrompt, "quiet_check");
+    }, 5000);
   };
 
   const startLiveMonitoring = () => {
@@ -1116,6 +1408,7 @@ export default function Home() {
     liveMonitoringRef.current = true;
     setLiveMonitoring(true);
     setLiveMonitoringStatus("Listening for confusion and safety concerns...");
+    startQuietCheckTimer();
 
     const recognition = new SpeechRecognitionClass();
     recognition.continuous = true;
@@ -1127,6 +1420,7 @@ export default function Home() {
       const transcript = String(latest?.[0]?.transcript || "").trim();
       if (!transcript) return;
 
+      lastLiveSpeechAtRef.current = Date.now();
       setLiveMonitoringStatus(`Heard: ${transcript}`);
 
       if (isConfusionOrSafetySpeech(transcript)) {
@@ -1160,6 +1454,7 @@ export default function Home() {
     liveMonitoringRef.current = false;
     setLiveMonitoring(false);
     setLiveMonitoringStatus("Live monitor is off");
+    clearQuietCheckTimer();
     speechRecognitionRef.current?.stop?.();
   };
 
@@ -1172,9 +1467,26 @@ export default function Home() {
   };
 
   const isConfusionOrSafetySpeech = (text: string) =>
-    /\b(where am i|who am i|who are you|lost|scared|afraid|confused|help|hurt|fall|fell|pain|medicine|pill|dose|home)\b/i.test(
+    /\b(where am i|who am i|who are you|lost|scared|afraid|confused|unsure|don't know|dont know|what was i|what do i|help|hurt|fall|fell|pain|medicine|pill|dose|home)\b/i.test(
       text
+    ) || hasHesitationPattern(text);
+
+  const hasHesitationPattern = (text: string) => {
+    const normalized = text.toLowerCase().replace(/[^\w\s']/g, " ");
+    const words = normalized.split(/\s+/).filter(Boolean);
+    if (words.length < 3) return false;
+
+    const repeatedWordCount = words.filter(
+      (word, index) => index > 0 && word === words[index - 1]
+    ).length;
+
+    return (
+      repeatedWordCount >= 2 ||
+      /\b(um|uh|wait|i forgot|i can't remember|i cant remember|what was i saying|never mind)\b/i.test(
+        text
+      )
     );
+  };
 
   const handleQuickPrompt = async (
     prompt: string,
@@ -1992,6 +2304,24 @@ export default function Home() {
             )}
 
             {isFamilyDashboard && (
+              <FamilyAlertSetup
+                alerts={familyAlerts}
+                careSettings={careSettings}
+                currentTheme={currentTheme}
+                gpsStatus={gpsStatus}
+                onGetGps={getCurrentLocation}
+                onSave={saveCareSettings}
+                onAddCaregiver={addCaregiverContact}
+                onRemoveCaregiver={removeCaregiverContact}
+                onUseCurrentGps={useCurrentGpsAsHome}
+                onUpdateCaregiver={updateCaregiverSetting}
+                onUpdateCaregiverNotify={updateCaregiverNotify}
+                onUpdateHome={updateHomeSetting}
+                settingsStatus={settingsStatus}
+              />
+            )}
+
+            {isFamilyDashboard && (
             <Card theme={currentTheme}>
               <SectionTitle
                 emoji="🧠"
@@ -2100,6 +2430,18 @@ function getRoleEmoji(role: RoleName) {
   if (role === "family") return "👨‍👩‍👧";
   if (role === "doctor") return "🩺";
   return "💛";
+}
+
+function blankCareContact(): CareContact {
+  return {
+    name: "",
+    relationship: "caregiver",
+    phone: "",
+    email: "",
+    language: "English",
+    notes: "",
+    notify: true
+  };
 }
 
 function DoctorDashboard({
@@ -2324,6 +2666,198 @@ function FamilyPhotoDashboard({
         Save family updates
       </button>
       {saveStatus && <p className={currentTheme.miniText}>{saveStatus}</p>}
+    </Card>
+  );
+}
+
+function FamilyAlertSetup({
+  alerts,
+  careSettings,
+  currentTheme,
+  gpsStatus,
+  onGetGps,
+  onSave,
+  onAddCaregiver,
+  onRemoveCaregiver,
+  onUseCurrentGps,
+  onUpdateCaregiver,
+  onUpdateCaregiverNotify,
+  onUpdateHome,
+  settingsStatus
+}: {
+  alerts: FamilyAlert[];
+  careSettings: CareSettings | null;
+  currentTheme: typeof lightTheme;
+  gpsStatus: string;
+  onGetGps: () => void;
+  onSave: () => void;
+  onAddCaregiver: () => void;
+  onRemoveCaregiver: (index: number) => void;
+  onUseCurrentGps: () => void;
+  onUpdateCaregiver: (
+    index: number,
+    field: "name" | "relationship" | "phone" | "email" | "notes",
+    value: string
+  ) => void;
+  onUpdateCaregiverNotify: (index: number, notify: boolean) => void;
+  onUpdateHome: (
+    field: "lat" | "lng" | "radiusMeters" | "address",
+    value: string
+  ) => void;
+  settingsStatus: string;
+}) {
+  const home = careSettings?.home || {
+    lat: 0,
+    lng: 0,
+    radiusMeters: 120,
+    address: ""
+  };
+  const contacts = careSettings?.contacts?.length
+    ? careSettings.contacts
+    : [blankCareContact()];
+
+  return (
+    <Card theme={currentTheme}>
+      <SectionTitle
+        emoji="!"
+        title="Family alerts"
+        description="Family can set home GPS, safe distance, and who receives away-from-home distress alerts."
+        theme={currentTheme}
+      />
+
+      <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <Field label="Home latitude" theme={currentTheme}>
+          <input
+            value={home.lat}
+            onChange={(event) => onUpdateHome("lat", event.target.value)}
+            className={currentTheme.input}
+          />
+        </Field>
+        <Field label="Home longitude" theme={currentTheme}>
+          <input
+            value={home.lng}
+            onChange={(event) => onUpdateHome("lng", event.target.value)}
+            className={currentTheme.input}
+          />
+        </Field>
+        <Field label="Home radius meters" theme={currentTheme}>
+          <input
+            value={home.radiusMeters}
+            onChange={(event) =>
+              onUpdateHome("radiusMeters", event.target.value)
+            }
+            className={currentTheme.input}
+          />
+        </Field>
+        <Field label="Home address note" theme={currentTheme}>
+          <input
+            value={home.address || ""}
+            onChange={(event) => onUpdateHome("address", event.target.value)}
+            className={currentTheme.input}
+          />
+        </Field>
+      </div>
+
+      <div className="mt-5 grid gap-4">
+        <div className="flex items-center justify-between gap-3">
+          <p className={currentTheme.label}>Notification contacts</p>
+          <button onClick={onAddCaregiver} className={currentTheme.softButton}>
+            Add contact
+          </button>
+        </div>
+
+        {contacts.map((contact, index) => (
+          <div key={index} className={currentTheme.photoMemoryCard}>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-black">Contact {index + 1}</p>
+              <label className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.12em]">
+                <input
+                  type="checkbox"
+                  checked={contact.notify !== false}
+                  onChange={(event) =>
+                    onUpdateCaregiverNotify(index, event.target.checked)
+                  }
+                />
+                Notify
+              </label>
+            </div>
+
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <input
+                value={contact.name}
+                onChange={(event) =>
+                  onUpdateCaregiver(index, "name", event.target.value)
+                }
+                placeholder="Name"
+                className={currentTheme.input}
+              />
+              <input
+                value={contact.relationship}
+                onChange={(event) =>
+                  onUpdateCaregiver(index, "relationship", event.target.value)
+                }
+                placeholder="Relationship"
+                className={currentTheme.input}
+              />
+              <input
+                value={contact.phone}
+                onChange={(event) =>
+                  onUpdateCaregiver(index, "phone", event.target.value)
+                }
+                placeholder="+15551234567"
+                className={currentTheme.input}
+              />
+              <input
+                value={contact.email}
+                onChange={(event) =>
+                  onUpdateCaregiver(index, "email", event.target.value)
+                }
+                placeholder="Email"
+                className={currentTheme.input}
+              />
+            </div>
+            <textarea
+              value={contact.notes || ""}
+              onChange={(event) =>
+                onUpdateCaregiver(index, "notes", event.target.value)
+              }
+              placeholder="Availability or care note"
+              className={`${currentTheme.input} mt-3 min-h-[70px] resize-none`}
+            />
+            {contacts.length > 1 && (
+              <button
+                onClick={() => onRemoveCaregiver(index)}
+                className={currentTheme.softButton}
+              >
+                Remove contact
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-3">
+        <button onClick={onGetGps} className={currentTheme.primaryButton}>
+          Get GPS
+        </button>
+        <button onClick={onUseCurrentGps} className={currentTheme.primaryButton}>
+          Use GPS as home
+        </button>
+        <button onClick={onSave} className={currentTheme.saveButton}>
+          Save alert setup
+        </button>
+      </div>
+      <p className={currentTheme.statusBox}>{gpsStatus}</p>
+      {settingsStatus && <p className={currentTheme.miniText}>{settingsStatus}</p>}
+
+      <InfoCard title="Recent family alerts" theme={currentTheme}>
+        {alerts.length === 0 && <Bullet>No family alerts yet.</Bullet>}
+        {alerts.slice(0, 5).map((alert) => (
+          <Bullet key={alert.id}>
+            {new Date(alert.timestamp).toLocaleString()}: {alert.message}
+          </Bullet>
+        ))}
+      </InfoCard>
     </Card>
   );
 }
@@ -2714,6 +3248,20 @@ function ResultPanel({
             {result.care_reasoning.action_plan.alert_family ? "yes" : "no"},
             doctor{" "}
             {result.care_reasoning.action_plan.alert_doctor ? "yes" : "no"}
+          </Bullet>
+        </InfoCard>
+      )}
+
+      {result.family_alert?.sent && result.family_alert.alert && (
+        <InfoCard title="Family notification" theme={theme}>
+          <Bullet>{result.family_alert.alert.message}</Bullet>
+          <Bullet>
+            SMS:{" "}
+            {result.family_alert.sms?.attempted
+              ? result.family_alert.sms.success
+                ? "sent"
+                : "attempted"
+              : "not configured"}
           </Bullet>
         </InfoCard>
       )}

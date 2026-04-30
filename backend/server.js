@@ -5,6 +5,7 @@ const cors = require("cors");
 const http = require("http");
 const assistRoute = require("./routes/assist");
 const doctorRoute = require("./routes/doctor");
+const careSettingsRoute = require("./routes/care-settings");
 
 // Import new services
 let MultimodalDetector;
@@ -19,6 +20,7 @@ const AdvancedAlertML = require("./services/advanced-alert-ml");
 const DoctorAnalytics = require("./services/doctor-analytics");
 const SecurityHardeningService = require("./services/security-hardening");
 const RealtimeAlertService = require("./services/realtime-alerts");
+const hume = require("./services/hume");
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -94,6 +96,7 @@ app.get("/health", (req, res) => {
       analytics: "ready",
       security: "ready",
       realtime: "ready",
+      hume: hume.isConfigured() ? "configured" : "not_configured",
       ollama: process.env.OLLAMA_URL ? "connected" : "not_configured"
     }
   });
@@ -180,6 +183,7 @@ app.post("/api/alerts/:patientId/notify", async (req, res) => {
 // Routes
 app.use("/assist", assistRoute);
 app.use("/doctor", doctorRoute);
+app.use("/api/care-settings", careSettingsRoute);
 
 // Service initialization
 async function initializeServices() {

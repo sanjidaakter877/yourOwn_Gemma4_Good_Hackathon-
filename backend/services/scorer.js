@@ -20,7 +20,13 @@ function scoreSupportMode({
     "what is happening",
     "i'm confused",
     "im confused",
+    "unsure",
+    "don't know",
+    "dont know",
     "what was i doing",
+    "losing their train of thought",
+    "quiet for a while",
+    "paused",
     "who is this",
     "where is this"
   ];

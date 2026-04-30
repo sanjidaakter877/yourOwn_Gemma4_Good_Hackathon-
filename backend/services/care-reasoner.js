@@ -51,6 +51,15 @@ function buildToolTrace({ context, environment, relevantMemories }) {
             (context.imageLabels || []).length
         )
       }
+    },
+    {
+      tool: "analyzeEmotionAndBehavior",
+      result: {
+        hume_available: Boolean(context.humeEmotion?.available),
+        top_expressions: context.humeEmotion?.top_emotions || [],
+        behavior_level: context.behaviorAnalysis?.level || "none",
+        behavior_flags: context.behaviorAnalysis?.flags || []
+      }
     }
   ];
 }
@@ -78,6 +87,40 @@ function classifyCareRisk({ context, environment, scored }) {
     score += 0.18;
     flags.push("possible_wandering");
     reasons.push("Speech suggests the patient may feel lost or displaced.");
+  }
+
+  if (
+    includesAny(speech, [
+      "quiet for a while",
+      "may be unsure",
+      "paused",
+      "losing their train of thought",
+      "i can't remember",
+      "i cant remember",
+      "what was i saying"
+    ])
+  ) {
+    score += 0.16;
+    flags.push("possible_quiet_confusion");
+    reasons.push("Live monitoring suggests quiet uncertainty or hesitation.");
+  }
+
+  if (context.behaviorAnalysis?.level === "possible_confusion") {
+    score += 0.18;
+    flags.push("behavior_possible_confusion");
+    reasons.push("Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.");
+  }
+
+  if (context.humeEmotion?.available) {
+    const expressionNames = (context.humeEmotion.top_emotions || [])
+      .slice(0, 5)
+      .map((emotion) => String(emotion.name || "").toLowerCase());
+
+    if (expressionNames.some((name) => /doubt|confusion|distress|fear|anxiety|sadness/.test(name))) {
+      score += 0.12;
+      flags.push("emotion_uncertainty_signal");
+      reasons.push("Hume expression signals may indicate uncertainty or distress.");
+    }
   }
 
   if (includesAny(speech, ["fall", "fell", "hurt", "pain", "can't get up", "cant get up"])) {
@@ -195,6 +238,16 @@ function buildEvidence({ context, environment, scored, relevantMemories, risk })
 
   if ((context.imageLabels || []).length) {
     evidence.push(`Image labels: ${context.imageLabels.join(", ")}.`);
+  }
+
+  if (context.humeEmotion?.available && context.humeEmotion.expression_summary) {
+    evidence.push(`Hume expression signal: ${context.humeEmotion.expression_summary}.`);
+  }
+
+  if (context.behaviorAnalysis?.evidence?.length) {
+    context.behaviorAnalysis.evidence
+      .slice(0, 3)
+      .forEach((item) => evidence.push(`Behavior signal: ${item}`));
   }
 
   relevantMemories.slice(0, 3).forEach((memory) => {

@@ -14,6 +14,9 @@ const {
 } = require("../services/memory");
 const { generateSupportResponse } = require("../services/ollama");
 const { textToSpeech, speechToText } = require("../services/elevenlabs");
+const hume = require("../services/hume");
+const { analyzeBehaviorSignals } = require("../services/behavior-detector");
+const { notifyFamilyIfNeeded } = require("../services/caregiver-alerts");
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -24,7 +27,7 @@ const upload = multer({
 
 router.post("/", async (req, res) => {
   try {
-    const result = await runAssistFlow(req.body || {});
+    const result = await runAssistFlow(req.body || {}, req.app);
     return res.json(result);
   } catch (error) {
     console.error("Assist route error:", error);
@@ -45,13 +48,22 @@ router.post("/voice", upload.single("audio"), async (req, res) => {
     const bodyPayload = safeJsonParse(req.body.payload, {});
     const mimeType = req.file.mimetype || "audio/webm";
 
-    const transcript = await speechToText(req.file.buffer, mimeType);
+    const [transcript, humeEmotion] = await Promise.all([
+      speechToText(req.file.buffer, mimeType),
+      hume
+        .analyzeAudio(req.file.buffer, mimeType)
+        .catch((error) => {
+          console.warn("Hume audio analysis failed:", error.message);
+          return null;
+        })
+    ]);
 
     const body = {
       ...bodyPayload,
       signals: {
         ...(bodyPayload.signals || {}),
         speechText: transcript.text,
+        humeEmotion,
         spokenLanguage:
           bodyPayload?.signals?.spokenLanguage ||
           transcript.language_code ||
@@ -60,7 +72,7 @@ router.post("/voice", upload.single("audio"), async (req, res) => {
       },
     };
 
-    const result = await runAssistFlow(body);
+    const result = await runAssistFlow(body, req.app);
 
     return res.json({
       ...result,
@@ -75,11 +87,35 @@ router.post("/voice", upload.single("audio"), async (req, res) => {
   }
 });
 
-async function runAssistFlow(body) {
+async function runAssistFlow(body, app) {
   const profile = body.profile || {};
   const signals = body.signals || {};
 
-  const context = buildContext({ profile, signals });
+  const humeEmotion =
+    signals.humeEmotion ||
+    (signals.capturedImage
+      ? await hume
+          .analyzeImage(signals.capturedImage)
+          .catch((error) => {
+            console.warn("Hume image analysis failed:", error.message);
+            return null;
+          })
+      : null);
+
+  const behaviorAnalysis = analyzeBehaviorSignals({
+    speechText: signals.speechText,
+    signals,
+    humeEmotion
+  });
+
+  const context = buildContext({
+    profile,
+    signals: {
+      ...signals,
+      humeEmotion,
+      behaviorAnalysis
+    }
+  });
 
   const languageInfo = detectLanguages({
     mainLanguage: context.mainLanguage,
@@ -173,7 +209,16 @@ async function runAssistFlow(body) {
       description: context.visualDescription,
       labels: context.imageLabels,
       concern: context.visualConcern
-    }
+    },
+    hume_emotion: humeEmotion,
+    behavior_analysis: behaviorAnalysis
+  });
+
+  const familyAlert = await notifyFamilyIfNeeded({
+    app,
+    context,
+    environment,
+    aiResult
   });
 
   return {
@@ -184,6 +229,9 @@ async function runAssistFlow(body) {
     environment,
     response: aiResult.response,
     care_reasoning: aiResult.care_reasoning,
+    hume_emotion: humeEmotion,
+    behavior_analysis: behaviorAnalysis,
+    family_alert: familyAlert,
     memory_summary: aiResult.memory_summary,
     score_reasons: scored.reasons,
     stored_event: {

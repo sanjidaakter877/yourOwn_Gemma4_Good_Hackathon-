@@ -42,6 +42,7 @@ function detectEnvironment(context) {
     routine_hint: routineHint,
     gps_match: gpsPlace
       ? {
+          id: gpsPlace.id,
           name: gpsPlace.name,
           meaning: gpsPlace.meaning,
           distance_meters: gpsPlace.distanceMeters

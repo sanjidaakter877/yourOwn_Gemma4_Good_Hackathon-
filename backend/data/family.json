@@ -1,14 +1,22 @@
-[
-  {
-    "name": "Anna",
-    "relationship": "daughter",
-    "language": "English",
-    "notes": "Usually visits in the afternoon"
-  },
-  {
-    "name": "Mrs. Lee",
-    "relationship": "neighbor",
-    "language": "English",
-    "notes": "Often greets Mary in the morning"
-  }
-]
+{
+  "contacts": [
+    {
+      "name": "Anna",
+      "relationship": "daughter",
+      "phone": "",
+      "email": "",
+      "language": "English",
+      "notes": "Usually visits in the afternoon",
+      "notify": true
+    },
+    {
+      "name": "Mrs. Lee",
+      "relationship": "neighbor",
+      "phone": "",
+      "email": "",
+      "language": "English",
+      "notes": "Often greets Mary in the morning",
+      "notify": false
+    }
+  ]
+}
