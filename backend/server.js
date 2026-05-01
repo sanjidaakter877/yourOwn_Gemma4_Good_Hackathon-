@@ -24,7 +24,8 @@ const hume = require("./services/hume");
 
 const app = express();
 const httpServer = http.createServer(app);
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
+const BACKEND_PREFIX = "/_/backend";
 
 // Initialize services
 const multimodalDetector = MultimodalDetector ? new MultimodalDetector() : null;
@@ -38,6 +39,18 @@ const realtimeAlerts = new RealtimeAlertService(httpServer);
 app.use(cors());
 app.use(express.json({ limit: "25mb" }));
 app.use(express.static("../frontend/public"));
+
+// Vercel routes the deployed backend under /_/backend. Keep local routes like
+// /assist working while also accepting prefixed production paths.
+app.use((req, res, next) => {
+  if (req.url === BACKEND_PREFIX) {
+    req.url = "/";
+  } else if (req.url.startsWith(`${BACKEND_PREFIX}/`)) {
+    req.url = req.url.slice(BACKEND_PREFIX.length) || "/";
+  }
+
+  next();
+});
 
 // Make services globally available
 app.locals.multimodalDetector = multimodalDetector;

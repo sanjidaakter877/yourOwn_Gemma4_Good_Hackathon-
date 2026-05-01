@@ -1,6 +1,7 @@
 "use client";
 
 import React, { CSSProperties, useState } from 'react';
+import { apiUrl } from '../../lib/api';
 
 type AlertItem = {
   type: string;
@@ -21,7 +22,7 @@ export default function PatientDashboard() {
 
     try {
       // Simulate recording & sending to backend
-      const mockResponse = await fetch('http://localhost:5000/assist', {
+      const mockResponse = await fetch(apiUrl('/assist'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -34,7 +35,7 @@ export default function PatientDashboard() {
       setRecognizedPerson('Sarah (Your Daughter)');
 
       // Fetch recent alerts
-      const alertResponse = await fetch('http://localhost:5000/doctor/patient_001/alerts')
+      const alertResponse = await fetch(apiUrl('/doctor/patient_001/alerts'))
         .then(r => r.json());
       
       setAlerts(alertResponse.recent?.slice(0, 3) || []);

@@ -4,6 +4,7 @@ const crypto = require("crypto");
 
 const familyPath = path.join(__dirname, "..", "data", "family.json");
 const alertsDir = path.join(__dirname, "..", "data", "alerts");
+const runtimeAlerts = {};
 
 function readFamilyContacts() {
   try {
@@ -64,9 +65,6 @@ function shouldNotifyFamily({ context, environment, aiResult }) {
 }
 
 function writeAlert(patientId, alert) {
-  const patientAlertDir = path.join(alertsDir, patientId);
-  fs.mkdirSync(patientAlertDir, { recursive: true });
-
   const fullAlert = {
     id: alert.id || `family_alert_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`,
     patientId,
@@ -75,15 +73,27 @@ function writeAlert(patientId, alert) {
     ...alert
   };
 
-  fs.writeFileSync(
-    path.join(patientAlertDir, `${fullAlert.id}.json`),
-    JSON.stringify(fullAlert, null, 2)
-  );
+  runtimeAlerts[patientId] = [fullAlert, ...(runtimeAlerts[patientId] || [])].slice(0, 100);
+
+  try {
+    const patientAlertDir = path.join(alertsDir, patientId);
+    fs.mkdirSync(patientAlertDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(patientAlertDir, `${fullAlert.id}.json`),
+      JSON.stringify(fullAlert, null, 2)
+    );
+  } catch (error) {
+    console.warn("Alert file write unavailable; using runtime alerts only:", error.message);
+  }
 
   return fullAlert;
 }
 
 function readRecentAlerts(patientId, limit = 20) {
+  if (runtimeAlerts[patientId]?.length) {
+    return runtimeAlerts[patientId].slice(0, limit);
+  }
+
   try {
     const patientAlertDir = path.join(alertsDir, patientId);
     if (!fs.existsSync(patientAlertDir)) return [];

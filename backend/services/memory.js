@@ -3,8 +3,12 @@ const path = require("path");
 
 const memoryPath = path.join(__dirname, "..", "data", "memory.json");
 const careEventsPath = path.join(__dirname, "..", "data", "care-events.json");
+let runtimeMemories = null;
+let runtimeCareEvents = null;
 
 function readMemory() {
+  if (runtimeMemories) return runtimeMemories;
+
   try {
     const raw = fs.readFileSync(memoryPath, "utf8");
     return JSON.parse(raw);
@@ -14,7 +18,13 @@ function readMemory() {
 }
 
 function writeMemory(memories) {
-  fs.writeFileSync(memoryPath, JSON.stringify(memories, null, 2), "utf8");
+  runtimeMemories = memories;
+
+  try {
+    fs.writeFileSync(memoryPath, JSON.stringify(memories, null, 2), "utf8");
+  } catch (error) {
+    console.warn("Memory file write unavailable; using runtime memory only:", error.message);
+  }
 }
 
 function writeMemoryEvent(event) {
@@ -24,6 +34,8 @@ function writeMemoryEvent(event) {
 }
 
 function readCareEvents() {
+  if (runtimeCareEvents) return runtimeCareEvents;
+
   try {
     const raw = fs.readFileSync(careEventsPath, "utf8");
     return JSON.parse(raw);
@@ -35,7 +47,13 @@ function readCareEvents() {
 function writeCareEvent(event) {
   const events = readCareEvents();
   events.unshift(event);
-  fs.writeFileSync(careEventsPath, JSON.stringify(events.slice(0, 300), null, 2), "utf8");
+  runtimeCareEvents = events.slice(0, 300);
+
+  try {
+    fs.writeFileSync(careEventsPath, JSON.stringify(runtimeCareEvents, null, 2), "utf8");
+  } catch (error) {
+    console.warn("Care event file write unavailable; using runtime events only:", error.message);
+  }
 }
 
 function findRelevantMemories({

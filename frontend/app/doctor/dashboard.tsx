@@ -1,6 +1,7 @@
 "use client";
 
 import React, { CSSProperties, useState, useEffect } from 'react';
+import { apiUrl } from '../../lib/api';
 
 type Medication = {
   name: string;
@@ -74,9 +75,9 @@ export default function DoctorDashboard() {
     const fetchData = async () => {
       try {
         const [summaryRes, alertsRes, careEventsRes] = await Promise.all([
-          fetch('http://localhost:5000/doctor/patient_001/summary').then(r => r.json()),
-          fetch('http://localhost:5000/doctor/patient_001/alerts').then(r => r.json()),
-          fetch('http://localhost:5000/doctor/patient_001/care-events').then(r => r.json())
+          fetch(apiUrl('/doctor/patient_001/summary')).then(r => r.json()),
+          fetch(apiUrl('/doctor/patient_001/alerts')).then(r => r.json()),
+          fetch(apiUrl('/doctor/patient_001/care-events')).then(r => r.json())
         ]);
 
         setPatientSummary(summaryRes);
@@ -96,7 +97,7 @@ export default function DoctorDashboard() {
     if (!doctorNote.trim()) return;
 
     try {
-      await fetch('http://localhost:5000/doctor/patient_001/doctor-note', {
+      await fetch(apiUrl('/doctor/patient_001/doctor-note'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

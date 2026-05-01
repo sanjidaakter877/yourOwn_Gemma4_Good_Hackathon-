@@ -6,8 +6,13 @@ const { readRecentAlerts } = require("../services/caregiver-alerts");
 const router = express.Router();
 const placesPath = path.join(__dirname, "..", "data", "places.json");
 const familyPath = path.join(__dirname, "..", "data", "family.json");
+let runtimePlaces = null;
+let runtimeFamily = null;
 
 function readJson(filePath, fallback) {
+  if (filePath === placesPath && runtimePlaces) return runtimePlaces;
+  if (filePath === familyPath && runtimeFamily) return runtimeFamily;
+
   try {
     return JSON.parse(fs.readFileSync(filePath, "utf8"));
   } catch {
@@ -16,7 +21,14 @@ function readJson(filePath, fallback) {
 }
 
 function writeJson(filePath, value) {
-  fs.writeFileSync(filePath, JSON.stringify(value, null, 2));
+  if (filePath === placesPath) runtimePlaces = value;
+  if (filePath === familyPath) runtimeFamily = value;
+
+  try {
+    fs.writeFileSync(filePath, JSON.stringify(value, null, 2));
+  } catch (error) {
+    console.warn("Care settings file write unavailable; using runtime settings only:", error.message);
+  }
 }
 
 function normalizeFamily(data) {

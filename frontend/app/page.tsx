@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Dispatch, ReactNode, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
+import { apiUrl } from "../lib/api";
 
 function LegacyHome() {
   return (
@@ -557,7 +558,7 @@ export default function Home() {
   }, [alarmEnabled, now, careSchedule]);
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/gemma/status")
+    fetch(apiUrl("/api/gemma/status"))
       .then((res) => res.json())
       .then((data: GemmaStatus) => setGemmaStatus(data))
       .catch(() => setGemmaStatus(null));
@@ -590,7 +591,7 @@ export default function Home() {
 
   const fetchSeverityTrend = async () => {
     try {
-      const res = await fetch("http://localhost:5000/doctor/mary/severity-trend");
+      const res = await fetch(apiUrl("/doctor/mary/severity-trend"));
       if (!res.ok) return;
       const data: SeverityTrend = await res.json();
       setSeverityTrend(data);
@@ -601,7 +602,7 @@ export default function Home() {
 
   const fetchCareSettings = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/care-settings");
+      const res = await fetch(apiUrl("/api/care-settings"));
       if (!res.ok) return;
       const data: CareSettings = await res.json();
       setCareSettings(data);
@@ -612,7 +613,7 @@ export default function Home() {
 
   const fetchFamilyAlerts = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/care-settings/alerts/mary");
+      const res = await fetch(apiUrl("/api/care-settings/alerts/mary"));
       if (!res.ok) return;
       const data: { alerts: FamilyAlert[] } = await res.json();
       setFamilyAlerts(data.alerts || []);
@@ -1001,7 +1002,7 @@ export default function Home() {
     setSettingsStatus("Saving alert setup...");
 
     try {
-      const res = await fetch("http://localhost:5000/api/care-settings", {
+      const res = await fetch(apiUrl("/api/care-settings"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -1110,7 +1111,26 @@ export default function Home() {
   };
 
   const playAudio = async (data: AssistResponse) => {
-    if (!data.audio_base64 || !data.audio_mime_type) return;
+    const spokenText = [
+      data.response?.reassurance,
+      data.response?.context,
+      data.response?.next_step
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    if (!data.audio_base64 || !data.audio_mime_type) {
+      if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+      if (!spokenText) return;
+
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(spokenText);
+      utterance.rate = 0.88;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+      window.speechSynthesis.speak(utterance);
+      return;
+    }
 
     const audio = new Audio(
       `data:${data.audio_mime_type};base64,${data.audio_base64}`
@@ -1297,7 +1317,7 @@ export default function Home() {
     setResult(null);
 
     try {
-      const res = await fetch("http://localhost:5000/assist", {
+      const res = await fetch(apiUrl("/assist"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -1331,14 +1351,16 @@ export default function Home() {
     liveAssistInFlightRef.current = true;
     setLoading(true);
     setError("");
-    setSpeechText(transcript);
+    if (source === "speech") {
+      setSpeechText(transcript);
+    }
 
     try {
       const payload = getPayload();
       const behaviorSignals = source === "quiet_check"
         ? { noProgress: true, quietPause: true, hesitation: true, source: "timer" }
         : { hesitation: hasHesitationPattern(transcript), source: "speech" };
-      const res = await fetch("http://localhost:5000/assist", {
+      const res = await fetch(apiUrl("/assist"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -1358,6 +1380,11 @@ export default function Home() {
       if (!res.ok) throw new Error(data?.error || "Live monitor request failed");
 
       setResult(data);
+      setLiveMonitoringStatus(
+        source === "quiet_check"
+          ? "Silent pause support was generated."
+          : "Live monitor generated support."
+      );
       addLog(
         source === "quiet_check"
           ? "Live monitor noticed quiet uncertainty"
@@ -1533,7 +1560,7 @@ export default function Home() {
       .filter(Boolean);
 
     try {
-      const res = await fetch("http://localhost:5000/assist", {
+      const res = await fetch(apiUrl("/assist"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -1614,7 +1641,7 @@ export default function Home() {
       formData.append("audio", audioBlob, "recording.webm");
       formData.append("payload", JSON.stringify(getPayload()));
 
-      const res = await fetch("http://localhost:5000/assist/voice", {
+      const res = await fetch(apiUrl("/assist/voice"), {
         method: "POST",
         body: formData
       });
