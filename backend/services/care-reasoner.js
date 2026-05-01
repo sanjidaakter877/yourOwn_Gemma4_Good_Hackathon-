@@ -58,7 +58,11 @@ function buildToolTrace({ context, environment, relevantMemories }) {
         hume_available: Boolean(context.humeEmotion?.available),
         top_expressions: context.humeEmotion?.top_emotions || [],
         behavior_level: context.behaviorAnalysis?.level || "none",
-        behavior_flags: context.behaviorAnalysis?.flags || []
+        behavior_episode_type: context.behaviorAnalysis?.episode_type || "none",
+        silent_confusion: Boolean(context.behaviorAnalysis?.silent_confusion),
+        behavior_score: context.behaviorAnalysis?.score || 0,
+        behavior_flags: context.behaviorAnalysis?.flags || [],
+        signal_weights: context.behaviorAnalysis?.signal_weights || {}
       }
     }
   ];
@@ -109,6 +113,18 @@ function classifyCareRisk({ context, environment, scored }) {
     score += 0.18;
     flags.push("behavior_possible_confusion");
     reasons.push("Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.");
+  }
+
+  if (context.behaviorAnalysis?.silent_confusion) {
+    score += 0.18;
+    flags.push("silent_confusion");
+    reasons.push("Silent confusion detector found quiet pause, no-progress, or hesitation signals.");
+  }
+
+  if (context.behaviorAnalysis?.flags?.includes("repeated_orientation")) {
+    score += 0.1;
+    flags.push("repeated_orientation_support");
+    reasons.push("Recent interaction suggests repeated orientation support may be needed.");
   }
 
   if (context.humeEmotion?.available) {
@@ -250,6 +266,12 @@ function buildEvidence({ context, environment, scored, relevantMemories, risk })
       .forEach((item) => evidence.push(`Behavior signal: ${item}`));
   }
 
+  if (context.behaviorAnalysis?.episode_type === "silent_confusion") {
+    evidence.push(
+      `Episode type: silent_confusion with behavior score ${context.behaviorAnalysis.score}.`
+    );
+  }
+
   relevantMemories.slice(0, 3).forEach((memory) => {
     evidence.push(`Retrieved memory: ${memory.interpreted_text}.`);
   });
@@ -267,9 +289,11 @@ function buildActionPlan({ context, environment, risk }) {
     risk.flags.includes("possible_injury") ||
     risk.level === "emergency";
 
-  const patientAction = context.mealOrMedicationTime && context.scheduleNow?.label
-    ? `Stay where you are and focus on ${context.scheduleNow.label}.`
-    : "Stay where you are, take one slow breath, and wait for help.";
+  const patientAction = context.behaviorAnalysis?.silent_confusion
+    ? "Use a gentle check-in, stay nearby, and wait for a trusted person."
+    : context.mealOrMedicationTime && context.scheduleNow?.label
+      ? `Stay where you are and focus on ${context.scheduleNow.label}.`
+      : "Stay where you are, take one slow breath, and wait for help.";
 
   const caregiverAction = notifyFamily
     ? `Check on ${context.userName} now. Risk level is ${risk.level}.`
@@ -277,7 +301,9 @@ function buildActionPlan({ context, environment, risk }) {
 
   return {
     patient_action: patientAction,
-    caregiver_action: caregiverAction,
+    caregiver_action: context.behaviorAnalysis?.silent_confusion
+      ? `${caregiverAction} Silent confusion signals were detected.`
+      : caregiverAction,
     doctor_action: notifyDoctor
       ? "Review medication, injury, or safety risk before giving new instructions."
       : "No immediate doctor escalation needed from this interaction.",

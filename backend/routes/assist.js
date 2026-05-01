@@ -197,6 +197,8 @@ async function runAssistFlow(body, app) {
     patient: context.userName,
     role: context.speakerRole,
     transcript: context.speechText,
+    episode_type: behaviorAnalysis.episode_type,
+    silent_confusion: Boolean(behaviorAnalysis.silent_confusion),
     response: aiResult.response,
     risk: aiResult.care_reasoning?.risk,
     evidence: aiResult.care_reasoning?.evidence || [],

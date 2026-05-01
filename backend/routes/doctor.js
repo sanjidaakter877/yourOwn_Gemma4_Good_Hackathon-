@@ -156,9 +156,14 @@ router.get("/:patientId/severity-trend", (req, res) => {
       .map((event) => ({
         timestamp: event.timestamp,
         transcript: event.transcript,
+        episodeType: event.episode_type || event.behavior_analysis?.episode_type || "spoken_or_context",
+        silentConfusion: Boolean(
+          event.silent_confusion || event.behavior_analysis?.silent_confusion
+        ),
         riskLevel: event.risk?.level || "unknown",
         score: Number(event.risk?.score ?? riskLevelToScore(event.risk?.level)),
-        flags: event.risk?.flags || []
+        flags: event.risk?.flags || [],
+        behaviorScore: Number(event.behavior_analysis?.score || 0)
       }))
       .filter((event) => Number.isFinite(event.score));
 
@@ -173,6 +178,27 @@ router.get("/:patientId/severity-trend", (req, res) => {
     else if (delta >= 0.08) trend = "worsening";
     else if (delta <= -0.08) trend = "improving";
 
+    const silentRecent = recent.filter((event) => event.silentConfusion).length;
+    const silentPrevious = previous.filter((event) => event.silentConfusion).length;
+    const spokenOrientationRecent = recent.filter((event) =>
+      event.flags.some((flag) =>
+        ["disorientation", "possible_wandering", "repeated_orientation_support"].includes(flag)
+      )
+    ).length;
+    const topRiskDrivers = summarizeFlags(recent);
+    const doctorSummary = buildSeveritySummary({
+      trend,
+      delta,
+      recentAverage,
+      previousAverage,
+      silentRecent,
+      silentPrevious,
+      highRiskRecent: recent.filter((event) =>
+        ["high", "emergency"].includes(event.riskLevel)
+      ).length,
+      topRiskDrivers
+    });
+
     return res.json({
       patientId: req.params.patientId,
       trend,
@@ -183,6 +209,13 @@ router.get("/:patientId/severity-trend", (req, res) => {
       highRiskRecent: recent.filter((event) =>
         ["high", "emergency"].includes(event.riskLevel)
       ).length,
+      silentConfusionRecent: silentRecent,
+      silentConfusionPrevious: silentPrevious,
+      spokenOrientationRecent,
+      topRiskDrivers,
+      doctorSummary,
+      clinicalCaution:
+        "Trend reports describe support signals only. They are not a diagnosis and should be reviewed by a clinician or caregiver.",
       recent
     });
   } catch (error) {
@@ -347,4 +380,44 @@ function averageScore(events) {
   if (!events.length) return 0;
   const total = events.reduce((sum, event) => sum + event.score, 0);
   return Number((total / events.length).toFixed(2));
+}
+
+function summarizeFlags(events) {
+  const counts = {};
+  events.forEach((event) => {
+    event.flags.forEach((flag) => {
+      counts[flag] = (counts[flag] || 0) + 1;
+    });
+    if (event.silentConfusion) {
+      counts.silent_confusion = (counts.silent_confusion || 0) + 1;
+    }
+  });
+
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([flag, count]) => ({ flag, count }));
+}
+
+function buildSeveritySummary({
+  trend,
+  delta,
+  recentAverage,
+  previousAverage,
+  silentRecent,
+  silentPrevious,
+  highRiskRecent,
+  topRiskDrivers
+}) {
+  const driverText = topRiskDrivers.length
+    ? topRiskDrivers.map((item) => `${item.flag} (${item.count})`).join(", ")
+    : "no dominant driver yet";
+
+  return [
+    `Trend is ${trend}.`,
+    `Recent average risk is ${recentAverage}, compared with ${previousAverage} before (delta ${delta}).`,
+    `Silent confusion moments changed from ${silentPrevious} to ${silentRecent} in the recent window.`,
+    `Recent high-risk moments: ${highRiskRecent}.`,
+    `Main support signals: ${driverText}.`
+  ].join(" ");
 }

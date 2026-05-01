@@ -6,6 +6,8 @@ Live demo: https://your-own-gemma4-good-hackathon.vercel.app
 
 yourOwn is a prototype built for the Gemma 4 Good Hackathon. It is designed to support Alzheimer's patients during moments of confusion by combining patient messages, voice, GPS context, meal and medication schedules, family memory notes, doctor instructions, camera context, and severity tracking into one calm care assistant experience.
 
+The core demo focus is silent confusion detection: the app watches for quiet pause, hesitation, and no-progress signals when a patient may no longer be able to ask "Where am I?" out loud. It combines those weak behavior signals with location, time, routine, memory, and care notes to produce a grounded support response and a longitudinal severity report for caregivers and doctors.
+
 The goal is not to replace caregivers, clinicians, or emergency services. The goal is to give patients grounded support between human care moments while giving families and doctors clearer context about what is happening over time.
 
 ## Why It Matters
@@ -28,6 +30,8 @@ Generic chatbots do not know the patient's care context. Reminder apps can notif
 - Family memory support for familiar people, safe places, and routines
 - Doctor dashboard for care notes, medication guidance, follow-up, and severity trends
 - Local care-event history to track whether confusion and risk appear stable, improving, or worsening
+- Silent confusion detection for quiet pause, hesitation, and no-progress moments
+- Doctor-facing severity trend report with recent risk average, silent episode counts, and top risk drivers
 - Grounded care reasoning layer that checks schedule, context, and risk before responding
 - Local-first Gemma 4 usage through Ollama for sensitive care data
 
@@ -73,8 +77,8 @@ Backend:
 AI / Model:
 
 - Gemma 4 through Ollama
-- Optional fine-tuning/domain adaptation notebook in `backend/finetune_colab.ipynb`
-- Optional adapter artifacts in `backend/models/gemma4-medical-ft/`
+- Optional Gemma 4 fine-tuning/domain adaptation script in `backend/services/finetune-gemma4.py`
+- Legacy adapter artifacts are retained only for reference; regenerate and publish Gemma 4 adapter weights if entering the Unsloth track
 
 ## Project Structure
 
@@ -82,7 +86,8 @@ AI / Model:
 yourOwn/
   backend/
     data/                    Demo patient, family, schedule, and care-event data
-    models/                  Optional fine-tuned adapter artifacts
+      evaluation/            Silent-confusion scenario matrix for validation/writeup proof
+    models/                  Local model artifacts and legacy adapter references
     routes/
       assist.js              Patient assistance API
       doctor.js              Doctor dashboard and severity APIs

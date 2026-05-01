@@ -77,8 +77,8 @@ app.get("/", (req, res) => {
     gemmaInfo: {
       model: process.env.OLLAMA_MODEL || "gemma4:e4b",
       temperature: 0.3,
-      ollama_url: process.env.OLLAMA_URL || "http://localhost:11435",
-      fine_tuning_ready: true,
+      ollama_url: process.env.OLLAMA_URL || "http://localhost:11434",
+      fine_tuning_script_available: true,
       unsloth_supported: true
     }
   });
@@ -212,10 +212,10 @@ httpServer.listen(PORT, async () => {
   🚀 Backend running on: http://localhost:${PORT}
   📊 WebSocket ready for real-time alerts
   🔐 HIPAA security: ENABLED
-  🤖 Gemma 4 AI: Connected to ${process.env.OLLAMA_URL || "http://localhost:11435"}
+  🤖 Gemma 4 AI: Connected to ${process.env.OLLAMA_URL || "http://localhost:11434"}
   📱 PWA support: Offline-first enabled
   🎯 Features:
-     • Fine-tuned Gemma 4 (ready for Unsloth)
+     • Gemma 4 local inference via Ollama
      • Multimodal detection (face, fall, emotion)
      • Healthcare integration (FHIR/EHR)
      • Advanced ML alert engine
@@ -229,7 +229,7 @@ httpServer.listen(PORT, async () => {
 
 app.get("/api/gemma/status", async (req, res) => {
   const ollamaUrl = process.env.OLLAMA_URL || "http://localhost:11434";
-  const model = process.env.OLLAMA_MODEL || "gemma3:4b";
+  const model = process.env.OLLAMA_MODEL || "gemma4:e4b";
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 1500);
 

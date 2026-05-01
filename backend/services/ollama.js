@@ -1,5 +1,5 @@
 const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434";
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "gemma3:4b";
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "gemma4:e4b";
 const { buildCareReasoning, verifyGrounding } = require("./care-reasoner");
 
 async function generateSupportResponse({

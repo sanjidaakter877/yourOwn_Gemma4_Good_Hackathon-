@@ -262,12 +262,24 @@ type SeverityTrend = {
   delta: number;
   samples: number;
   highRiskRecent: number;
+  silentConfusionRecent?: number;
+  silentConfusionPrevious?: number;
+  spokenOrientationRecent?: number;
+  doctorSummary?: string;
+  clinicalCaution?: string;
+  topRiskDrivers?: {
+    flag: string;
+    count: number;
+  }[];
   recent: {
     timestamp: string;
     transcript: string;
+    episodeType?: string;
+    silentConfusion?: boolean;
     riskLevel: string;
     score: number;
     flags: string[];
+    behaviorScore?: number;
   }[];
 };
 
@@ -2517,6 +2529,19 @@ function DoctorDashboard({
           Samples: {severityTrend?.samples || 0}; recent high-risk moments:{" "}
           {severityTrend?.highRiskRecent || 0}
         </Bullet>
+        <Bullet>
+          Silent confusion: {severityTrend?.silentConfusionRecent || 0} recent vs{" "}
+          {severityTrend?.silentConfusionPrevious || 0} previous
+        </Bullet>
+        <Bullet>
+          Main signals:{" "}
+          {severityTrend?.topRiskDrivers?.length
+            ? severityTrend.topRiskDrivers
+                .map((item) => `${item.flag.replaceAll("_", " ")} (${item.count})`)
+                .join(", ")
+            : "collecting baseline"}
+        </Bullet>
+        {severityTrend?.doctorSummary ? <Bullet>{severityTrend.doctorSummary}</Bullet> : null}
       </InfoCard>
 
       <div className="mt-5 grid gap-4">

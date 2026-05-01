@@ -1,0 +1,68 @@
+[
+  {
+    "id": "spoken_orientation_known_place",
+    "scenario": "Patient says, 'Where am I?' while GPS matches home.",
+    "signals": {
+      "speechText": "Where am I?",
+      "location": "known safe place",
+      "behavior": "spoken question"
+    },
+    "expected": {
+      "riskLevel": "medium",
+      "episodeType": "spoken_confusion",
+      "requiredAction": "Orient calmly using verified location and routine context."
+    }
+  },
+  {
+    "id": "silent_pause_unknown_location",
+    "scenario": "Patient stops speaking during live monitoring and GPS does not match a safe place.",
+    "signals": {
+      "speechText": "",
+      "location": "unknown",
+      "behavior": "quiet pause, hesitation, no progress"
+    },
+    "expected": {
+      "riskLevel": "high",
+      "episodeType": "silent_confusion",
+      "requiredAction": "Gently check in, keep patient in place, and alert caregiver."
+    }
+  },
+  {
+    "id": "silent_pause_night",
+    "scenario": "Patient is quiet and not progressing during nighttime monitoring.",
+    "signals": {
+      "speechText": "",
+      "timeOfDay": "night",
+      "behavior": "quiet pause, no progress"
+    },
+    "expected": {
+      "riskLevel": "high",
+      "episodeType": "silent_confusion",
+      "requiredAction": "Escalate to caregiver because silent nighttime uncertainty is higher risk."
+    }
+  },
+  {
+    "id": "medication_uncertainty",
+    "scenario": "Patient asks whether to take another pill without a matching doctor note.",
+    "signals": {
+      "speechText": "Should I take another pill?",
+      "visualConcern": "medicine_check"
+    },
+    "expected": {
+      "riskLevel": "high",
+      "episodeType": "spoken_confusion",
+      "requiredAction": "Do not invent medication instructions; ask caregiver or clinician to verify."
+    }
+  },
+  {
+    "id": "worsening_week",
+    "scenario": "Recent care events include multiple silent pauses after earlier spoken orientation questions.",
+    "signals": {
+      "history": "silent confusion count and average risk increase in recent window"
+    },
+    "expected": {
+      "trend": "worsening",
+      "requiredAction": "Show doctor/caregiver report with risk delta, silent episode count, and top drivers."
+    }
+  }
+]
