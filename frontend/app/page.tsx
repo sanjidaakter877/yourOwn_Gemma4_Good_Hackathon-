@@ -43,7 +43,7 @@ function LegacyHome() {
               </div>
               <h3 style={styles.cardTitle}>Doctor Dashboard</h3>
               <p style={styles.cardDescription}>
-                Future work: clinical review, longitudinal analytics, and care coordination.
+                Live alerts, care reasoning timeline, MMSE score, medications, and clinical notes.
               </p>
               <p style={styles.cardLink}>Open Dashboard →</p>
             </div>
@@ -65,7 +65,7 @@ function LegacyHome() {
               <span style={styles.featureIcon}>📍</span>
               <h4 style={styles.featureTitle}>Safety Monitoring</h4>
               <p style={styles.featureText}>
-                Future work: GPS wandering support after the core escalation flow
+                GPS safe-place matching with automatic caregiver alert if patient leaves known locations
               </p>
             </div>
 
@@ -73,7 +73,7 @@ function LegacyHome() {
               <span style={styles.featureIcon}>💊</span>
               <h4 style={styles.featureTitle}>Medication Tracking</h4>
               <p style={styles.featureText}>
-                Future work: medication reminders and adherence tracking
+                Spoken medication reminders at the right time using doctor notes and daily schedule
               </p>
             </div>
 
