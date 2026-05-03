@@ -67,9 +67,13 @@ function buildContext({ profile = {}, signals = {} }) {
     capturedImage: safeString(signals.capturedImage, ""),
     humeEmotion: signals.humeEmotion || null,
     behaviorAnalysis: signals.behaviorAnalysis || null,
+    behaviorSignals: signals.behaviorSignals || {},
+    conversationState: signals.conversationState || {},
+    escalation: signals.escalation || null,
 
     scheduleNow: signals.scheduleNow || null,
     dailyLog: Array.isArray(signals.dailyLog) ? signals.dailyLog : [],
+    patientNotes: Array.isArray(signals.patientNotes) ? signals.patientNotes : [],
     objects: Array.isArray(signals.objects) ? signals.objects : [],
     imageLabels: Array.isArray(signals.imageLabels) ? signals.imageLabels : [],
 

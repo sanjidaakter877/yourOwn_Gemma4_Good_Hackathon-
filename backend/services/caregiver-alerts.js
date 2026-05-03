@@ -48,15 +48,42 @@ function isHomeMatch(environment) {
 }
 
 function shouldNotifyFamily({ context, environment, aiResult }) {
+  if (
+    context.escalation?.shouldAlertCaregiver ||
+    context.conversationState?.stage === "alert_sent"
+  ) {
+    return { notify: true, reason: "escalation_stage_alert_sent" };
+  }
+
   const hasGps =
     typeof context.latitude === "number" && typeof context.longitude === "number";
-  if (!hasGps) return { notify: false, reason: "gps_unavailable" };
+  const riskFlags = aiResult?.care_reasoning?.risk?.flags || [];
+  const silentConfusion = Boolean(context.behaviorAnalysis?.silent_confusion) ||
+    riskFlags.includes("silent_confusion");
+  const silenceCheckCount = Number(context.behaviorSignals?.liveSilenceCheckCount || 0);
+  const repeatedSilent = riskFlags.includes("repeated_silence_no_response") ||
+    context.behaviorAnalysis?.flags?.includes("repeated_silent_check") ||
+    silenceCheckCount >= 3;
+  const gpsMismatch = hasGps && (
+    environment?.gps_status === "unmatched_known_place" ||
+    riskFlags.includes("gps_safe_place_mismatch")
+  );
+
+  if (!hasGps && !repeatedSilent) return { notify: false, reason: "gps_unavailable" };
 
   const distressed =
     isDistressedSpeech(context.speechText) ||
-    aiResult?.care_reasoning?.risk?.flags?.some((flag) =>
+    riskFlags.some((flag) =>
       /confusion|distress|lost|wandering|unknown_location/i.test(String(flag))
     );
+
+  if (silentConfusion && gpsMismatch) {
+    return { notify: true, reason: "silent_confusion_location_mismatch" };
+  }
+
+  if (silentConfusion && repeatedSilent) {
+    return { notify: true, reason: "repeated_silent_confusion_no_response" };
+  }
 
   if (!distressed) return { notify: false, reason: "no_distress_signal" };
   if (isHomeMatch(environment)) return { notify: false, reason: "patient_at_home" };
@@ -121,11 +148,15 @@ async function notifyFamilyIfNeeded({ app, context, environment, aiResult }) {
   const notificationContacts = getNotificationContacts();
   const placeText = environment?.gps_match
     ? `near ${environment.gps_match.name}`
-    : "outside saved home/safe places";
-  const message = `${context.userName || "The patient"} may be scared or confused and is ${placeText}. Check in now. GPS: ${context.latitude}, ${context.longitude}.`;
+    : context.room
+      ? `in the ${context.room}`
+      : "in an uncertain situation";
+  const message = `${context.userName || "The patient"} has not responded after repeated yourOwn check-ins while ${context.escalation?.gemmaContext?.task || "doing a routine"} ${placeText}. Please check in now.`;
 
   const alert = writeAlert(patientId, {
-    type: "PATIENT_AWAY_AND_DISTRESSED",
+    type: context.escalation?.shouldAlertCaregiver
+      ? "SILENT_DISORIENTATION_NO_RESPONSE"
+      : "PATIENT_AWAY_AND_DISTRESSED",
     severity: "HIGH",
     message,
     description: message,

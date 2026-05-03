@@ -61,6 +61,37 @@ function matchKnownPlace({ latitude, longitude }) {
   return bestMatch;
 }
 
+function getNearestKnownPlace({ latitude, longitude }) {
+  if (typeof latitude !== "number" || typeof longitude !== "number") {
+    return null;
+  }
+
+  const places = readPlaces();
+  let nearest = null;
+
+  for (const place of places) {
+    const distanceMeters = getDistanceMeters(
+      latitude,
+      longitude,
+      place.lat,
+      place.lng
+    );
+
+    if (!nearest || distanceMeters < nearest.distanceMeters) {
+      nearest = {
+        id: place.id,
+        name: place.name,
+        meaning: place.meaning,
+        distance_meters: Math.round(distanceMeters),
+        radius_meters: place.radiusMeters
+      };
+    }
+  }
+
+  return nearest;
+}
+
 module.exports = {
-  matchKnownPlace
+  matchKnownPlace,
+  getNearestKnownPlace
 };

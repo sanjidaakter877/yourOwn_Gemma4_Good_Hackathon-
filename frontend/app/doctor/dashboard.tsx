@@ -70,9 +70,12 @@ export default function DoctorDashboard() {
   const [careTimeline, setCareTimeline] = useState<CareTimeline | null>(null);
   const [loading, setLoading] = useState(true);
   const [doctorNote, setDoctorNote] = useState('');
+  const [noteSaveState, setNoteSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [newAlertFlash, setNewAlertFlash] = useState(false);
+  const prevAlertCountRef = React.useRef(0);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchData = async (initial = false) => {
       try {
         const [summaryRes, alertsRes, careEventsRes] = await Promise.all([
           fetch(apiUrl('/doctor/patient_001/summary')).then(r => r.json()),
@@ -81,22 +84,32 @@ export default function DoctorDashboard() {
         ]);
 
         setPatientSummary(summaryRes);
-        setAlerts(alertsRes);
         setCareTimeline(careEventsRes);
+
+        const newCount = (alertsRes.recent?.length ?? 0) + (alertsRes.bySeverity?.HIGH ?? 0);
+        if (!initial && newCount > prevAlertCountRef.current) {
+          setNewAlertFlash(true);
+          setTimeout(() => setNewAlertFlash(false), 4000);
+        }
+        prevAlertCountRef.current = newCount;
+        setAlerts(alertsRes);
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
-        setLoading(false);
+        if (initial) setLoading(false);
       }
     };
 
-    fetchData();
+    fetchData(true);
+    const interval = setInterval(() => fetchData(false), 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleAddNote = async () => {
     if (!doctorNote.trim()) return;
 
     try {
+      setNoteSaveState('saving');
       await fetch(apiUrl('/doctor/patient_001/doctor-note'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -108,9 +121,11 @@ export default function DoctorDashboard() {
       });
 
       setDoctorNote('');
-      alert('Note added successfully');
+      setNoteSaveState('saved');
+      window.setTimeout(() => setNoteSaveState('idle'), 1800);
     } catch (error) {
       console.error('Error adding note:', error);
+      setNoteSaveState('idle');
     }
   };
 
@@ -123,7 +138,14 @@ export default function DoctorDashboard() {
       <header style={styles.header}>
         <h1>Doctor Dashboard</h1>
         <p>Patient Progression & Alerts</p>
+        <p style={styles.livePill}>Live — refreshing every 5 s</p>
       </header>
+
+      {newAlertFlash && (
+        <div style={styles.alertFlash}>
+          New patient alert received — check alerts below
+        </div>
+      )}
 
       <main style={styles.main}>
         {/* Patient Summary */}
@@ -287,7 +309,7 @@ export default function DoctorDashboard() {
             onClick={handleAddNote}
             style={styles.noteButton}
           >
-            Save Note
+            {noteSaveState === 'saving' ? 'Saving...' : noteSaveState === 'saved' ? 'Saved' : 'Save Note'}
           </button>
         </section>
       </main>
@@ -437,5 +459,20 @@ const styles: Record<string, CSSProperties> = {
     cursor: 'pointer',
     fontSize: '14px',
     fontWeight: 'bold'
+  },
+  livePill: {
+    margin: '8px 0 0',
+    fontSize: '12px',
+    fontWeight: 800,
+    color: '#B3D9FF',
+    letterSpacing: 0
+  },
+  alertFlash: {
+    backgroundColor: '#FF5252',
+    color: 'white',
+    textAlign: 'center',
+    padding: '12px 20px',
+    fontWeight: 800,
+    fontSize: '15px'
   }
 };

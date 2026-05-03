@@ -1,0 +1,34 @@
+{
+  "id": "family_alert_1777665519029_3332f7bd",
+  "patientId": "mary",
+  "timestamp": "2026-05-01T19:58:39.029Z",
+  "resolved": false,
+  "type": "PATIENT_AWAY_AND_DISTRESSED",
+  "severity": "HIGH",
+  "message": "Mary may be scared or confused and is outside saved home/safe places. Check in now. GPS: 0, 0.",
+  "description": "Mary may be scared or confused and is outside saved home/safe places. Check in now. GPS: 0, 0.",
+  "caregiverName": "Anna",
+  "caregiverNames": [],
+  "notificationContactCount": 0,
+  "location": {
+    "latitude": 0,
+    "longitude": 0,
+    "accuracyMeters": null,
+    "matchedPlace": null
+  },
+  "trigger": {
+    "reason": "distressed_away_from_home",
+    "speechText": "Silent check. The patient has not answered. Ask a more specific safety question.",
+    "risk": {
+      "level": "low",
+      "score": 0.28,
+      "flags": [
+        "behavior_possible_confusion"
+      ],
+      "reasons": [
+        "Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+        "Known place matched: home."
+      ]
+    }
+  }
+}

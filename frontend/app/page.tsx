@@ -9,7 +9,7 @@ function LegacyHome() {
     <div style={styles.container}>
       <header style={styles.header}>
         <h1 style={styles.title}>yourOwn</h1>
-        <p style={styles.subtitle}>AI Companion for Alzheimer's Care</p>
+        <p style={styles.subtitle}>Silent disorientation support for safer daily routines</p>
       </header>
 
       <main style={styles.main}>
@@ -18,7 +18,7 @@ function LegacyHome() {
             Privacy-First AI Support Powered by Gemma 4
           </h2>
           <p style={styles.heroText}>
-            Personalized voice recognition • Real-time safety monitoring • Medical insights for doctors
+            Detects silent disorientation, restores reality, and escalates safely when the patient cannot respond
           </p>
         </div>
 
@@ -43,7 +43,7 @@ function LegacyHome() {
               </div>
               <h3 style={styles.cardTitle}>Doctor Dashboard</h3>
               <p style={styles.cardDescription}>
-                Track patient progression. Receive alerts. Make informed decisions.
+                Future work: clinical review, longitudinal analytics, and care coordination.
               </p>
               <p style={styles.cardLink}>Open Dashboard →</p>
             </div>
@@ -65,7 +65,7 @@ function LegacyHome() {
               <span style={styles.featureIcon}>📍</span>
               <h4 style={styles.featureTitle}>Safety Monitoring</h4>
               <p style={styles.featureText}>
-                Real-time GPS tracking prevents wandering
+                Future work: GPS wandering support after the core escalation flow
               </p>
             </div>
 
@@ -73,7 +73,7 @@ function LegacyHome() {
               <span style={styles.featureIcon}>💊</span>
               <h4 style={styles.featureTitle}>Medication Tracking</h4>
               <p style={styles.featureText}>
-                Reminds & tracks medication adherence
+                Future work: medication reminders and adherence tracking
               </p>
             </div>
 
@@ -97,7 +97,7 @@ function LegacyHome() {
               <span style={styles.featureIcon}>🔒</span>
               <h4 style={styles.featureTitle}>Privacy First</h4>
               <p style={styles.featureText}>
-                All data local. Runs offline. No cloud.
+                Core reasoning runs locally with Gemma 4 via Ollama. Optional cloud APIs support voice and emotion detection.
               </p>
             </div>
           </div>
@@ -292,7 +292,15 @@ type PhotoMemory = {
   description: string;
 };
 
+type PatientNote = {
+  id: string;
+  timestamp: string;
+  text: string;
+};
+
 type AssistResponse = {
+  response_type?: "conversation" | "care" | string;
+  companion_message?: string;
   mode: string;
   confidence: number;
   detected_language: string;
@@ -447,6 +455,17 @@ const protectedLogin = {
   doctor: { id: "doctor", password: "1234" }
 };
 
+const SILENT_CHECK_AFTER_MS = 10000;
+const SILENT_CHECK_COOLDOWN_MS = 15000;
+
+function getSilentCareStage(checkCount: number) {
+  if (checkCount <= 1) return "initial_guidance";
+  if (checkCount === 2) return "check_in";
+  if (checkCount === 3) return "hearing_check";
+  if (checkCount === 4) return "caregiver_warning";
+  return "alert";
+}
+
 export default function Home() {
   const [theme, setTheme] = useState<ThemeName>("light");
   const [viewMode, setViewMode] = useState<ViewMode>("laptop");
@@ -487,7 +506,12 @@ export default function Home() {
     "Review repeated disorientation episodes at next visit."
   );
   const [photoMemories, setPhotoMemories] = useState<PhotoMemory[]>([]);
+  const [patientNoteDraft, setPatientNoteDraft] = useState("");
+  const [patientNotes, setPatientNotes] = useState<PatientNote[]>([]);
+  const [patientNoteSaveState, setPatientNoteSaveState] =
+    useState<"idle" | "saved">("idle");
   const [saveStatus, setSaveStatus] = useState("");
+  const [saveButtonState, setSaveButtonState] = useState<"idle" | "saved">("idle");
 
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
@@ -513,7 +537,10 @@ export default function Home() {
   const [severityTrend, setSeverityTrend] = useState<SeverityTrend | null>(null);
   const [careSettings, setCareSettings] = useState<CareSettings | null>(null);
   const [settingsStatus, setSettingsStatus] = useState("");
+  const [settingsButtonState, setSettingsButtonState] =
+    useState<"idle" | "saving" | "saved">("idle");
   const [familyAlerts, setFamilyAlerts] = useState<FamilyAlert[]>([]);
+  const [hydrated, setHydrated] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -524,14 +551,28 @@ export default function Home() {
   const speechRecognitionRef = useRef<any>(null);
   const liveMonitoringRef = useRef(false);
   const liveAssistInFlightRef = useRef(false);
+  const assistantSpeakingRef = useRef(false);
+  const speechResumeTimerRef = useRef<number | null>(null);
+  const speechPlaybackIdRef = useRef(0);
+  const audioMonitorStreamRef = useRef<MediaStream | null>(null);
+  const audioMonitorContextRef = useRef<AudioContext | null>(null);
+  const audioMonitorTimerRef = useRef<number | null>(null);
+  const lastVoiceActivityStatusAtRef = useRef(0);
   const quietCheckIntervalRef = useRef<number | null>(null);
   const lastLiveSpeechAtRef = useRef(0);
   const lastQuietAssistAtRef = useRef(0);
+  const liveMonitoringStartedAtRef = useRef(0);
+  const liveMicErrorCountRef = useRef(0);
+  const liveSpeechReadyRef = useRef(false);
+  const liveRecognitionRestartRef = useRef<number | null>(null);
+  const patientQuietModeRef = useRef(false);
+  const quietCheckCountRef = useRef(0);
   const rolePanelRef = useRef<HTMLDivElement | null>(null);
 
   const currentTheme = theme === "light" ? lightTheme : darkTheme;
 
   useEffect(() => {
+    setHydrated(true);
     const timer = window.setInterval(() => setNow(new Date()), 1000);
     return () => window.clearInterval(timer);
   }, []);
@@ -584,6 +625,7 @@ export default function Home() {
       if (typeof data.followUpPlan === "string") setFollowUpPlan(data.followUpPlan);
       if (Array.isArray(data.careSchedule)) setCareSchedule(data.careSchedule);
       if (Array.isArray(data.photoMemories)) setPhotoMemories(data.photoMemories);
+      if (Array.isArray(data.patientNotes)) setPatientNotes(data.patientNotes);
     } catch {
       setSaveStatus("");
     }
@@ -638,10 +680,10 @@ export default function Home() {
     };
   }, []);
 
-  const currentClock = now.toLocaleTimeString([], {
+  const currentClock = hydrated ? now.toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit"
-  });
+  }) : "--:--";
 
   const timeOfDay = useMemo(() => {
     const hour = now.getHours();
@@ -823,12 +865,53 @@ export default function Home() {
       medicationPlan,
       followUpPlan,
       careSchedule,
-      photoMemories
+      photoMemories,
+      patientNotes
     };
 
     window.localStorage.setItem("yourown-care-info", JSON.stringify(data));
-    setSaveStatus(`Saved at ${currentClock}`);
+    setSaveButtonState("saved");
+    setSaveStatus("Saved");
     addLog("Care information saved");
+
+    window.setTimeout(() => {
+      setSaveButtonState("idle");
+      setSaveStatus("");
+    }, 1800);
+  };
+
+  const savePatientNote = () => {
+    const text = patientNoteDraft.trim();
+    if (!text) return;
+
+    const note = {
+      id: `note_${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      text
+    };
+    const updatedNotes = [note, ...patientNotes].slice(0, 30);
+
+    setPatientNotes(updatedNotes);
+    setPatientNoteDraft("");
+    setPatientNoteSaveState("saved");
+    addLog("Patient note saved");
+
+    let existing = {};
+    try {
+      const saved = window.localStorage.getItem("yourown-care-info");
+      existing = saved ? JSON.parse(saved) : {};
+    } catch {
+      existing = {};
+    }
+    window.localStorage.setItem(
+      "yourown-care-info",
+      JSON.stringify({
+        ...existing,
+        patientNotes: updatedNotes
+      })
+    );
+
+    window.setTimeout(() => setPatientNoteSaveState("idle"), 1800);
   };
 
   const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -999,6 +1082,7 @@ export default function Home() {
   const saveCareSettings = async () => {
     if (!careSettings) return;
 
+    setSettingsButtonState("saving");
     setSettingsStatus("Saving alert setup...");
 
     try {
@@ -1014,9 +1098,15 @@ export default function Home() {
       if (!res.ok) throw new Error(data.error || "Could not save settings");
 
       setCareSettings(data);
-      setSettingsStatus("Alert setup saved.");
+      setSettingsButtonState("saved");
+      setSettingsStatus("Saved");
       await fetchFamilyAlerts();
+      window.setTimeout(() => {
+        setSettingsButtonState("idle");
+        setSettingsStatus("");
+      }, 1800);
     } catch (err: unknown) {
+      setSettingsButtonState("idle");
       setSettingsStatus(
         err instanceof Error ? err.message : "Could not save alert setup."
       );
@@ -1067,7 +1157,12 @@ export default function Home() {
       clinicalAssessment,
       medicationPlan,
       followUpPlan,
-      photoMemories: photoMemories.map(({ imageDataUrl, ...photo }) => photo)
+      photoMemories: photoMemories.map(({ imageDataUrl, ...photo }) => photo),
+      patientNotes: patientNotes.slice(0, 5).map(({ id, timestamp, text }) => ({
+        id,
+        timestamp,
+        text
+      }))
     }
   });
 
@@ -1111,6 +1206,10 @@ export default function Home() {
   };
 
   const playAudio = async (data: AssistResponse) => {
+    if (patientQuietModeRef.current) return;
+    const playbackId = speechPlaybackIdRef.current + 1;
+    speechPlaybackIdRef.current = playbackId;
+
     const spokenText = [
       data.response?.reassurance,
       data.response?.context,
@@ -1119,24 +1218,93 @@ export default function Home() {
       .filter(Boolean)
       .join(" ");
 
+    const pauseLiveMic = () => {
+      assistantSpeakingRef.current = true;
+      if (speechResumeTimerRef.current !== null) {
+        window.clearTimeout(speechResumeTimerRef.current);
+        speechResumeTimerRef.current = null;
+      }
+      try {
+        speechRecognitionRef.current?.stop?.();
+      } catch {
+        // Ignore browser speech-recognition stop races.
+      }
+    };
+
+    const resumeLiveMic = () => {
+      if (speechPlaybackIdRef.current !== playbackId) return;
+      assistantSpeakingRef.current = false;
+      if (!liveMonitoringRef.current || !speechRecognitionRef.current) return;
+
+      speechResumeTimerRef.current = window.setTimeout(() => {
+        speechResumeTimerRef.current = null;
+        if (!liveMonitoringRef.current || !speechRecognitionRef.current) return;
+        try {
+          speechRecognitionRef.current.start();
+          liveSpeechReadyRef.current = true;
+          lastLiveSpeechAtRef.current = Date.now();
+        } catch {
+          setLiveMonitoringStatus("Live mic is waiting to resume.");
+        }
+      }, 1000);
+    };
+
     if (!data.audio_base64 || !data.audio_mime_type) {
       if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
       if (!spokenText) return;
 
+      pauseLiveMic();
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(spokenText);
-      utterance.rate = 0.88;
+      utterance.rate = 0.82;
       utterance.pitch = 1;
       utterance.volume = 1;
-      window.speechSynthesis.speak(utterance);
+
+      await new Promise<void>((resolve) => {
+        let settled = false;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          resumeLiveMic();
+          resolve();
+        };
+
+        utterance.onend = () => {
+          finish();
+        };
+        utterance.onerror = () => {
+          finish();
+        };
+        window.setTimeout(finish, Math.max(2500, spokenText.length * 95));
+        window.setTimeout(() => window.speechSynthesis.speak(utterance), 120);
+      });
       return;
     }
 
+    pauseLiveMic();
     const audio = new Audio(
       `data:${data.audio_mime_type};base64,${data.audio_base64}`
     );
 
-    await audio.play();
+    await new Promise<void>((resolve) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        resumeLiveMic();
+        resolve();
+      };
+
+      audio.onended = () => {
+        finish();
+      };
+      audio.onerror = () => {
+        finish();
+      };
+      audio.play().catch(() => {
+        finish();
+      });
+    });
   };
 
   const unlockRole = () => {
@@ -1289,7 +1457,7 @@ export default function Home() {
 
     if (!video || !cameraActive || video.videoWidth === 0) {
       setCameraStatus("Start the camera before capturing.");
-      return;
+      return null;
     }
 
     const canvas = document.createElement("canvas");
@@ -1299,7 +1467,7 @@ export default function Home() {
     const context = canvas.getContext("2d");
     if (!context) {
       setCameraStatus("Could not capture camera frame.");
-      return;
+      return null;
     }
 
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -1309,6 +1477,7 @@ export default function Home() {
     setImageLabels("");
     setVisualConcern("");
     setCameraStatus("Frame captured. Add labels only if you want to describe what is visible.");
+    return imageData;
   };
 
   const handleAssist = async () => {
@@ -1356,10 +1525,43 @@ export default function Home() {
     }
 
     try {
+      const liveFrame =
+        source === "quiet_check" && cameraActive
+          ? captureCameraFrame()
+          : capturedImage;
       const payload = getPayload();
       const behaviorSignals = source === "quiet_check"
-        ? { noProgress: true, quietPause: true, hesitation: true, source: "timer" }
+        ? {
+            noProgress: true,
+            quietPause: true,
+            hesitation: true,
+            repeatedSilentCheck: quietCheckCountRef.current > 1,
+            liveSilenceCheckCount: quietCheckCountRef.current,
+            gpsAvailable: latitude !== null && longitude !== null,
+            cameraAvailable: cameraActive || Boolean(capturedImage),
+            capturedImageAvailable: Boolean(liveFrame || capturedImage),
+            microphoneStatus: liveMicErrorCountRef.current > 0 ? "unstable_or_blocked" : "available",
+            source: "timer"
+          }
         : { hesitation: hasHesitationPattern(transcript), source: "speech" };
+      const conversationState = source === "quiet_check"
+        ? {
+            turnType: "silent_check",
+            stage: getSilentCareStage(quietCheckCountRef.current),
+            silentCheckCount: quietCheckCountRef.current,
+            monitorInstruction: transcript,
+            goal:
+              "Code controls the safety stage. Gemma controls natural wording for this stage. Talk like a real caregiver, use saved context naturally, ask one fresh question, and do not repeat prior wording.",
+            patientMayBeResting: patientQuietModeRef.current,
+            shouldEscalateCaregiver: quietCheckCountRef.current >= 4
+          }
+        : {
+            turnType: "patient_speech",
+            stage: "conversation",
+            lastPatientAnswer: transcript,
+            goal:
+              "Respond naturally to what the patient just said, like a calm caregiver companion."
+          };
       const res = await fetch(apiUrl("/assist"), {
         method: "POST",
         headers: {
@@ -1370,8 +1572,13 @@ export default function Home() {
           signals: {
             ...payload.signals,
             speakerRole: "patient",
-            speechText: transcript,
-            behaviorSignals
+            speechText: source === "quiet_check" ? "" : transcript,
+            capturedImage: liveFrame || payload.signals.capturedImage,
+            visualDescription: liveFrame
+              ? "Live monitor captured a fresh camera frame for safety context."
+              : payload.signals.visualDescription,
+            behaviorSignals,
+            conversationState
           }
         })
       });
@@ -1408,83 +1615,260 @@ export default function Home() {
     quietCheckIntervalRef.current = null;
   };
 
+  const stopAudioActivityMonitor = () => {
+    if (audioMonitorTimerRef.current !== null) {
+      window.clearInterval(audioMonitorTimerRef.current);
+      audioMonitorTimerRef.current = null;
+    }
+
+    audioMonitorStreamRef.current?.getTracks().forEach((track) => track.stop());
+    audioMonitorStreamRef.current = null;
+
+    audioMonitorContextRef.current?.close().catch(() => undefined);
+    audioMonitorContextRef.current = null;
+  };
+
+  const startAudioActivityMonitor = async () => {
+    stopAudioActivityMonitor();
+
+    if (!navigator.mediaDevices?.getUserMedia) return false;
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const AudioContextClass =
+        window.AudioContext ||
+        (window as typeof window & { webkitAudioContext?: typeof AudioContext })
+          .webkitAudioContext;
+
+      if (!AudioContextClass) {
+        stream.getTracks().forEach((track) => track.stop());
+        return false;
+      }
+
+      const audioContext = new AudioContextClass();
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 1024;
+      source.connect(analyser);
+
+      const samples = new Uint8Array(analyser.fftSize);
+      audioMonitorStreamRef.current = stream;
+      audioMonitorContextRef.current = audioContext;
+      liveSpeechReadyRef.current = true;
+      lastLiveSpeechAtRef.current = Date.now();
+
+      audioMonitorTimerRef.current = window.setInterval(() => {
+        if (!liveMonitoringRef.current || assistantSpeakingRef.current) return;
+
+        analyser.getByteTimeDomainData(samples);
+        let sum = 0;
+        for (const sample of samples) {
+          const centered = sample - 128;
+          sum += centered * centered;
+        }
+
+        const rms = Math.sqrt(sum / samples.length);
+        if (rms < 8) return;
+
+        lastLiveSpeechAtRef.current = Date.now();
+        const nowMs = Date.now();
+        if (nowMs - lastVoiceActivityStatusAtRef.current > 3000) {
+          lastVoiceActivityStatusAtRef.current = nowMs;
+          setLiveMonitoringStatus("Voice activity detected. Listening for words...");
+        }
+      }, 250);
+
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   const startQuietCheckTimer = () => {
     clearQuietCheckTimer();
     lastLiveSpeechAtRef.current = Date.now();
     lastQuietAssistAtRef.current = 0;
+    quietCheckCountRef.current = 0;
 
     quietCheckIntervalRef.current = window.setInterval(() => {
       if (!liveMonitoringRef.current || liveAssistInFlightRef.current) return;
+      if (patientQuietModeRef.current) return;
+      if (!liveSpeechReadyRef.current) {
+        const waitingForMs = Date.now() - liveMonitoringStartedAtRef.current;
+        if (waitingForMs < 5000) {
+          setLiveMonitoringStatus("Live monitor is checking microphone access...");
+          return;
+        }
+
+        liveSpeechReadyRef.current = true;
+        lastLiveSpeechAtRef.current = Date.now();
+        setLiveMonitoringStatus("Mic readiness was slow. Silent pause checks are active now.");
+        return;
+      }
 
       const nowMs = Date.now();
       const quietForMs = nowMs - lastLiveSpeechAtRef.current;
       const quietCooldownMs = nowMs - lastQuietAssistAtRef.current;
 
-      if (quietForMs < 20000 || quietCooldownMs < 60000) return;
+      if (
+        quietForMs < SILENT_CHECK_AFTER_MS ||
+        quietCooldownMs < SILENT_CHECK_COOLDOWN_MS
+      ) return;
 
       lastQuietAssistAtRef.current = nowMs;
-      const quietPrompt =
-        "The patient has been quiet for a while during live monitoring and may be unsure, paused, or losing their train of thought. Use GPS, time, routine, and camera context if available. Do not diagnose.";
+      const checkIns = [
+        "Silent check. The patient has been quiet. Use context naturally and ask one gentle question.",
+        "Silent check. The patient is still quiet. Do not repeat yourself. Continue like a real caregiver.",
+        "Silent check. The patient has not answered. Ask a more specific safety question.",
+        "Silent check. The patient is still not answering. Offer caregiver help naturally.",
+        "Silent check. The patient has missed several check-ins. Calmly explain caregiver escalation may happen."
+      ];
+      const quietPrompt = checkIns[quietCheckCountRef.current % checkIns.length];
+      quietCheckCountRef.current += 1;
 
       setLiveMonitoringStatus("Quiet pause noticed. Checking context gently...");
       sendLiveMonitoringAssist(quietPrompt, "quiet_check");
     }, 5000);
   };
 
-  const startLiveMonitoring = () => {
+  const startLiveMonitoring = async () => {
     const SpeechRecognitionClass =
       (window as any).SpeechRecognition ||
       (window as any).webkitSpeechRecognition;
 
+    setLiveMonitoringStatus("Checking microphone access...");
+    const microphone = await checkMicrophoneAccess();
+    setLiveMonitoringStatus("Checking GPS access...");
+    ensureGpsWatching();
+    setLiveMonitoringStatus("Checking camera access...");
+    if (!cameraActive) {
+      await startCamera();
+    }
+
+    if (!microphone.ok) {
+      setLiveMonitoringStatus(`${microphone.message} Silent pause timer can still run if you continue.`);
+    }
+
     if (!SpeechRecognitionClass) {
       setLiveMonitoringStatus(
-        "Live mic monitoring is not supported in this browser. Use Speak instead."
+        `${microphone.message} Speech recognition is not supported in this browser. Type in the message box or use Speak.`
       );
       return;
     }
 
-    ensureGpsWatching();
     liveMonitoringRef.current = true;
     setLiveMonitoring(true);
-    setLiveMonitoringStatus("Listening for confusion and safety concerns...");
-    startQuietCheckTimer();
+    liveMicErrorCountRef.current = 0;
+    liveSpeechReadyRef.current = microphone.ok;
+    liveMonitoringStartedAtRef.current = Date.now();
+    lastLiveSpeechAtRef.current = Date.now();
+    setLiveMonitoringStatus(
+      microphone.ok
+        ? "Microphone works. Listening for confusion and safety concerns..."
+        : "Microphone unavailable. Silent pause timer is watching quietly."
+    );
+
+    if (!microphone.ok) {
+      return;
+    }
+
+    const audioMonitorReady = await startAudioActivityMonitor();
+    if (audioMonitorReady) {
+      startQuietCheckTimer();
+    }
+
+    if (!SpeechRecognitionClass) {
+      return;
+    }
 
     const recognition = new SpeechRecognitionClass();
     recognition.continuous = true;
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.lang = spokenLanguage === "English" ? "en-US" : undefined;
 
     recognition.onresult = (event: any) => {
-      const latest = event.results[event.results.length - 1];
-      const transcript = String(latest?.[0]?.transcript || "").trim();
+      if (assistantSpeakingRef.current) return;
+      lastLiveSpeechAtRef.current = Date.now();
+
+      const results = Array.from(event.results || []) as any[];
+      const transcript = results
+        .slice(event.resultIndex || 0)
+        .map((result) => String(result?.[0]?.transcript || ""))
+        .join(" ")
+        .trim();
       if (!transcript) return;
 
-      lastLiveSpeechAtRef.current = Date.now();
-      setLiveMonitoringStatus(`Heard: ${transcript}`);
+      const isFinal = results.some((result) => Boolean(result?.isFinal));
+      setLiveMonitoringStatus(
+        isFinal ? `Heard: ${transcript}` : `Listening: ${transcript}`
+      );
 
-      if (isConfusionOrSafetySpeech(transcript)) {
-        sendLiveMonitoringAssist(transcript);
+      if (!isFinal) return;
+
+      if (isRestOrStopSpeech(transcript)) {
+        patientQuietModeRef.current = true;
+        quietCheckCountRef.current = 0;
+        window.speechSynthesis?.cancel?.();
+        setLiveMonitoringStatus("Mary said she is resting. I will stay quiet and keep listening.");
+        addLog(`Resting mode: ${transcript}`);
+        return;
       }
+
+      if (patientQuietModeRef.current) {
+        patientQuietModeRef.current = false;
+        lastLiveSpeechAtRef.current = Date.now();
+        setLiveMonitoringStatus(`Mary started talking again: ${transcript}`);
+      }
+
+      sendLiveMonitoringAssist(transcript);
     };
 
-    recognition.onerror = () => {
-      setLiveMonitoringStatus("Live mic paused. Check microphone permission.");
+    recognition.onerror = (event: any) => {
+      liveMicErrorCountRef.current += 1;
+      const errorName = String(event?.error || "");
+
+      if (errorName === "not-allowed" || errorName === "service-not-allowed") {
+        liveSpeechReadyRef.current = false;
+        setLiveMonitoringStatus("Microphone permission is blocked. Type in the message box or use Speak.");
+        return;
+      }
+
+      if (liveMicErrorCountRef.current <= 1) {
+        setLiveMonitoringStatus("Live mic paused briefly. Restarting listener...");
+      }
     };
 
     recognition.onend = () => {
       if (!liveMonitoringRef.current) return;
-      try {
-        recognition.start();
-      } catch {
-        setLiveMonitoringStatus("Live mic is waiting to restart.");
+      if (assistantSpeakingRef.current) return;
+      if (liveMicErrorCountRef.current > 4) {
+        liveSpeechReadyRef.current = false;
+        setLiveMonitoringStatus("Live mic is unstable. Type in the message box or use Speak.");
+        return;
       }
+
+      if (liveRecognitionRestartRef.current !== null) return;
+      liveRecognitionRestartRef.current = window.setTimeout(() => {
+        liveRecognitionRestartRef.current = null;
+        try {
+          recognition.start();
+        } catch {
+          if (liveMicErrorCountRef.current <= 1) {
+            setLiveMonitoringStatus("Live mic is waiting to restart.");
+          }
+        }
+      }, 350);
     };
 
     speechRecognitionRef.current = recognition;
 
     try {
       recognition.start();
+      liveSpeechReadyRef.current = true;
+      lastLiveSpeechAtRef.current = Date.now();
+      if (!audioMonitorReady) startQuietCheckTimer();
     } catch {
+      liveSpeechReadyRef.current = false;
       setLiveMonitoringStatus("Live mic is already starting.");
     }
   };
@@ -1493,7 +1877,19 @@ export default function Home() {
     liveMonitoringRef.current = false;
     setLiveMonitoring(false);
     setLiveMonitoringStatus("Live monitor is off");
+    liveSpeechReadyRef.current = false;
+    assistantSpeakingRef.current = false;
+    if (speechResumeTimerRef.current !== null) {
+      window.clearTimeout(speechResumeTimerRef.current);
+      speechResumeTimerRef.current = null;
+    }
+    patientQuietModeRef.current = false;
+    if (liveRecognitionRestartRef.current !== null) {
+      window.clearTimeout(liveRecognitionRestartRef.current);
+      liveRecognitionRestartRef.current = null;
+    }
     clearQuietCheckTimer();
+    stopAudioActivityMonitor();
     speechRecognitionRef.current?.stop?.();
   };
 
@@ -1509,6 +1905,11 @@ export default function Home() {
     /\b(where am i|who am i|who are you|lost|scared|afraid|confused|unsure|don't know|dont know|what was i|what do i|help|hurt|fall|fell|pain|medicine|pill|dose|home)\b/i.test(
       text
     ) || hasHesitationPattern(text);
+
+  const isRestOrStopSpeech = (text: string) =>
+    /\b(i am okay|i'm okay|im okay|i am fine|i'm fine|im fine|i will sleep|i'm going to sleep|im going to sleep|going to sleep|i want to sleep|let me sleep|i am resting|i'm resting|im resting|i will rest|i am watching tv|watching tv|stop talking|be quiet|quiet please|don't talk|dont talk|no more help|i don't need help|i dont need help)\b/i.test(
+      text
+    );
 
   const hasHesitationPattern = (text: string) => {
     const normalized = text.toLowerCase().replace(/[^\w\s']/g, " ");
@@ -1633,6 +2034,34 @@ export default function Home() {
     setRecording(false);
     setLoading(true);
     mediaRecorderRef.current.stop();
+  };
+
+  const checkMicrophoneAccess = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      return {
+        ok: false,
+        message: "Microphone access is not supported in this browser."
+      };
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((track) => track.stop());
+      return {
+        ok: true,
+        message: "Microphone is available."
+      };
+    } catch (error: unknown) {
+      const errorName = error instanceof DOMException ? error.name : "";
+      const message =
+        errorName === "NotAllowedError" || errorName === "SecurityError"
+          ? "Microphone permission is blocked. Allow microphone access in the browser."
+          : errorName === "NotFoundError"
+            ? "No microphone was found on this device."
+            : "Microphone could not be started. Check browser or device settings.";
+
+      return { ok: false, message };
+    }
   };
 
   const sendVoiceToBackend = async (audioBlob: Blob) => {
@@ -1776,8 +2205,8 @@ export default function Home() {
                 }
               >
                 {viewMode === "mobile"
-                  ? "Patient companion"
-                  : "Live care companion"}
+                  ? "Patient demo"
+                  : "Silent disorientation demo"}
               </p>
               <h1
                 className={
@@ -1787,8 +2216,8 @@ export default function Home() {
                 }
               >
                 {viewMode === "mobile"
-                  ? "Calm help in your pocket."
-                  : "Understand the moment, not just the message."}
+                  ? "Tea routine rescue."
+                  : "Detect silent disorientation, restore reality, escalate safely."}
               </h1>
               <p
                 className={
@@ -1798,8 +2227,8 @@ export default function Home() {
                 }
               >
                 {viewMode === "mobile"
-                  ? "Speak, send a message, or start live monitoring for simple reassurance."
-                  : "Real-time voice, GPS, schedule, memory, language, and protected care roles."}
+                  ? "Mary pauses while making tea. yourOwn checks in and alerts family if she cannot respond."
+                  : "Core reasoning runs locally with Gemma 4 via Ollama. Optional cloud APIs support voice and emotion detection."}
               </p>
               <div
                 className={
@@ -2253,7 +2682,7 @@ export default function Home() {
               {canModifySchedule && (
                 <div className="mt-5">
                   <button onClick={saveCareInfo} className={currentTheme.saveButton}>
-                    Save reminder times
+                    {saveButtonState === "saved" ? "Saved" : "Save reminder times"}
                   </button>
                   {saveStatus && <p className={currentTheme.miniText}>{saveStatus}</p>}
                 </div>
@@ -2285,6 +2714,45 @@ export default function Home() {
               </div>
             </Card>
             )}
+
+            {isPatientRole && (
+            <Card theme={currentTheme}>
+              <SectionTitle
+                emoji="Note"
+                title="My notes"
+                description="Save something you want to remember and read it later."
+                theme={currentTheme}
+              />
+
+              <Field label="New note" theme={currentTheme}>
+                <textarea
+                  value={patientNoteDraft}
+                  onChange={(event) => setPatientNoteDraft(event.target.value)}
+                  className={`${currentTheme.input} min-h-[96px] resize-none`}
+                  placeholder="Write something you want to remember..."
+                />
+              </Field>
+
+              <button onClick={savePatientNote} className={currentTheme.saveButton}>
+                {patientNoteSaveState === "saved" ? "Saved" : "Save note"}
+              </button>
+
+              <div className="mt-4 space-y-2">
+                {patientNotes.length === 0 && (
+                  <p className={currentTheme.miniText}>No saved notes yet.</p>
+                )}
+
+                {patientNotes.map((note) => (
+                  <div key={note.id} className={currentTheme.timelineItem}>
+                    <p>{note.text}</p>
+                    <p className="mt-1 text-xs opacity-70">
+                      {new Date(note.timestamp).toLocaleString()}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+            )}
           </section>
           )}
 
@@ -2293,8 +2761,12 @@ export default function Home() {
             <Card theme={currentTheme}>
               <SectionTitle
                 emoji="💬"
-                title="Care response"
-                description="Patient reassurance, risk, evidence, and action plan."
+                title={result?.response_type === "conversation" ? "Companion conversation" : "Care response"}
+                description={
+                  result?.response_type === "conversation"
+                    ? "A natural reply from yourOwn."
+                    : "Patient reassurance, risk, evidence, and action plan."
+                }
                 theme={currentTheme}
               />
 
@@ -2321,6 +2793,7 @@ export default function Home() {
                 medicationPlan={medicationPlan}
                 onSave={saveCareInfo}
                 result={result}
+                saveButtonState={saveButtonState}
                 saveStatus={saveStatus}
                 severityTrend={severityTrend}
                 setClinicalAssessment={setClinicalAssessment}
@@ -2338,6 +2811,7 @@ export default function Home() {
                 onSave={saveCareInfo}
                 onUpdatePhoto={updatePhotoMemory}
                 photoMemories={photoMemories}
+                saveButtonState={saveButtonState}
                 saveStatus={saveStatus}
               />
             )}
@@ -2356,6 +2830,13 @@ export default function Home() {
                 onUpdateCaregiver={updateCaregiverSetting}
                 onUpdateCaregiverNotify={updateCaregiverNotify}
                 onUpdateHome={updateHomeSetting}
+                saveButtonLabel={
+                  settingsButtonState === "saving"
+                    ? "Saving..."
+                    : settingsButtonState === "saved"
+                      ? "Saved"
+                      : "Save alert setup"
+                }
                 settingsStatus={settingsStatus}
               />
             )}
@@ -2439,7 +2920,7 @@ export default function Home() {
               {canModifyCareInfo && (
                 <div className="mt-5">
                   <button onClick={saveCareInfo} className={currentTheme.saveButton}>
-                    Save changes
+                    {saveButtonState === "saved" ? "Saved" : "Save changes"}
                   </button>
                   {saveStatus && <p className={currentTheme.miniText}>{saveStatus}</p>}
                 </div>
@@ -2491,6 +2972,7 @@ function DoctorDashboard({
   medicationPlan,
   onSave,
   result,
+  saveButtonState,
   saveStatus,
   severityTrend,
   setClinicalAssessment,
@@ -2505,6 +2987,7 @@ function DoctorDashboard({
   medicationPlan: string;
   onSave: () => void;
   result: AssistResponse | null;
+  saveButtonState: "idle" | "saved";
   saveStatus: string;
   severityTrend: SeverityTrend | null;
   setClinicalAssessment: Dispatch<SetStateAction<string>>;
@@ -2606,7 +3089,7 @@ function DoctorDashboard({
       </div>
 
       <button onClick={onSave} className={currentTheme.saveButton}>
-        Save doctor updates
+        {saveButtonState === "saved" ? "Saved" : "Save doctor updates"}
       </button>
       {saveStatus && <p className={currentTheme.miniText}>{saveStatus}</p>}
     </Card>
@@ -2620,6 +3103,7 @@ function FamilyPhotoDashboard({
   onSave,
   onUpdatePhoto,
   photoMemories,
+  saveButtonState,
   saveStatus
 }: {
   currentTheme: typeof lightTheme;
@@ -2632,6 +3116,7 @@ function FamilyPhotoDashboard({
     value: string
   ) => void;
   photoMemories: PhotoMemory[];
+  saveButtonState: "idle" | "saved";
   saveStatus: string;
 }) {
   return (
@@ -2715,7 +3200,7 @@ function FamilyPhotoDashboard({
       </div>
 
       <button onClick={onSave} className={currentTheme.saveButton}>
-        Save family updates
+        {saveButtonState === "saved" ? "Saved" : "Save family updates"}
       </button>
       {saveStatus && <p className={currentTheme.miniText}>{saveStatus}</p>}
     </Card>
@@ -2735,6 +3220,7 @@ function FamilyAlertSetup({
   onUpdateCaregiver,
   onUpdateCaregiverNotify,
   onUpdateHome,
+  saveButtonLabel,
   settingsStatus
 }: {
   alerts: FamilyAlert[];
@@ -2756,6 +3242,7 @@ function FamilyAlertSetup({
     field: "lat" | "lng" | "radiusMeters" | "address",
     value: string
   ) => void;
+  saveButtonLabel: string;
   settingsStatus: string;
 }) {
   const home = careSettings?.home || {
@@ -2896,7 +3383,7 @@ function FamilyAlertSetup({
           Use GPS as home
         </button>
         <button onClick={onSave} className={currentTheme.saveButton}>
-          Save alert setup
+          {saveButtonLabel}
         </button>
       </div>
       <p className={currentTheme.statusBox}>{gpsStatus}</p>
@@ -3236,18 +3723,38 @@ function ResultPanel({
       )}
 
       <div className={theme.responseBox}>
-        <p className={theme.responseTitle}>{result.response.reassurance}</p>
-        <p className={theme.responseText}>{result.response.context}</p>
-        <div className={theme.nextStepBox}>
-          <p className="text-xs font-black uppercase tracking-[0.18em] opacity-70">
-            Next step
+        {result.response_type === "conversation" ? (
+          <p className={theme.responseText}>
+            {result.companion_message ||
+              [
+                result.response.reassurance,
+                result.response.context,
+                result.response.next_step
+              ].filter(Boolean).join(" ")}
           </p>
-          <p className="mt-1 text-lg font-black">{result.response.next_step}</p>
-        </div>
+        ) : (
+          <>
+            <p className={theme.responseTitle}>{result.response.reassurance}</p>
+            <p className={theme.responseText}>{result.response.context}</p>
+            <div className={theme.nextStepBox}>
+              <p className="text-xs font-black uppercase tracking-[0.18em] opacity-70">
+                Next step
+              </p>
+              <p className="mt-1 text-lg font-black">{result.response.next_step}</p>
+            </div>
+          </>
+        )}
       </div>
 
       {result.care_reasoning && (
-        <InfoCard title="Gemma care reasoning" theme={theme}>
+        <InfoCard
+          title={
+            result.response_type === "conversation"
+              ? "Live risk monitor"
+              : "Gemma care reasoning"
+          }
+          theme={theme}
+        >
           <div className="grid gap-3 md:grid-cols-3">
             <SignalPill
               label="Risk"

@@ -58,6 +58,18 @@ function scoreSupportMode({
     "what should i do now"
   ];
 
+  const ordinaryQuestionClues = [
+    "what time is it",
+    "what's the time",
+    "what is the time",
+    "what day is it",
+    "how are you",
+    "talk to me",
+    "can you talk",
+    "stay with me",
+    "tell me something"
+  ];
+
   if (includesAny(speechText, orientationClues)) {
     mode = "orientation";
     confidence += 0.14;
@@ -80,6 +92,12 @@ function scoreSupportMode({
     mode = "routine_guidance";
     confidence += 0.1;
     reasons.push("Detected routine guidance request");
+  }
+
+  if (mode === "general_support" && includesAny(speechText, ordinaryQuestionClues)) {
+    mode = "conversation";
+    confidence += 0.12;
+    reasons.push("Detected ordinary companion question");
   }
 
   if (speakerRole === "doctor") {

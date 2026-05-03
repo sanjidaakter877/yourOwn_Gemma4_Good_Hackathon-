@@ -1,0 +1,36 @@
+{
+  "id": "family_alert_1777664377652_d958a704",
+  "patientId": "mary",
+  "timestamp": "2026-05-01T19:39:37.652Z",
+  "resolved": false,
+  "type": "PATIENT_AWAY_AND_DISTRESSED",
+  "severity": "HIGH",
+  "message": "Mary may be scared or confused and is outside saved home/safe places. Check in now. GPS: 40.65173482714136, -73.94016584884307.",
+  "description": "Mary may be scared or confused and is outside saved home/safe places. Check in now. GPS: 40.65173482714136, -73.94016584884307.",
+  "caregiverName": "Anna",
+  "caregiverNames": [],
+  "notificationContactCount": 0,
+  "location": {
+    "latitude": 40.65173482714136,
+    "longitude": -73.94016584884307,
+    "accuracyMeters": 156,
+    "matchedPlace": null
+  },
+  "trigger": {
+    "reason": "distressed_away_from_home",
+    "speechText": "Where am I?",
+    "risk": {
+      "level": "medium",
+      "score": 0.52,
+      "flags": [
+        "disorientation",
+        "possible_wandering"
+      ],
+      "reasons": [
+        "Patient used orientation/confusion language.",
+        "Speech suggests the patient may feel lost or displaced.",
+        "Known place matched: home."
+      ]
+    }
+  }
+}

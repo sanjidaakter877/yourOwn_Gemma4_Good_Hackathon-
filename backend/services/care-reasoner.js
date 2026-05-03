@@ -19,7 +19,9 @@ function buildToolTrace({ context, environment, relevantMemories }) {
       tool: "matchSafePlace",
       result: {
         likely_place: environment?.likely_place || "unknown",
+        gps_status: environment?.gps_status || "gps_unavailable",
         gps_match: environment?.gps_match || null,
+        nearest_known_place: environment?.nearest_known_place || null,
         accuracy_meters: context.locationAccuracy
       }
     },
@@ -121,6 +123,33 @@ function classifyCareRisk({ context, environment, scored }) {
     reasons.push("Silent confusion detector found quiet pause, no-progress, or hesitation signals.");
   }
 
+  if (context.escalation?.stage && context.escalation.stage !== "none") {
+    flags.push(`escalation_${context.escalation.stage}`);
+    reasons.push(`Escalation manager selected ${context.escalation.stage}.`);
+
+    if (context.escalation.risk === "medium") {
+      score += 0.12;
+    } else if (context.escalation.risk === "high") {
+      score += 0.28;
+    }
+  }
+
+  if (
+    context.behaviorAnalysis?.silent_confusion &&
+    environment?.gps_status === "unmatched_known_place"
+  ) {
+    score += 0.18;
+    flags.push("silent_confusion_away_from_safe_place");
+    flags.push("gps_safe_place_mismatch");
+    reasons.push("Silent confusion happened while GPS was outside saved family safe places.");
+  }
+
+  if (context.behaviorAnalysis?.flags?.includes("repeated_silent_check")) {
+    score += 0.14;
+    flags.push("repeated_silence_no_response");
+    reasons.push("Patient stayed silent across repeated live monitor check-ins.");
+  }
+
   if (context.behaviorAnalysis?.flags?.includes("repeated_orientation")) {
     score += 0.1;
     flags.push("repeated_orientation_support");
@@ -169,13 +198,14 @@ function classifyCareRisk({ context, environment, scored }) {
     reasons.push("Image labels include medication-related objects.");
   }
 
-  if (environment?.likely_place) {
+  if (environment?.gps_status === "matched_known_place" && environment?.likely_place) {
     score -= 0.08;
     reasons.push(`Known place matched: ${environment.likely_place}.`);
-  } else if (context.latitude && context.longitude) {
-    score += 0.12;
+  } else if (environment?.gps_status === "unmatched_known_place") {
+    score += 0.22;
     flags.push("unknown_location");
-    reasons.push("GPS exists but did not match a known safe place.");
+    flags.push("gps_safe_place_mismatch");
+    reasons.push("GPS exists but did not match a saved family safe place.");
   }
 
   if (context.timeOfDay === "night") {
@@ -272,6 +302,20 @@ function buildEvidence({ context, environment, scored, relevantMemories, risk })
     );
   }
 
+  if (context.escalation?.stage && context.escalation.stage !== "none") {
+    evidence.push(`Escalation stage: ${context.escalation.stage}.`);
+    evidence.push(`Code decision: alert caregiver ${context.escalation.shouldAlertCaregiver ? "yes" : "no"}.`);
+  }
+
+  if (environment?.gps_status === "unmatched_known_place") {
+    evidence.push("GPS did not match saved family safe places.");
+    if (environment.nearest_known_place?.name) {
+      evidence.push(
+        `Nearest saved place: ${environment.nearest_known_place.name}, about ${environment.nearest_known_place.distance_meters} meters away.`
+      );
+    }
+  }
+
   relevantMemories.slice(0, 3).forEach((memory) => {
     evidence.push(`Retrieved memory: ${memory.interpreted_text}.`);
   });
@@ -282,15 +326,19 @@ function buildEvidence({ context, environment, scored, relevantMemories, risk })
 }
 
 function buildActionPlan({ context, environment, risk }) {
-  const notifyFamily = ["high", "emergency"].includes(risk.level);
+  const notifyFamily =
+    Boolean(context.escalation?.shouldAlertCaregiver) ||
+    ["high", "emergency"].includes(risk.level);
   const notifyDoctor =
     risk.flags.includes("medication_safety") ||
     risk.flags.includes("visual_medication_check") ||
     risk.flags.includes("possible_injury") ||
     risk.level === "emergency";
 
-  const patientAction = context.behaviorAnalysis?.silent_confusion
-    ? "Use a gentle check-in, stay nearby, and wait for a trusted person."
+  const patientAction = risk.flags.includes("silent_confusion_away_from_safe_place")
+    ? "Tell the patient this does not match a saved safe place, ask if they need help, and prepare caregiver guidance."
+    : context.behaviorAnalysis?.silent_confusion
+      ? "Use a gentle check-in, stay nearby, and wait for a trusted person."
     : context.mealOrMedicationTime && context.scheduleNow?.label
       ? `Stay where you are and focus on ${context.scheduleNow.label}.`
       : "Stay where you are, take one slow breath, and wait for help.";

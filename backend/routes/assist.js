@@ -17,6 +17,7 @@ const { textToSpeech, speechToText } = require("../services/elevenlabs");
 const hume = require("../services/hume");
 const { analyzeBehaviorSignals } = require("../services/behavior-detector");
 const { notifyFamilyIfNeeded } = require("../services/caregiver-alerts");
+const { evaluateEscalation } = require("../services/escalation-manager");
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -108,12 +109,28 @@ async function runAssistFlow(body, app) {
     humeEmotion
   });
 
+  const escalation = evaluateEscalation({
+    profile,
+    signals,
+    behaviorAnalysis
+  });
+
   const context = buildContext({
     profile,
     signals: {
       ...signals,
       humeEmotion,
-      behaviorAnalysis
+      behaviorAnalysis,
+      escalation,
+      conversationState: {
+        ...(signals.conversationState || {}),
+        stage: escalation.stage,
+        escalationStage: escalation.stage,
+        shouldSpeak: escalation.shouldSpeak,
+        shouldWait: escalation.shouldWait,
+        shouldAlertCaregiver: escalation.shouldAlertCaregiver,
+        gemmaContext: escalation.gemmaContext
+      }
     }
   });
 
@@ -231,8 +248,10 @@ async function runAssistFlow(body, app) {
     environment,
     response: aiResult.response,
     care_reasoning: aiResult.care_reasoning,
+    ollama_meta: aiResult.ollama_meta || null,
     hume_emotion: humeEmotion,
     behavior_analysis: behaviorAnalysis,
+    escalation,
     family_alert: familyAlert,
     memory_summary: aiResult.memory_summary,
     score_reasons: scored.reasons,

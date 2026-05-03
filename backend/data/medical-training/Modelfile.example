@@ -1,0 +1,22 @@
+# Ollama Modelfile — load yourOwn fine-tuned Gemma 4 adapter
+#
+# After uploading the adapter to HuggingFace, build an Ollama model:
+#   ollama create yourown-gemma4 -f Modelfile.example
+#
+# Then update backend/.env:
+#   OLLAMA_MODEL=yourown-gemma4
+
+FROM gemma4:4b
+
+# Mount the LoRA adapter (path relative to this file, or absolute)
+ADAPTER ./gemma4-medical-ft-output
+
+PARAMETER temperature 0.25
+PARAMETER top_p 0.85
+PARAMETER num_ctx 32768
+
+SYSTEM """
+You are yourOwn, a real-time Alzheimer's care companion trained on dementia care dialogue.
+Respond with calm, grounded, short messages the patient can understand.
+Always return valid JSON with the required response shape.
+"""

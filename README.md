@@ -1,63 +1,89 @@
 # yourOwn
 
-A care companion for Alzheimer's patients, families, and doctors, powered by Gemma 4.
+yourOwn detects silent disorientation, restores reality, and escalates safely when the patient cannot respond.
 
 Live demo: https://your-own-gemma4-good-hackathon.vercel.app
 
-yourOwn is a prototype built for the Gemma 4 Good Hackathon. It is designed to support Alzheimer's patients during moments of confusion by combining patient messages, voice, GPS context, meal and medication schedules, family memory notes, doctor instructions, camera context, and severity tracking into one calm care assistant experience.
+This prototype is built for the Gemma 4 Good Hackathon. The core demo is one focused care moment: Mary is making tea, silently pauses, does not respond to gentle check-ins, and yourOwn escalates to a trusted caregiver.
 
-The core demo focus is silent confusion detection: the app watches for quiet pause, hesitation, and no-progress signals when a patient may no longer be able to ask "Where am I?" out loud. It combines those weak behavior signals with location, time, routine, memory, and care notes to produce a grounded support response and a longitudinal severity report for caregivers and doctors.
+The goal is not to replace caregivers, clinicians, or emergency services. The goal is to catch a quiet failure mode in Alzheimer's care: moments when a patient is disoriented but cannot ask for help out loud.
 
-The goal is not to replace caregivers, clinicians, or emergency services. The goal is to give patients grounded support between human care moments while giving families and doctors clearer context about what is happening over time.
+## Core Story
 
-## Why It Matters
+Many care tools react when someone presses a button, speaks a distress phrase, misses a medication, or leaves a geofence. But Alzheimer's confusion is often quieter than that.
 
-Alzheimer's patients may become scared, lost, or unsure about daily events:
+In the demo, yourOwn watches for weak signals:
 
-- Where am I?
-- Did I eat?
-- Is it time for my medicine?
-- Who is this person?
-- Why am I scared?
+- no progress in a familiar routine
+- extended silence
+- hesitation or uncertainty cues
+- room and task context
+- repeated lack of response
 
-Generic chatbots do not know the patient's care context. Reminder apps can notify, but they do not reason about the patient's current situation. yourOwn uses Gemma 4 with structured patient context so responses can be calmer, safer, and more personal.
+The code decides when to speak, wait, and alert a caregiver. Gemma 4 controls the wording, so the response can stay calm, short, and human.
 
-## Core Features
+## Demo Flow
 
-- Patient companion with text, voice, location, camera context, and live monitoring
-- Mobile-first patient interface with large actions and simple language
-- Meal and medication schedule awareness
-- Family memory support for familiar people, safe places, and routines
-- Doctor dashboard for care notes, medication guidance, follow-up, and severity trends
-- Local care-event history to track whether confusion and risk appear stable, improving, or worsening
-- Silent confusion detection for quiet pause, hesitation, and no-progress moments
-- Doctor-facing severity trend report with recent risk average, silent episode counts, and top risk drivers
-- Grounded care reasoning layer that checks schedule, context, and risk before responding
-- Local-first Gemma 4 usage through Ollama for sensitive care data
+1. Patient is making tea.
+2. Patient silently pauses.
+3. System detects no progress.
+4. AI gives a grounding response.
+5. Patient does not respond.
+6. AI checks in.
+7. Still no response.
+8. AI warns that a caregiver may be contacted.
+9. Alert is sent to family/caregiver.
 
-## How Gemma 4 Is Used
+The patient dashboard route, `frontend/app/patient/dashboard.tsx`, is a controllable demo console for this sequence.
 
-Gemma 4 powers the care reasoning and patient-facing response layer. The backend builds a structured care context before asking the model to respond. That context can include:
+## Evidence Panel
 
-- Patient speech or typed message
-- Current time and schedule
-- GPS/location status
-- Safe places
-- Doctor notes
-- Family notes and memory summaries
-- Visual concern selected by the patient
-- Recent care events
-- Risk and grounding signals
+The demo screen shows the judge-visible decision trace:
 
-Gemma 4 then generates a short, supportive response. The app also applies deterministic checks around meals, medication, and risk so the answer is grounded in the patient's care context.
+- Task: Making tea
+- Room: Kitchen
+- Signal: No progress for 15 seconds
+- Emotion: Uncertainty detected
+- Risk: Medium -> High
+- Stage: Check-in / Alert sent
 
-## Local-First Design
+## Escalation Logic
 
-yourOwn is designed to run Gemma locally through Ollama. This matters because Alzheimer's care data can include sensitive location, medication, family, and medical context.
+Escalation stages live in `backend/services/escalation-manager.js`:
 
-The deployed Vercel app provides the public frontend experience. For the full AI-assisted demo, run the backend locally with Ollama or host the backend separately.
+```js
+const STAGES = {
+  NONE: "none",
+  GUIDANCE: "guidance",
+  CHECK_IN: "check_in",
+  HEARING_CHECK: "hearing_check",
+  CAREGIVER_WARNING: "caregiver_warning",
+  ALERT_SENT: "alert_sent"
+};
+```
 
-## Tech Stack
+The flow is:
+
+```text
+GUIDANCE -> CHECK_IN -> HEARING_CHECK -> CAREGIVER_WARNING -> ALERT_SENT
+```
+
+Example Gemma context:
+
+```json
+{
+  "stage": "check_in",
+  "patient_name": "Mary",
+  "task": "making tea",
+  "room": "kitchen",
+  "tone": "calm and gentle",
+  "instruction": "Ask if Mary is okay and whether she needs help."
+}
+```
+
+## Architecture
+
+Core reasoning runs locally with Gemma 4 via Ollama. Optional cloud APIs support voice and emotion detection.
 
 Frontend:
 
@@ -70,45 +96,32 @@ Backend:
 
 - Node.js
 - Express
-- WebSocket support
 - Ollama for local Gemma inference
 - Local JSON data store for prototype care data
+- WebSocket alert foundation
 
-AI / Model:
+AI / signal services:
 
-- Gemma 4 through Ollama
-- Optional Gemma 4 fine-tuning/domain adaptation script in `backend/services/finetune-gemma4.py`
-- Legacy adapter artifacts are retained only for reference; regenerate and publish Gemma 4 adapter weights if entering the Unsloth track
+- Gemma 4 (E4B) through Ollama — multimodal image input, native function calling, grounded response wording
+- Deterministic escalation manager for stage and alert decisions
+- Optional ElevenLabs for voice
+- Optional Hume for emotion/expression cues
 
-## Project Structure
+Gemma 4 features in use:
 
-```text
-yourOwn/
-  backend/
-    data/                    Demo patient, family, schedule, and care-event data
-      evaluation/            Silent-confusion scenario matrix for validation/writeup proof
-    models/                  Local model artifacts and legacy adapter references
-    routes/
-      assist.js              Patient assistance API
-      doctor.js              Doctor dashboard and severity APIs
-    services/
-      care-reasoner.js       Grounded care reasoning and verification
-      context.js             Builds live patient context
-      memory.js              Reads/writes care events and memory data
-      ollama.js              Gemma/Ollama integration
-      realtime-alerts.js     WebSocket alert foundation
-    server.js                Express backend entry point
-  frontend/
-    app/
-      page.tsx               Main patient/family/doctor experience
-      doctor/dashboard.tsx   Doctor dashboard route
-      patient/dashboard.tsx  Patient dashboard route
-    public/
-      manifest.json          PWA manifest
-      service-worker.js      Offline/PWA support
-```
+- **Multimodal**: camera frames are passed as raw base64 images directly to Gemma 4 via `/api/chat`, not text labels
+- **Function calling**: three care tools (`getCurrentSituation`, `matchSafePlace`, `analyzeEmotionAndBehavior`) are declared as Gemma 4 function tools; the model calls them and receives grounded results before generating a response
+- **128K context**: the full patient memory timeline, schedule, care notes, and conversation history fit within a single context window without truncation
 
-## Requirements
+## Fine-tuned model
+
+`backend/models/gemma4-medical-ft/` contains a LoRA adapter trained with Unsloth on dementia care dialogue.
+
+Note: the current adapter was trained on `gemma-2-9b` as a baseline. To qualify for the Unsloth special prize, retrain this adapter on a Gemma 4 base model (e.g. `gemma-4-9b`) using the same medical training data in `backend/data/medical-training/`. Publish the updated weights and benchmarks to HuggingFace before the May 18 deadline.
+
+## Run Locally
+
+Requirements:
 
 - Node.js 20+ recommended
 - npm
@@ -122,24 +135,17 @@ ollama serve
 ollama pull gemma4:e4b
 ```
 
-If your local model name is different, update `OLLAMA_MODEL` in `backend/.env`.
-
-## Environment Variables
-
 Create `backend/.env` from `backend/.env.example`:
 
 ```env
 OLLAMA_URL=http://localhost:11434
 OLLAMA_MODEL=gemma4:e4b
 
-# Optional voice provider
+# Optional cloud APIs
 ELEVENLABS_API_KEY=your_api_key_here
 ELEVENLABS_VOICE_ID=your_voice_id_here
+HUME_API_KEY=your_api_key_here
 ```
-
-Do not commit real API keys, tokens, passwords, or private environment files.
-
-## Run Locally
 
 Start the backend:
 
@@ -157,48 +163,41 @@ npm install
 npm run dev
 ```
 
-## Demo Flow
+Open the focused demo:
 
-A strong demo scenario:
+```text
+http://localhost:3000/patient/dashboard
+```
 
-1. Open the patient view.
-2. Simulate a patient saying, "I'm scared. Where am I?"
-3. Show the app using voice, location, time, and care context to respond calmly.
-4. Show meal or medication schedule awareness.
-5. Open the family dashboard and show memory or safe-place context.
-6. Open the doctor dashboard and show notes plus severity trends.
-7. Explain that Gemma 4 can run locally through Ollama for privacy-sensitive care support.
+## Video Structure
 
-## Hackathon Tracks
+Target length: 3 minutes.
 
-Best-fit tracks:
+- 0:00-0:25 Problem
+- 0:25-0:55 Patient confusion scene
+- 0:55-1:35 yourOwn responds
+- 1:35-2:10 No response -> escalation
+- 2:10-2:35 Caregiver alert
+- 2:35-3:00 Architecture: Gemma 4 + Ollama + voice + detection
 
-- Health & Sciences
-- Safety & Trust
-- Ollama Special Technology Track
+## Future Work
 
-Potentially relevant if the fine-tuning work is polished and published:
+These features are useful, and some are already represented in the repo, but they are not the central hackathon story:
 
-- Unsloth Special Technology Track
+- Doctor dashboard
+- Medication tracking
+- GPS wandering
+- FHIR/EHR
+- HIPAA claims
+- Apple Watch
+- 12 languages
+- Severity analytics
+- Fall detection
 
 ## Safety Note
 
-yourOwn is a prototype care-support system. It is not a medical device, diagnostic tool, emergency service, or replacement for professional clinical judgment. Medication and care instructions should be configured and reviewed by qualified caregivers or clinicians.
-
-## Submission Assets
-
-- Public GitHub repository
-- Public live demo
-- Public YouTube demo video under 3 minutes
-- Kaggle writeup under 1,500 words
-- Cover image and media gallery assets
+yourOwn is a prototype care-support system. It is not a medical device, diagnostic tool, emergency service, or replacement for professional clinical judgment. Alerts and care instructions should be reviewed and configured by qualified caregivers or clinicians.
 
 ## License
 
 This hackathon submission is licensed under Creative Commons Attribution 4.0 International (CC-BY 4.0), except for third-party dependencies, models, tools, and assets, which remain under their respective licenses.
-
-Full license text:
-
-```text
-https://creativecommons.org/licenses/by/4.0/
-```

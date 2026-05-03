@@ -17,6 +17,15 @@
       "language": "English",
       "notes": "Often greets Mary in the morning",
       "notify": false
+    },
+    {
+      "name": "Abby",
+      "relationship": "caregiver",
+      "phone": "",
+      "email": "",
+      "language": "English",
+      "notes": "She takes care of you and stays with you whole day.",
+      "notify": true
     }
   ]
 }

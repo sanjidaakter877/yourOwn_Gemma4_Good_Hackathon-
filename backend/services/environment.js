@@ -1,10 +1,17 @@
-const { matchKnownPlace } = require("./location");
+const { getNearestKnownPlace, matchKnownPlace } = require("./location");
 
 function detectEnvironment(context) {
+  const hasGps = typeof context.latitude === "number" && typeof context.longitude === "number";
   const gpsPlace = matchKnownPlace({
     latitude: context.latitude,
     longitude: context.longitude
   });
+  const nearestKnownPlace = hasGps && !gpsPlace
+    ? getNearestKnownPlace({
+        latitude: context.latitude,
+        longitude: context.longitude
+      })
+    : null;
 
   const lowerRoom = context.room.toLowerCase();
   const lowerLocation = context.locationName.toLowerCase();
@@ -12,6 +19,8 @@ function detectEnvironment(context) {
 
   const likelyPlace = gpsPlace
     ? gpsPlace.name
+    : hasGps
+      ? "unknown location"
     : inferPlace({
         locationName: lowerLocation,
         room: lowerRoom,
@@ -40,6 +49,12 @@ function detectEnvironment(context) {
     likely_people: likelyPeople,
     time_context: timeContext,
     routine_hint: routineHint,
+    gps_status: gpsPlace
+      ? "matched_known_place"
+      : hasGps
+        ? "unmatched_known_place"
+        : "gps_unavailable",
+    nearest_known_place: nearestKnownPlace,
     gps_match: gpsPlace
       ? {
           id: gpsPlace.id,

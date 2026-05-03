@@ -1,0 +1,24 @@
+# yourOwn — Gemma 4 fine-tune dependencies
+# Install in a Python 3.10+ environment (Google Colab recommended)
+#
+# Quick start:
+#   pip install -r training_requirements.txt
+#   python train_gemma4.py
+
+# Unsloth — fast Gemma 4 fine-tuning with LoRA
+# Install the nightly/latest build that supports Gemma 4:
+#   pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
+# Or the stable release (check https://github.com/unslothai/unsloth for latest):
+unsloth>=2025.4
+
+# Core training stack
+torch>=2.3.0
+transformers>=4.47.0
+peft>=0.13.0
+trl>=0.12.0
+accelerate>=0.34.0
+datasets>=3.0.0
+bitsandbytes>=0.44.0
+
+# HuggingFace upload
+huggingface-hub>=0.26.0

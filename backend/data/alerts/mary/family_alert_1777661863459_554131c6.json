@@ -1,0 +1,38 @@
+{
+  "id": "family_alert_1777661863459_554131c6",
+  "patientId": "mary",
+  "timestamp": "2026-05-01T18:57:43.459Z",
+  "resolved": false,
+  "type": "PATIENT_AWAY_AND_DISTRESSED",
+  "severity": "HIGH",
+  "message": "Mary may be scared or confused and is outside saved home/safe places. Check in now. GPS: 0, 0.",
+  "description": "Mary may be scared or confused and is outside saved home/safe places. Check in now. GPS: 0, 0.",
+  "caregiverName": "Anna",
+  "caregiverNames": [],
+  "notificationContactCount": 0,
+  "location": {
+    "latitude": 0,
+    "longitude": 0,
+    "accuracyMeters": null,
+    "matchedPlace": null
+  },
+  "trigger": {
+    "reason": "distressed_away_from_home",
+    "speechText": "The patient has been quiet for a while during live monitoring. First repeat the verified context gently, then ask: Are you okay? Do you need more help?",
+    "risk": {
+      "level": "high",
+      "score": 0.68,
+      "flags": [
+        "disorientation",
+        "possible_quiet_confusion",
+        "behavior_possible_confusion"
+      ],
+      "reasons": [
+        "Patient used orientation/confusion language.",
+        "Live monitoring suggests quiet uncertainty or hesitation.",
+        "Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+        "Known place matched: home."
+      ]
+    }
+  }
+}

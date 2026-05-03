@@ -27,6 +27,30 @@ function analyzeBehaviorSignals({ speechText, signals = {}, humeEmotion = null }
     evidence.push("Live monitor reported hesitation or interrupted speech.");
   }
 
+  if (behaviorSignals.repeatedSilentCheck) {
+    score += 0.2;
+    signalWeights.repeated_silent_check = 0.2;
+    flags.push("repeated_silent_check");
+    evidence.push(
+      `Patient remained silent across ${behaviorSignals.liveSilenceCheckCount || "multiple"} live checks.`
+    );
+  }
+
+  if (behaviorSignals.gpsAvailable) {
+    flags.push("gps_checked");
+    evidence.push("Live monitor included GPS context for safety matching.");
+  }
+
+  if (behaviorSignals.cameraAvailable || behaviorSignals.capturedImageAvailable) {
+    flags.push("camera_context_checked");
+    evidence.push("Live monitor included camera or captured-image context.");
+  }
+
+  if (behaviorSignals.microphoneStatus) {
+    flags.push(`mic_${String(behaviorSignals.microphoneStatus).toLowerCase()}`);
+    evidence.push(`Microphone status during live monitor: ${behaviorSignals.microphoneStatus}.`);
+  }
+
   if (hasFragmentedSpeech(speech)) {
     score += 0.18;
     signalWeights.fragmented_speech = 0.18;

@@ -1,5 +1,2257 @@
 [
   {
+    "id": "care_1777666055908",
+    "timestamp": "2026-05-01T20:07:35.906Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "What time is it? [typing] [sniffs] [typing] [sniffs] [typing] [sniffs] What time is it? [typing]",
+    "response": {
+      "reassurance": "Mary, you are okay.",
+      "context": "You are likely at home. It is 03:59 PM, afternoon. I am using the current situation to help you. Anna visits most afternoons.",
+      "next_step": "Take one slow breath and stay where you are while I help."
+    },
+    "risk": {
+      "level": "low",
+      "score": 0.1,
+      "flags": [],
+      "reasons": [
+        "Known place matched: home."
+      ]
+    },
+    "evidence": [
+      "Support mode: general_support (0.63 confidence).",
+      "Patient said: \"What time is it? [typing] [sniffs] [typing] [sniffs] [typing] [sniffs] What time is it? [typing]\".",
+      "Place engine matched likely place: home.",
+      "Time context: 03:59 PM afternoon.",
+      "Family note: Anna visits most afternoons..",
+      "Risk signal: Known place matched: home."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Review this moment when available. Risk level is low.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": false,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is afternoon",
+      "routine_hint": "rest, tea, or family visit",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    },
+    "hume_emotion": null,
+    "behavior_analysis": {
+      "provider": "opencv_ready_behavior_detector",
+      "level": "none",
+      "score": 0,
+      "flags": [],
+      "evidence": [],
+      "note": "Behavior signals are support cues only. They should not be treated as diagnosis."
+    }
+  },
+  {
+    "id": "care_1777665613208",
+    "timestamp": "2026-05-01T20:00:13.204Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "What time is it?",
+    "response": {
+      "reassurance": "Mary, you are okay.",
+      "context": "You are likely at home. It is 03:57 PM, afternoon. I am using the current situation to help you. Anna visits most afternoons.",
+      "next_step": "Take one slow breath and stay where you are while I help."
+    },
+    "risk": {
+      "level": "low",
+      "score": 0.1,
+      "flags": [],
+      "reasons": [
+        "Known place matched: home."
+      ]
+    },
+    "evidence": [
+      "Support mode: general_support (0.63 confidence).",
+      "Patient said: \"What time is it?\".",
+      "Place engine matched likely place: home.",
+      "Time context: 03:57 PM afternoon.",
+      "Family note: Anna visits most afternoons..",
+      "Risk signal: Known place matched: home."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Review this moment when available. Risk level is low.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": false,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is afternoon",
+      "routine_hint": "rest, tea, or family visit",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    },
+    "hume_emotion": null,
+    "behavior_analysis": {
+      "provider": "opencv_ready_behavior_detector",
+      "level": "none",
+      "score": 0,
+      "flags": [],
+      "evidence": [],
+      "note": "Behavior signals are support cues only. They should not be treated as diagnosis."
+    }
+  },
+  {
+    "id": "care_1777665564110",
+    "timestamp": "2026-05-01T19:59:24.108Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "Silent check. The patient is still not answering. Offer caregiver help naturally.",
+    "response": {
+      "reassurance": "Mary, you are okay.",
+      "context": "You are likely at home. It is 03:57 PM, afternoon. I am using the current situation to help you. Anna visits most afternoons.",
+      "next_step": "Take one slow breath and stay where you are while I help."
+    },
+    "risk": {
+      "level": "low",
+      "score": 0.28,
+      "flags": [
+        "behavior_possible_confusion"
+      ],
+      "reasons": [
+        "Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+        "Known place matched: home."
+      ]
+    },
+    "evidence": [
+      "Support mode: general_support (0.63 confidence).",
+      "Patient said: \"Silent check. The patient is still not answering. Offer caregiver help naturally.\".",
+      "Place engine matched likely place: home.",
+      "Time context: 03:57 PM afternoon.",
+      "Family note: Anna visits most afternoons..",
+      "Behavior signal: Timer/OpenCV-ready monitor reported no progress during the interaction.",
+      "Behavior signal: Live monitor reported an extended quiet pause.",
+      "Behavior signal: Live monitor reported hesitation or interrupted speech.",
+      "Risk signal: Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+      "Risk signal: Known place matched: home."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Review this moment when available. Risk level is low.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": false,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is afternoon",
+      "routine_hint": "rest, tea, or family visit",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    },
+    "hume_emotion": null,
+    "behavior_analysis": {
+      "provider": "opencv_ready_behavior_detector",
+      "level": "possible_confusion",
+      "score": 0.68,
+      "flags": [
+        "no_progress",
+        "quiet_pause",
+        "hesitation"
+      ],
+      "evidence": [
+        "Timer/OpenCV-ready monitor reported no progress during the interaction.",
+        "Live monitor reported an extended quiet pause.",
+        "Live monitor reported hesitation or interrupted speech."
+      ],
+      "note": "Behavior signals are support cues only. They should not be treated as diagnosis."
+    }
+  },
+  {
+    "id": "care_1777665519021",
+    "timestamp": "2026-05-01T19:58:39.018Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "Silent check. The patient has not answered. Ask a more specific safety question.",
+    "response": {
+      "reassurance": "Mary, you are okay.",
+      "context": "You are likely at home. It is 03:57 PM, afternoon. I am using the current situation to help you. Anna visits most afternoons.",
+      "next_step": "Take one slow breath and stay where you are while I help."
+    },
+    "risk": {
+      "level": "low",
+      "score": 0.28,
+      "flags": [
+        "behavior_possible_confusion"
+      ],
+      "reasons": [
+        "Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+        "Known place matched: home."
+      ]
+    },
+    "evidence": [
+      "Support mode: general_support (0.63 confidence).",
+      "Patient said: \"Silent check. The patient has not answered. Ask a more specific safety question.\".",
+      "Place engine matched likely place: home.",
+      "Time context: 03:57 PM afternoon.",
+      "Family note: Anna visits most afternoons..",
+      "Behavior signal: Timer/OpenCV-ready monitor reported no progress during the interaction.",
+      "Behavior signal: Live monitor reported an extended quiet pause.",
+      "Behavior signal: Live monitor reported hesitation or interrupted speech.",
+      "Risk signal: Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+      "Risk signal: Known place matched: home."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Review this moment when available. Risk level is low.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": false,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is afternoon",
+      "routine_hint": "rest, tea, or family visit",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    },
+    "hume_emotion": null,
+    "behavior_analysis": {
+      "provider": "opencv_ready_behavior_detector",
+      "level": "possible_confusion",
+      "score": 0.68,
+      "flags": [
+        "no_progress",
+        "quiet_pause",
+        "hesitation"
+      ],
+      "evidence": [
+        "Timer/OpenCV-ready monitor reported no progress during the interaction.",
+        "Live monitor reported an extended quiet pause.",
+        "Live monitor reported hesitation or interrupted speech."
+      ],
+      "note": "Behavior signals are support cues only. They should not be treated as diagnosis."
+    }
+  },
+  {
+    "id": "care_1777665498952",
+    "timestamp": "2026-05-01T19:58:18.948Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "Silent check. The patient is still quiet. Do not repeat yourself. Continue like a real caregiver.",
+    "response": {
+      "reassurance": "Mary, you are okay.",
+      "context": "You are likely at home. It is 03:57 PM, afternoon. I am using the current situation to help you. Anna visits most afternoons.",
+      "next_step": "Take one slow breath and stay where you are while I help."
+    },
+    "risk": {
+      "level": "low",
+      "score": 0.28,
+      "flags": [
+        "behavior_possible_confusion"
+      ],
+      "reasons": [
+        "Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+        "Known place matched: home."
+      ]
+    },
+    "evidence": [
+      "Support mode: general_support (0.63 confidence).",
+      "Patient said: \"Silent check. The patient is still quiet. Do not repeat yourself. Continue like a real caregiver.\".",
+      "Place engine matched likely place: home.",
+      "Time context: 03:57 PM afternoon.",
+      "Family note: Anna visits most afternoons..",
+      "Behavior signal: Timer/OpenCV-ready monitor reported no progress during the interaction.",
+      "Behavior signal: Live monitor reported an extended quiet pause.",
+      "Behavior signal: Live monitor reported hesitation or interrupted speech.",
+      "Risk signal: Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+      "Risk signal: Known place matched: home."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Review this moment when available. Risk level is low.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": false,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is afternoon",
+      "routine_hint": "rest, tea, or family visit",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    },
+    "hume_emotion": null,
+    "behavior_analysis": {
+      "provider": "opencv_ready_behavior_detector",
+      "level": "possible_confusion",
+      "score": 0.68,
+      "flags": [
+        "no_progress",
+        "quiet_pause",
+        "hesitation"
+      ],
+      "evidence": [
+        "Timer/OpenCV-ready monitor reported no progress during the interaction.",
+        "Live monitor reported an extended quiet pause.",
+        "Live monitor reported hesitation or interrupted speech."
+      ],
+      "note": "Behavior signals are support cues only. They should not be treated as diagnosis."
+    }
+  },
+  {
+    "id": "care_1777665478948",
+    "timestamp": "2026-05-01T19:57:58.945Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "Silent check. The patient has been quiet. Use context naturally and ask one gentle question.",
+    "response": {
+      "reassurance": "Mary, you are okay.",
+      "context": "You are likely at home. It is 03:57 PM, afternoon. I am using the current situation to help you. Anna visits most afternoons.",
+      "next_step": "Take one slow breath and stay where you are while I help."
+    },
+    "risk": {
+      "level": "low",
+      "score": 0.28,
+      "flags": [
+        "behavior_possible_confusion"
+      ],
+      "reasons": [
+        "Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+        "Known place matched: home."
+      ]
+    },
+    "evidence": [
+      "Support mode: general_support (0.63 confidence).",
+      "Patient said: \"Silent check. The patient has been quiet. Use context naturally and ask one gentle question.\".",
+      "Place engine matched likely place: home.",
+      "Time context: 03:57 PM afternoon.",
+      "Family note: Anna visits most afternoons..",
+      "Behavior signal: Timer/OpenCV-ready monitor reported no progress during the interaction.",
+      "Behavior signal: Live monitor reported an extended quiet pause.",
+      "Behavior signal: Live monitor reported hesitation or interrupted speech.",
+      "Risk signal: Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+      "Risk signal: Known place matched: home."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Review this moment when available. Risk level is low.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": false,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is afternoon",
+      "routine_hint": "rest, tea, or family visit",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    },
+    "hume_emotion": null,
+    "behavior_analysis": {
+      "provider": "opencv_ready_behavior_detector",
+      "level": "possible_confusion",
+      "score": 0.68,
+      "flags": [
+        "no_progress",
+        "quiet_pause",
+        "hesitation"
+      ],
+      "evidence": [
+        "Timer/OpenCV-ready monitor reported no progress during the interaction.",
+        "Live monitor reported an extended quiet pause.",
+        "Live monitor reported hesitation or interrupted speech."
+      ],
+      "note": "Behavior signals are support cues only. They should not be treated as diagnosis."
+    }
+  },
+  {
+    "id": "care_1777665234472",
+    "timestamp": "2026-05-01T19:53:54.469Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "Silent check. The patient has been quiet. Use context naturally and ask one gentle question.",
+    "response": {
+      "reassurance": "Mary, you are okay.",
+      "context": "You are likely at home. It is 03:53 PM, afternoon. I am using the current situation to help you. Anna visits most afternoons.",
+      "next_step": "Take one slow breath and stay where you are while I help."
+    },
+    "risk": {
+      "level": "low",
+      "score": 0.28,
+      "flags": [
+        "behavior_possible_confusion"
+      ],
+      "reasons": [
+        "Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+        "Known place matched: home."
+      ]
+    },
+    "evidence": [
+      "Support mode: general_support (0.63 confidence).",
+      "Patient said: \"Silent check. The patient has been quiet. Use context naturally and ask one gentle question.\".",
+      "Place engine matched likely place: home.",
+      "Time context: 03:53 PM afternoon.",
+      "Family note: Anna visits most afternoons..",
+      "Behavior signal: Timer/OpenCV-ready monitor reported no progress during the interaction.",
+      "Behavior signal: Live monitor reported an extended quiet pause.",
+      "Behavior signal: Live monitor reported hesitation or interrupted speech.",
+      "Risk signal: Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+      "Risk signal: Known place matched: home."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Review this moment when available. Risk level is low.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": false,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is afternoon",
+      "routine_hint": "rest, tea, or family visit",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    },
+    "hume_emotion": null,
+    "behavior_analysis": {
+      "provider": "opencv_ready_behavior_detector",
+      "level": "possible_confusion",
+      "score": 0.68,
+      "flags": [
+        "no_progress",
+        "quiet_pause",
+        "hesitation"
+      ],
+      "evidence": [
+        "Timer/OpenCV-ready monitor reported no progress during the interaction.",
+        "Live monitor reported an extended quiet pause.",
+        "Live monitor reported hesitation or interrupted speech."
+      ],
+      "note": "Behavior signals are support cues only. They should not be treated as diagnosis."
+    }
+  },
+  {
+    "id": "care_1777664859056",
+    "timestamp": "2026-05-01T19:47:39.052Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "Silent check 1: The patient has been quiet for a while. Briefly repeat only the most important verified context, then ask: Are you okay?",
+    "response": {
+      "reassurance": "Mary, you are safe.",
+      "context": "You are likely at home. It is 03:47 PM, afternoon. I am using the current situation to help you. Anna visits most afternoons.",
+      "next_step": "Take one slow breath and stay where you are while I help."
+    },
+    "risk": {
+      "level": "high",
+      "score": 0.68,
+      "flags": [
+        "disorientation",
+        "possible_quiet_confusion",
+        "behavior_possible_confusion"
+      ],
+      "reasons": [
+        "Patient used orientation/confusion language.",
+        "Live monitoring suggests quiet uncertainty or hesitation.",
+        "Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+        "Known place matched: home."
+      ]
+    },
+    "evidence": [
+      "Support mode: orientation (0.77 confidence).",
+      "Patient said: \"Silent check 1: The patient has been quiet for a while. Briefly repeat only the most important verified context, then ask: Are you okay?\".",
+      "Place engine matched likely place: home.",
+      "Time context: 03:47 PM afternoon.",
+      "Family note: Anna visits most afternoons..",
+      "Behavior signal: Timer/OpenCV-ready monitor reported no progress during the interaction.",
+      "Behavior signal: Live monitor reported an extended quiet pause.",
+      "Behavior signal: Live monitor reported hesitation or interrupted speech.",
+      "Risk signal: Patient used orientation/confusion language.",
+      "Risk signal: Live monitoring suggests quiet uncertainty or hesitation.",
+      "Risk signal: Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+      "Risk signal: Known place matched: home."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Check on Mary now. Risk level is high.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": true,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is afternoon",
+      "routine_hint": "rest, tea, or family visit",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    },
+    "hume_emotion": null,
+    "behavior_analysis": {
+      "provider": "opencv_ready_behavior_detector",
+      "level": "possible_confusion",
+      "score": 0.68,
+      "flags": [
+        "no_progress",
+        "quiet_pause",
+        "hesitation"
+      ],
+      "evidence": [
+        "Timer/OpenCV-ready monitor reported no progress during the interaction.",
+        "Live monitor reported an extended quiet pause.",
+        "Live monitor reported hesitation or interrupted speech."
+      ],
+      "note": "Behavior signals are support cues only. They should not be treated as diagnosis."
+    }
+  },
+  {
+    "id": "care_1777664377644",
+    "timestamp": "2026-05-01T19:39:37.641Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "Where am I?",
+    "response": {
+      "reassurance": "Mary, you are safe.",
+      "context": "You are likely at home. It is 03:39 PM, afternoon. I am using the current situation to help you. Anna visits most afternoons.",
+      "next_step": "Take one slow breath and stay where you are while I help."
+    },
+    "risk": {
+      "level": "medium",
+      "score": 0.52,
+      "flags": [
+        "disorientation",
+        "possible_wandering"
+      ],
+      "reasons": [
+        "Patient used orientation/confusion language.",
+        "Speech suggests the patient may feel lost or displaced.",
+        "Known place matched: home."
+      ]
+    },
+    "evidence": [
+      "Support mode: orientation (0.77 confidence).",
+      "Patient said: \"Where am I?\".",
+      "Place engine matched likely place: home.",
+      "Time context: 03:39 PM afternoon.",
+      "Family note: Anna visits most afternoons..",
+      "Risk signal: Patient used orientation/confusion language.",
+      "Risk signal: Speech suggests the patient may feel lost or displaced.",
+      "Risk signal: Known place matched: home."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Review this moment when available. Risk level is medium.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": false,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is afternoon",
+      "routine_hint": "rest, tea, or family visit",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    },
+    "hume_emotion": null,
+    "behavior_analysis": {
+      "provider": "opencv_ready_behavior_detector",
+      "level": "none",
+      "score": 0,
+      "flags": [],
+      "evidence": [],
+      "note": "Behavior signals are support cues only. They should not be treated as diagnosis."
+    }
+  },
+  {
+    "id": "care_1777664179095",
+    "timestamp": "2026-05-01T19:36:19.092Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "Silent check 1: The patient has been quiet for a while. Briefly repeat only the most important verified context, then ask: Are you okay?",
+    "response": {
+      "reassurance": "Mary, you are safe.",
+      "context": "You are likely at home. It is 03:35 PM, afternoon. I am using the current situation to help you. Anna visits most afternoons.",
+      "next_step": "Take one slow breath and stay where you are while I help."
+    },
+    "risk": {
+      "level": "high",
+      "score": 0.68,
+      "flags": [
+        "disorientation",
+        "possible_quiet_confusion",
+        "behavior_possible_confusion"
+      ],
+      "reasons": [
+        "Patient used orientation/confusion language.",
+        "Live monitoring suggests quiet uncertainty or hesitation.",
+        "Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+        "Known place matched: home."
+      ]
+    },
+    "evidence": [
+      "Support mode: orientation (0.77 confidence).",
+      "Patient said: \"Silent check 1: The patient has been quiet for a while. Briefly repeat only the most important verified context, then ask: Are you okay?\".",
+      "Place engine matched likely place: home.",
+      "Time context: 03:35 PM afternoon.",
+      "Family note: Anna visits most afternoons..",
+      "Behavior signal: Timer/OpenCV-ready monitor reported no progress during the interaction.",
+      "Behavior signal: Live monitor reported an extended quiet pause.",
+      "Behavior signal: Live monitor reported hesitation or interrupted speech.",
+      "Risk signal: Patient used orientation/confusion language.",
+      "Risk signal: Live monitoring suggests quiet uncertainty or hesitation.",
+      "Risk signal: Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+      "Risk signal: Known place matched: home."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Check on Mary now. Risk level is high.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": true,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is afternoon",
+      "routine_hint": "rest, tea, or family visit",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    },
+    "hume_emotion": null,
+    "behavior_analysis": {
+      "provider": "opencv_ready_behavior_detector",
+      "level": "possible_confusion",
+      "score": 0.68,
+      "flags": [
+        "no_progress",
+        "quiet_pause",
+        "hesitation"
+      ],
+      "evidence": [
+        "Timer/OpenCV-ready monitor reported no progress during the interaction.",
+        "Live monitor reported an extended quiet pause.",
+        "Live monitor reported hesitation or interrupted speech."
+      ],
+      "note": "Behavior signals are support cues only. They should not be treated as diagnosis."
+    }
+  },
+  {
+    "id": "care_1777664059988",
+    "timestamp": "2026-05-01T19:34:19.986Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "mary you're OK you're likely at home it is 0330 mary PM you are OK i am OK it is your line of facility 3:00 PM it is OK 1:45 PM thursday tuition to our living i am using the ghana generation to head off it is anna with one eye of the currency of your AK1 below variety and the merit of your entire life i",
+    "response": {
+      "reassurance": "Mary, you are okay.",
+      "context": "You are likely at home. It is 03:33 PM, afternoon. I am using the current situation to help you. Anna visits most afternoons.",
+      "next_step": "Take one slow breath and stay where you are while I help."
+    },
+    "risk": {
+      "level": "low",
+      "score": 0.1,
+      "flags": [],
+      "reasons": [
+        "Known place matched: home."
+      ]
+    },
+    "evidence": [
+      "Support mode: general_support (0.63 confidence).",
+      "Patient said: \"mary you're OK you're likely at home it is 0330 mary PM you are OK i am OK it is your line of facility 3:00 PM it is OK 1:45 PM thursday tuition to our living i am using the ghana generation to head off it is anna with one eye of the currency of your AK1 below variety and the merit of your entire life i\".",
+      "Place engine matched likely place: home.",
+      "Time context: 03:33 PM afternoon.",
+      "Family note: Anna visits most afternoons..",
+      "Risk signal: Known place matched: home."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Review this moment when available. Risk level is low.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": false,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is afternoon",
+      "routine_hint": "rest, tea, or family visit",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    },
+    "hume_emotion": null,
+    "behavior_analysis": {
+      "provider": "opencv_ready_behavior_detector",
+      "level": "none",
+      "score": 0,
+      "flags": [],
+      "evidence": [],
+      "note": "Behavior signals are support cues only. They should not be treated as diagnosis."
+    }
+  },
+  {
+    "id": "care_1777664057066",
+    "timestamp": "2026-05-01T19:34:17.064Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "mary you're OK you're likely at home it is 0330 mary PM you are OK i am OK it is your line of facility 3:00 PM it is OK 1:45 PM thursday tuition to our living i am using the ghana generation to head off it is anna with one eye of the currency of your AK1 below where i",
+    "response": {
+      "reassurance": "Mary, you are okay.",
+      "context": "You are likely at home. It is 03:33 PM, afternoon. I am using the current situation to help you. Anna visits most afternoons.",
+      "next_step": "Take one slow breath and stay where you are while I help."
+    },
+    "risk": {
+      "level": "low",
+      "score": 0.1,
+      "flags": [],
+      "reasons": [
+        "Known place matched: home."
+      ]
+    },
+    "evidence": [
+      "Support mode: general_support (0.63 confidence).",
+      "Patient said: \"mary you're OK you're likely at home it is 0330 mary PM you are OK i am OK it is your line of facility 3:00 PM it is OK 1:45 PM thursday tuition to our living i am using the ghana generation to head off it is anna with one eye of the currency of your AK1 below where i\".",
+      "Place engine matched likely place: home.",
+      "Time context: 03:33 PM afternoon.",
+      "Family note: Anna visits most afternoons..",
+      "Risk signal: Known place matched: home."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Review this moment when available. Risk level is low.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": false,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is afternoon",
+      "routine_hint": "rest, tea, or family visit",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    },
+    "hume_emotion": null,
+    "behavior_analysis": {
+      "provider": "opencv_ready_behavior_detector",
+      "level": "none",
+      "score": 0,
+      "flags": [],
+      "evidence": [],
+      "note": "Behavior signals are support cues only. They should not be treated as diagnosis."
+    }
+  },
+  {
+    "id": "care_1777664053957",
+    "timestamp": "2026-05-01T19:34:13.954Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "mary you're OK you're likely at home it is 0330 mary PM you are OK i am OK it is your line of facility 3:00 PM it is OK 1:45 PM thursday tuition to our living i am using the ghana generation to head off it is anna",
+    "response": {
+      "reassurance": "Mary, you are okay.",
+      "context": "You are likely at home. It is 03:33 PM, afternoon. I am using the current situation to help you. Anna visits most afternoons.",
+      "next_step": "Take one slow breath and stay where you are while I help."
+    },
+    "risk": {
+      "level": "low",
+      "score": 0.1,
+      "flags": [],
+      "reasons": [
+        "Known place matched: home."
+      ]
+    },
+    "evidence": [
+      "Support mode: general_support (0.63 confidence).",
+      "Patient said: \"mary you're OK you're likely at home it is 0330 mary PM you are OK i am OK it is your line of facility 3:00 PM it is OK 1:45 PM thursday tuition to our living i am using the ghana generation to head off it is anna\".",
+      "Place engine matched likely place: home.",
+      "Time context: 03:33 PM afternoon.",
+      "Family note: Anna visits most afternoons..",
+      "Risk signal: Known place matched: home."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Review this moment when available. Risk level is low.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": false,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is afternoon",
+      "routine_hint": "rest, tea, or family visit",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    },
+    "hume_emotion": null,
+    "behavior_analysis": {
+      "provider": "opencv_ready_behavior_detector",
+      "level": "none",
+      "score": 0,
+      "flags": [],
+      "evidence": [],
+      "note": "Behavior signals are support cues only. They should not be treated as diagnosis."
+    }
+  },
+  {
+    "id": "care_1777664050935",
+    "timestamp": "2026-05-01T19:34:10.931Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "mary you're OK you're likely at home it is 0330 mary PM you are OK i am OK it is your line of facility 3:00 PM it is OK 1:45 PM thursday tuition to our living i am using the",
+    "response": {
+      "reassurance": "Mary, you are okay.",
+      "context": "You are likely at home. It is 03:33 PM, afternoon. I am using the current situation to help you. Anna visits most afternoons.",
+      "next_step": "Take one slow breath and stay where you are while I help."
+    },
+    "risk": {
+      "level": "low",
+      "score": 0.1,
+      "flags": [],
+      "reasons": [
+        "Known place matched: home."
+      ]
+    },
+    "evidence": [
+      "Support mode: general_support (0.63 confidence).",
+      "Patient said: \"mary you're OK you're likely at home it is 0330 mary PM you are OK i am OK it is your line of facility 3:00 PM it is OK 1:45 PM thursday tuition to our living i am using the\".",
+      "Place engine matched likely place: home.",
+      "Time context: 03:33 PM afternoon.",
+      "Family note: Anna visits most afternoons..",
+      "Risk signal: Known place matched: home."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Review this moment when available. Risk level is low.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": false,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is afternoon",
+      "routine_hint": "rest, tea, or family visit",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    },
+    "hume_emotion": null,
+    "behavior_analysis": {
+      "provider": "opencv_ready_behavior_detector",
+      "level": "none",
+      "score": 0,
+      "flags": [],
+      "evidence": [],
+      "note": "Behavior signals are support cues only. They should not be treated as diagnosis."
+    }
+  },
+  {
+    "id": "care_1777664047965",
+    "timestamp": "2026-05-01T19:34:07.963Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "mary you're OK you're likely at home it is 0330 mary PM you are OK i am OK it is your line of facility 3:00 PM it is OK 1:30",
+    "response": {
+      "reassurance": "Mary, you are okay.",
+      "context": "You are likely at home. It is 03:33 PM, afternoon. I am using the current situation to help you. Anna visits most afternoons.",
+      "next_step": "Take one slow breath and stay where you are while I help."
+    },
+    "risk": {
+      "level": "low",
+      "score": 0.1,
+      "flags": [],
+      "reasons": [
+        "Known place matched: home."
+      ]
+    },
+    "evidence": [
+      "Support mode: general_support (0.63 confidence).",
+      "Patient said: \"mary you're OK you're likely at home it is 0330 mary PM you are OK i am OK it is your line of facility 3:00 PM it is OK 1:30\".",
+      "Place engine matched likely place: home.",
+      "Time context: 03:33 PM afternoon.",
+      "Family note: Anna visits most afternoons..",
+      "Risk signal: Known place matched: home."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Review this moment when available. Risk level is low.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": false,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is afternoon",
+      "routine_hint": "rest, tea, or family visit",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    },
+    "hume_emotion": null,
+    "behavior_analysis": {
+      "provider": "opencv_ready_behavior_detector",
+      "level": "none",
+      "score": 0,
+      "flags": [],
+      "evidence": [],
+      "note": "Behavior signals are support cues only. They should not be treated as diagnosis."
+    }
+  },
+  {
+    "id": "care_1777664045155",
+    "timestamp": "2026-05-01T19:34:05.152Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "mary you're OK you're likely at home it is 0330 mary PM you are OK i am OK it is all your",
+    "response": {
+      "reassurance": "Mary, you are okay.",
+      "context": "You are likely at home. It is 03:33 PM, afternoon. I am using the current situation to help you. Anna visits most afternoons.",
+      "next_step": "Take one slow breath and stay where you are while I help."
+    },
+    "risk": {
+      "level": "low",
+      "score": 0.1,
+      "flags": [],
+      "reasons": [
+        "Known place matched: home."
+      ]
+    },
+    "evidence": [
+      "Support mode: general_support (0.63 confidence).",
+      "Patient said: \"mary you're OK you're likely at home it is 0330 mary PM you are OK i am OK it is all your\".",
+      "Place engine matched likely place: home.",
+      "Time context: 03:33 PM afternoon.",
+      "Family note: Anna visits most afternoons..",
+      "Risk signal: Known place matched: home."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Review this moment when available. Risk level is low.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": false,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is afternoon",
+      "routine_hint": "rest, tea, or family visit",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    },
+    "hume_emotion": null,
+    "behavior_analysis": {
+      "provider": "opencv_ready_behavior_detector",
+      "level": "none",
+      "score": 0,
+      "flags": [],
+      "evidence": [],
+      "note": "Behavior signals are support cues only. They should not be treated as diagnosis."
+    }
+  },
+  {
+    "id": "care_1777664042317",
+    "timestamp": "2026-05-01T19:34:02.316Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "mary you're OK you're likely at home it is 0330 mary PM you are OK i",
+    "response": {
+      "reassurance": "Mary, you are okay.",
+      "context": "You are likely at home. It is 03:33 PM, afternoon. I am using the current situation to help you. Anna visits most afternoons.",
+      "next_step": "Take one slow breath and stay where you are while I help."
+    },
+    "risk": {
+      "level": "low",
+      "score": 0.1,
+      "flags": [],
+      "reasons": [
+        "Known place matched: home."
+      ]
+    },
+    "evidence": [
+      "Support mode: general_support (0.63 confidence).",
+      "Patient said: \"mary you're OK you're likely at home it is 0330 mary PM you are OK i\".",
+      "Place engine matched likely place: home.",
+      "Time context: 03:33 PM afternoon.",
+      "Family note: Anna visits most afternoons..",
+      "Risk signal: Known place matched: home."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Review this moment when available. Risk level is low.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": false,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is afternoon",
+      "routine_hint": "rest, tea, or family visit",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    },
+    "hume_emotion": null,
+    "behavior_analysis": {
+      "provider": "opencv_ready_behavior_detector",
+      "level": "none",
+      "score": 0,
+      "flags": [],
+      "evidence": [],
+      "note": "Behavior signals are support cues only. They should not be treated as diagnosis."
+    }
+  },
+  {
+    "id": "care_1777664039145",
+    "timestamp": "2026-05-01T19:33:59.142Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "mary you're OK you're likely at home it is 03",
+    "response": {
+      "reassurance": "Mary, you are okay.",
+      "context": "You are likely at home. It is 03:33 PM, afternoon. I am using the current situation to help you. Anna visits most afternoons.",
+      "next_step": "Take one slow breath and stay where you are while I help."
+    },
+    "risk": {
+      "level": "low",
+      "score": 0.1,
+      "flags": [],
+      "reasons": [
+        "Known place matched: home."
+      ]
+    },
+    "evidence": [
+      "Support mode: general_support (0.63 confidence).",
+      "Patient said: \"mary you're OK you're likely at home it is 03\".",
+      "Place engine matched likely place: home.",
+      "Time context: 03:33 PM afternoon.",
+      "Family note: Anna visits most afternoons..",
+      "Risk signal: Known place matched: home."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Review this moment when available. Risk level is low.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": false,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is afternoon",
+      "routine_hint": "rest, tea, or family visit",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    },
+    "hume_emotion": null,
+    "behavior_analysis": {
+      "provider": "opencv_ready_behavior_detector",
+      "level": "none",
+      "score": 0,
+      "flags": [],
+      "evidence": [],
+      "note": "Behavior signals are support cues only. They should not be treated as diagnosis."
+    }
+  },
+  {
+    "id": "care_1777664036328",
+    "timestamp": "2026-05-01T19:33:56.326Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "mary you're",
+    "response": {
+      "reassurance": "Mary, you are okay.",
+      "context": "You are likely at home. It is 03:33 PM, afternoon. I am using the current situation to help you. Anna visits most afternoons.",
+      "next_step": "Take one slow breath and stay where you are while I help."
+    },
+    "risk": {
+      "level": "low",
+      "score": 0.1,
+      "flags": [],
+      "reasons": [
+        "Known place matched: home."
+      ]
+    },
+    "evidence": [
+      "Support mode: general_support (0.63 confidence).",
+      "Patient said: \"mary you're\".",
+      "Place engine matched likely place: home.",
+      "Time context: 03:33 PM afternoon.",
+      "Family note: Anna visits most afternoons..",
+      "Risk signal: Known place matched: home."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Review this moment when available. Risk level is low.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": false,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is afternoon",
+      "routine_hint": "rest, tea, or family visit",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    },
+    "hume_emotion": null,
+    "behavior_analysis": {
+      "provider": "opencv_ready_behavior_detector",
+      "level": "none",
+      "score": 0,
+      "flags": [],
+      "evidence": [],
+      "note": "Behavior signals are support cues only. They should not be treated as diagnosis."
+    }
+  },
+  {
+    "id": "care_1777664031051",
+    "timestamp": "2026-05-01T19:33:51.048Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "Am I?",
+    "response": {
+      "reassurance": "Mary, you are okay.",
+      "context": "You are likely at home. It is 03:33 PM, afternoon. I am using the current situation to help you. Anna visits most afternoons.",
+      "next_step": "Take one slow breath and stay where you are while I help."
+    },
+    "risk": {
+      "level": "low",
+      "score": 0.1,
+      "flags": [],
+      "reasons": [
+        "Known place matched: home."
+      ]
+    },
+    "evidence": [
+      "Support mode: general_support (0.63 confidence).",
+      "Patient said: \"Am I?\".",
+      "Place engine matched likely place: home.",
+      "Time context: 03:33 PM afternoon.",
+      "Family note: Anna visits most afternoons..",
+      "Risk signal: Known place matched: home."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Review this moment when available. Risk level is low.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": false,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is afternoon",
+      "routine_hint": "rest, tea, or family visit",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    },
+    "hume_emotion": null,
+    "behavior_analysis": {
+      "provider": "opencv_ready_behavior_detector",
+      "level": "none",
+      "score": 0,
+      "flags": [],
+      "evidence": [],
+      "note": "Behavior signals are support cues only. They should not be treated as diagnosis."
+    }
+  },
+  {
+    "id": "care_1777661923530",
+    "timestamp": "2026-05-01T18:58:43.529Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "The patient may be paused or unsure. Reassure them using verified time, place, routine, or caregiver context, then ask: Would you like me to get someone you trust?",
+    "response": {
+      "reassurance": "Mary, you are safe.",
+      "context": "You are likely at home. It is 02:57 PM, afternoon. I am using the current situation to help you. Anna visits most afternoons.",
+      "next_step": "Take one slow breath and stay where you are while I help."
+    },
+    "risk": {
+      "level": "high",
+      "score": 0.68,
+      "flags": [
+        "disorientation",
+        "possible_quiet_confusion",
+        "behavior_possible_confusion"
+      ],
+      "reasons": [
+        "Patient used orientation/confusion language.",
+        "Live monitoring suggests quiet uncertainty or hesitation.",
+        "Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+        "Known place matched: home."
+      ]
+    },
+    "evidence": [
+      "Support mode: orientation (0.77 confidence).",
+      "Patient said: \"The patient may be paused or unsure. Reassure them using verified time, place, routine, or caregiver context, then ask: Would you like me to get someone you trust?\".",
+      "Place engine matched likely place: home.",
+      "Time context: 02:57 PM afternoon.",
+      "Family note: Anna visits most afternoons..",
+      "Behavior signal: Timer/OpenCV-ready monitor reported no progress during the interaction.",
+      "Behavior signal: Live monitor reported an extended quiet pause.",
+      "Behavior signal: Live monitor reported hesitation or interrupted speech.",
+      "Risk signal: Patient used orientation/confusion language.",
+      "Risk signal: Live monitoring suggests quiet uncertainty or hesitation.",
+      "Risk signal: Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+      "Risk signal: Known place matched: home."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Check on Mary now. Risk level is high.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": true,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is afternoon",
+      "routine_hint": "rest, tea, or family visit",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    },
+    "hume_emotion": null,
+    "behavior_analysis": {
+      "provider": "opencv_ready_behavior_detector",
+      "level": "possible_confusion",
+      "score": 0.68,
+      "flags": [
+        "no_progress",
+        "quiet_pause",
+        "hesitation"
+      ],
+      "evidence": [
+        "Timer/OpenCV-ready monitor reported no progress during the interaction.",
+        "Live monitor reported an extended quiet pause.",
+        "Live monitor reported hesitation or interrupted speech."
+      ],
+      "note": "Behavior signals are support cues only. They should not be treated as diagnosis."
+    }
+  },
+  {
+    "id": "care_1777661863455",
+    "timestamp": "2026-05-01T18:57:43.454Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "The patient has been quiet for a while during live monitoring. First repeat the verified context gently, then ask: Are you okay? Do you need more help?",
+    "response": {
+      "reassurance": "Mary, you are safe.",
+      "context": "You are likely at home. It is 02:57 PM, afternoon. I am using the current situation to help you. Anna visits most afternoons.",
+      "next_step": "Take one slow breath and stay where you are while I help."
+    },
+    "risk": {
+      "level": "high",
+      "score": 0.68,
+      "flags": [
+        "disorientation",
+        "possible_quiet_confusion",
+        "behavior_possible_confusion"
+      ],
+      "reasons": [
+        "Patient used orientation/confusion language.",
+        "Live monitoring suggests quiet uncertainty or hesitation.",
+        "Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+        "Known place matched: home."
+      ]
+    },
+    "evidence": [
+      "Support mode: orientation (0.77 confidence).",
+      "Patient said: \"The patient has been quiet for a while during live monitoring. First repeat the verified context gently, then ask: Are you okay? Do you need more help?\".",
+      "Place engine matched likely place: home.",
+      "Time context: 02:57 PM afternoon.",
+      "Family note: Anna visits most afternoons..",
+      "Behavior signal: Timer/OpenCV-ready monitor reported no progress during the interaction.",
+      "Behavior signal: Live monitor reported an extended quiet pause.",
+      "Behavior signal: Live monitor reported hesitation or interrupted speech.",
+      "Risk signal: Patient used orientation/confusion language.",
+      "Risk signal: Live monitoring suggests quiet uncertainty or hesitation.",
+      "Risk signal: Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+      "Risk signal: Known place matched: home."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Check on Mary now. Risk level is high.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": true,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is afternoon",
+      "routine_hint": "rest, tea, or family visit",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    },
+    "hume_emotion": null,
+    "behavior_analysis": {
+      "provider": "opencv_ready_behavior_detector",
+      "level": "possible_confusion",
+      "score": 0.68,
+      "flags": [
+        "no_progress",
+        "quiet_pause",
+        "hesitation"
+      ],
+      "evidence": [
+        "Timer/OpenCV-ready monitor reported no progress during the interaction.",
+        "Live monitor reported an extended quiet pause.",
+        "Live monitor reported hesitation or interrupted speech."
+      ],
+      "note": "Behavior signals are support cues only. They should not be treated as diagnosis."
+    }
+  },
+  {
+    "id": "care_1777660261884",
+    "timestamp": "2026-05-01T18:31:01.882Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "The patient has been quiet for a while during live monitoring. First repeat the verified context gently, then ask: Are you okay? Do you need more help?",
+    "response": {
+      "reassurance": "Mary, you are safe.",
+      "context": "You are likely at home. It is 02:30 PM, afternoon. I am using the current situation to help you. Anna visits most afternoons.",
+      "next_step": "Take one slow breath and stay where you are while I help."
+    },
+    "risk": {
+      "level": "high",
+      "score": 0.68,
+      "flags": [
+        "disorientation",
+        "possible_quiet_confusion",
+        "behavior_possible_confusion"
+      ],
+      "reasons": [
+        "Patient used orientation/confusion language.",
+        "Live monitoring suggests quiet uncertainty or hesitation.",
+        "Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+        "Known place matched: home."
+      ]
+    },
+    "evidence": [
+      "Support mode: orientation (0.77 confidence).",
+      "Patient said: \"The patient has been quiet for a while during live monitoring. First repeat the verified context gently, then ask: Are you okay? Do you need more help?\".",
+      "Place engine matched likely place: home.",
+      "Time context: 02:30 PM afternoon.",
+      "Family note: Anna visits most afternoons..",
+      "Behavior signal: Timer/OpenCV-ready monitor reported no progress during the interaction.",
+      "Behavior signal: Live monitor reported an extended quiet pause.",
+      "Behavior signal: Live monitor reported hesitation or interrupted speech.",
+      "Risk signal: Patient used orientation/confusion language.",
+      "Risk signal: Live monitoring suggests quiet uncertainty or hesitation.",
+      "Risk signal: Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+      "Risk signal: Known place matched: home."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Check on Mary now. Risk level is high.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": true,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is afternoon",
+      "routine_hint": "rest, tea, or family visit",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    },
+    "hume_emotion": null,
+    "behavior_analysis": {
+      "provider": "opencv_ready_behavior_detector",
+      "level": "possible_confusion",
+      "score": 0.68,
+      "flags": [
+        "no_progress",
+        "quiet_pause",
+        "hesitation"
+      ],
+      "evidence": [
+        "Timer/OpenCV-ready monitor reported no progress during the interaction.",
+        "Live monitor reported an extended quiet pause.",
+        "Live monitor reported hesitation or interrupted speech."
+      ],
+      "note": "Behavior signals are support cues only. They should not be treated as diagnosis."
+    }
+  },
+  {
+    "id": "care_1777660081244",
+    "timestamp": "2026-05-01T18:28:01.243Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "The patient has been quiet for a while during live monitoring and may be unsure, paused, or losing their train of thought. Use GPS, time, routine, and camera context if available. Do not diagnose.",
+    "response": {
+      "reassurance": "Mary, you are safe.",
+      "context": "You are likely at home. It is 02:26 PM, afternoon. I am using the current situation to help you. Anna visits most afternoons.",
+      "next_step": "Take one slow breath and stay where you are while I help."
+    },
+    "risk": {
+      "level": "high",
+      "score": 0.68,
+      "flags": [
+        "disorientation",
+        "possible_quiet_confusion",
+        "behavior_possible_confusion"
+      ],
+      "reasons": [
+        "Patient used orientation/confusion language.",
+        "Live monitoring suggests quiet uncertainty or hesitation.",
+        "Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+        "Known place matched: home."
+      ]
+    },
+    "evidence": [
+      "Support mode: orientation (0.77 confidence).",
+      "Patient said: \"The patient has been quiet for a while during live monitoring and may be unsure, paused, or losing their train of thought. Use GPS, time, routine, and camera context if available. Do not diagnose.\".",
+      "Place engine matched likely place: home.",
+      "Time context: 02:26 PM afternoon.",
+      "Family note: Anna visits most afternoons..",
+      "Behavior signal: Timer/OpenCV-ready monitor reported no progress during the interaction.",
+      "Behavior signal: Live monitor reported an extended quiet pause.",
+      "Behavior signal: Live monitor reported hesitation or interrupted speech.",
+      "Risk signal: Patient used orientation/confusion language.",
+      "Risk signal: Live monitoring suggests quiet uncertainty or hesitation.",
+      "Risk signal: Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+      "Risk signal: Known place matched: home."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Check on Mary now. Risk level is high.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": true,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is afternoon",
+      "routine_hint": "rest, tea, or family visit",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    },
+    "hume_emotion": null,
+    "behavior_analysis": {
+      "provider": "opencv_ready_behavior_detector",
+      "level": "possible_confusion",
+      "score": 0.68,
+      "flags": [
+        "no_progress",
+        "quiet_pause",
+        "hesitation"
+      ],
+      "evidence": [
+        "Timer/OpenCV-ready monitor reported no progress during the interaction.",
+        "Live monitor reported an extended quiet pause.",
+        "Live monitor reported hesitation or interrupted speech."
+      ],
+      "note": "Behavior signals are support cues only. They should not be treated as diagnosis."
+    }
+  },
+  {
+    "id": "care_1777660062590",
+    "timestamp": "2026-05-01T18:27:42.588Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "The patient has been quiet for a while during live monitoring and may be unsure, paused, or losing their train of thought. Use GPS, time, routine, and camera context if available. Do not diagnose.",
+    "response": {
+      "reassurance": "Mary, you are safe.",
+      "context": "You are likely at home. It is 02:26 PM, afternoon. I am using the current situation to help you. Anna visits most afternoons.",
+      "next_step": "Take one slow breath and stay where you are while I help."
+    },
+    "risk": {
+      "level": "high",
+      "score": 0.68,
+      "flags": [
+        "disorientation",
+        "possible_quiet_confusion",
+        "behavior_possible_confusion"
+      ],
+      "reasons": [
+        "Patient used orientation/confusion language.",
+        "Live monitoring suggests quiet uncertainty or hesitation.",
+        "Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+        "Known place matched: home."
+      ]
+    },
+    "evidence": [
+      "Support mode: orientation (0.77 confidence).",
+      "Patient said: \"The patient has been quiet for a while during live monitoring and may be unsure, paused, or losing their train of thought. Use GPS, time, routine, and camera context if available. Do not diagnose.\".",
+      "Place engine matched likely place: home.",
+      "Time context: 02:26 PM afternoon.",
+      "Family note: Anna visits most afternoons..",
+      "Behavior signal: Timer/OpenCV-ready monitor reported no progress during the interaction.",
+      "Behavior signal: Live monitor reported an extended quiet pause.",
+      "Behavior signal: Live monitor reported hesitation or interrupted speech.",
+      "Risk signal: Patient used orientation/confusion language.",
+      "Risk signal: Live monitoring suggests quiet uncertainty or hesitation.",
+      "Risk signal: Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+      "Risk signal: Known place matched: home."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Check on Mary now. Risk level is high.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": true,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is afternoon",
+      "routine_hint": "rest, tea, or family visit",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    },
+    "hume_emotion": null,
+    "behavior_analysis": {
+      "provider": "opencv_ready_behavior_detector",
+      "level": "possible_confusion",
+      "score": 0.68,
+      "flags": [
+        "no_progress",
+        "quiet_pause",
+        "hesitation"
+      ],
+      "evidence": [
+        "Timer/OpenCV-ready monitor reported no progress during the interaction.",
+        "Live monitor reported an extended quiet pause.",
+        "Live monitor reported hesitation or interrupted speech."
+      ],
+      "note": "Behavior signals are support cues only. They should not be treated as diagnosis."
+    }
+  },
+  {
+    "id": "care_1777660021133",
+    "timestamp": "2026-05-01T18:27:01.132Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "The patient has been quiet for a while during live monitoring and may be unsure, paused, or losing their train of thought. Use GPS, time, routine, and camera context if available. Do not diagnose.",
+    "response": {
+      "reassurance": "Mary, you are safe.",
+      "context": "You are likely at home. It is 02:26 PM, afternoon. I am using the current situation to help you. Anna visits most afternoons.",
+      "next_step": "Take one slow breath and stay where you are while I help."
+    },
+    "risk": {
+      "level": "high",
+      "score": 0.68,
+      "flags": [
+        "disorientation",
+        "possible_quiet_confusion",
+        "behavior_possible_confusion"
+      ],
+      "reasons": [
+        "Patient used orientation/confusion language.",
+        "Live monitoring suggests quiet uncertainty or hesitation.",
+        "Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+        "Known place matched: home."
+      ]
+    },
+    "evidence": [
+      "Support mode: orientation (0.77 confidence).",
+      "Patient said: \"The patient has been quiet for a while during live monitoring and may be unsure, paused, or losing their train of thought. Use GPS, time, routine, and camera context if available. Do not diagnose.\".",
+      "Place engine matched likely place: home.",
+      "Time context: 02:26 PM afternoon.",
+      "Family note: Anna visits most afternoons..",
+      "Behavior signal: Timer/OpenCV-ready monitor reported no progress during the interaction.",
+      "Behavior signal: Live monitor reported an extended quiet pause.",
+      "Behavior signal: Live monitor reported hesitation or interrupted speech.",
+      "Risk signal: Patient used orientation/confusion language.",
+      "Risk signal: Live monitoring suggests quiet uncertainty or hesitation.",
+      "Risk signal: Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+      "Risk signal: Known place matched: home."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Check on Mary now. Risk level is high.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": true,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is afternoon",
+      "routine_hint": "rest, tea, or family visit",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    },
+    "hume_emotion": null,
+    "behavior_analysis": {
+      "provider": "opencv_ready_behavior_detector",
+      "level": "possible_confusion",
+      "score": 0.68,
+      "flags": [
+        "no_progress",
+        "quiet_pause",
+        "hesitation"
+      ],
+      "evidence": [
+        "Timer/OpenCV-ready monitor reported no progress during the interaction.",
+        "Live monitor reported an extended quiet pause.",
+        "Live monitor reported hesitation or interrupted speech."
+      ],
+      "note": "Behavior signals are support cues only. They should not be treated as diagnosis."
+    }
+  },
+  {
+    "id": "care_1777660002207",
+    "timestamp": "2026-05-01T18:26:42.206Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "The patient has been quiet for a while during live monitoring and may be unsure, paused, or losing their train of thought. Use GPS, time, routine, and camera context if available. Do not diagnose.",
+    "response": {
+      "reassurance": "Mary, you are safe.",
+      "context": "You are likely at home. It is 02:26 PM, afternoon. I am using the current situation to help you. Anna visits most afternoons.",
+      "next_step": "Take one slow breath and stay where you are while I help."
+    },
+    "risk": {
+      "level": "high",
+      "score": 0.68,
+      "flags": [
+        "disorientation",
+        "possible_quiet_confusion",
+        "behavior_possible_confusion"
+      ],
+      "reasons": [
+        "Patient used orientation/confusion language.",
+        "Live monitoring suggests quiet uncertainty or hesitation.",
+        "Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+        "Known place matched: home."
+      ]
+    },
+    "evidence": [
+      "Support mode: orientation (0.77 confidence).",
+      "Patient said: \"The patient has been quiet for a while during live monitoring and may be unsure, paused, or losing their train of thought. Use GPS, time, routine, and camera context if available. Do not diagnose.\".",
+      "Place engine matched likely place: home.",
+      "Time context: 02:26 PM afternoon.",
+      "Family note: Anna visits most afternoons..",
+      "Behavior signal: Timer/OpenCV-ready monitor reported no progress during the interaction.",
+      "Behavior signal: Live monitor reported an extended quiet pause.",
+      "Behavior signal: Live monitor reported hesitation or interrupted speech.",
+      "Risk signal: Patient used orientation/confusion language.",
+      "Risk signal: Live monitoring suggests quiet uncertainty or hesitation.",
+      "Risk signal: Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+      "Risk signal: Known place matched: home."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Check on Mary now. Risk level is high.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": true,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is afternoon",
+      "routine_hint": "rest, tea, or family visit",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    },
+    "hume_emotion": null,
+    "behavior_analysis": {
+      "provider": "opencv_ready_behavior_detector",
+      "level": "possible_confusion",
+      "score": 0.68,
+      "flags": [
+        "no_progress",
+        "quiet_pause",
+        "hesitation"
+      ],
+      "evidence": [
+        "Timer/OpenCV-ready monitor reported no progress during the interaction.",
+        "Live monitor reported an extended quiet pause.",
+        "Live monitor reported hesitation or interrupted speech."
+      ],
+      "note": "Behavior signals are support cues only. They should not be treated as diagnosis."
+    }
+  },
+  {
+    "id": "care_1777659957429",
+    "timestamp": "2026-05-01T18:25:57.427Z",
+    "patient": "Mary",
+    "role": "patient",
+    "transcript": "The patient has been quiet for a while during live monitoring and may be unsure, paused, or losing their train of thought. Use GPS, time, routine, and camera context if available. Do not diagnose.",
+    "response": {
+      "reassurance": "Mary, you are safe.",
+      "context": "You are likely at home. It is 02:25 PM, afternoon. I am using the current situation to help you. Anna visits most afternoons.",
+      "next_step": "Take one slow breath and stay where you are while I help."
+    },
+    "risk": {
+      "level": "high",
+      "score": 0.68,
+      "flags": [
+        "disorientation",
+        "possible_quiet_confusion",
+        "behavior_possible_confusion"
+      ],
+      "reasons": [
+        "Patient used orientation/confusion language.",
+        "Live monitoring suggests quiet uncertainty or hesitation.",
+        "Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+        "Known place matched: home."
+      ]
+    },
+    "evidence": [
+      "Support mode: orientation (0.77 confidence).",
+      "Patient said: \"The patient has been quiet for a while during live monitoring and may be unsure, paused, or losing their train of thought. Use GPS, time, routine, and camera context if available. Do not diagnose.\".",
+      "Place engine matched likely place: home.",
+      "Time context: 02:25 PM afternoon.",
+      "Family note: Anna visits most afternoons..",
+      "Behavior signal: Timer/OpenCV-ready monitor reported no progress during the interaction.",
+      "Behavior signal: Live monitor reported an extended quiet pause.",
+      "Behavior signal: Live monitor reported hesitation or interrupted speech.",
+      "Risk signal: Patient used orientation/confusion language.",
+      "Risk signal: Live monitoring suggests quiet uncertainty or hesitation.",
+      "Risk signal: Timer/OpenCV-ready behavior monitor suggests possible no-progress confusion.",
+      "Risk signal: Known place matched: home."
+    ],
+    "action_plan": {
+      "patient_action": "Stay where you are, take one slow breath, and wait for help.",
+      "caregiver_action": "Check on Mary now. Risk level is high.",
+      "doctor_action": "No immediate doctor escalation needed from this interaction.",
+      "alert_family": true,
+      "alert_doctor": false,
+      "safe_place_status": "known_safe_place"
+    },
+    "verification": {
+      "safe_to_send": true,
+      "unsupported_claims": [],
+      "grounding_score": 0.96,
+      "checked_against": [
+        "location",
+        "routine",
+        "trusted notes",
+        "retrieved memory"
+      ]
+    },
+    "environment": {
+      "likely_place": "home",
+      "likely_people": [],
+      "time_context": "It is afternoon",
+      "routine_hint": "rest, tea, or family visit",
+      "gps_match": null
+    },
+    "location_name": "",
+    "nearby_person": "",
+    "visual_context": {
+      "description": "",
+      "labels": [],
+      "concern": ""
+    },
+    "hume_emotion": null,
+    "behavior_analysis": {
+      "provider": "opencv_ready_behavior_detector",
+      "level": "possible_confusion",
+      "score": 0.68,
+      "flags": [
+        "no_progress",
+        "quiet_pause",
+        "hesitation"
+      ],
+      "evidence": [
+        "Timer/OpenCV-ready monitor reported no progress during the interaction.",
+        "Live monitor reported an extended quiet pause.",
+        "Live monitor reported hesitation or interrupted speech."
+      ],
+      "note": "Behavior signals are support cues only. They should not be treated as diagnosis."
+    }
+  },
+  {
     "id": "care_1777342325696",
     "timestamp": "2026-04-28T02:12:05.692Z",
     "patient": "Mary",
