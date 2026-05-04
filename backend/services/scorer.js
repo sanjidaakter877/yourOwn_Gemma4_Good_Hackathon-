@@ -58,18 +58,6 @@ function scoreSupportMode({
     "what should i do now"
   ];
 
-  const ordinaryQuestionClues = [
-    "what time is it",
-    "what's the time",
-    "what is the time",
-    "what day is it",
-    "how are you",
-    "talk to me",
-    "can you talk",
-    "stay with me",
-    "tell me something"
-  ];
-
   if (includesAny(speechText, orientationClues)) {
     mode = "orientation";
     confidence += 0.14;
@@ -94,10 +82,11 @@ function scoreSupportMode({
     reasons.push("Detected routine guidance request");
   }
 
-  if (mode === "general_support" && includesAny(speechText, ordinaryQuestionClues)) {
+  // Any speech that isn't a safety/care signal is normal conversation
+  if (mode === "general_support" && speechText && speechText.trim().length > 0) {
     mode = "conversation";
-    confidence += 0.12;
-    reasons.push("Detected ordinary companion question");
+    confidence += 0.1;
+    reasons.push("No safety signals — treating as companion conversation");
   }
 
   if (speakerRole === "doctor") {

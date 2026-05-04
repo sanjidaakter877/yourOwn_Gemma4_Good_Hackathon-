@@ -62,6 +62,16 @@ async function generateSupportResponse({
   });
 
   try {
+    const inferenceStart = Date.now();
+
+    // Fast conversational path — no JSON structure, just natural text
+    if (scored.mode === "conversation" && !context.behaviorAnalysis?.silent_confusion) {
+      const convResult = await generateConversationalResponse({
+        context, environment, relevantMemories, careReasoning, inferenceStart
+      });
+      if (convResult) return convResult;
+    }
+
     const { systemPrompt, userData } = buildChatData({
       context,
       environment,
@@ -85,8 +95,6 @@ async function generateSupportResponse({
         ...(imageBase64 ? { images: [imageBase64] } : {})
       }
     ];
-
-    const inferenceStart = Date.now();
 
     // First request: Gemma 4 function calling + optional multimodal camera image
     const firstRes = await fetch(`${OLLAMA_URL}/api/chat`, {
@@ -196,6 +204,70 @@ async function generateSupportResponse({
   } catch (error) {
     console.warn("Gemma/Ollama unavailable, using fallback:", error.message);
     return fallback;
+  }
+}
+
+async function generateConversationalResponse({ context, environment, relevantMemories, careReasoning, inferenceStart }) {
+  const name = context.userName || "Mary";
+  const speech = context.speechText || "";
+  if (!speech.trim()) return null;
+
+  const memoryLines = relevantMemories.slice(0, 2).map(m => `- ${m.interpreted_text}`).join("\n");
+  const placeHint = environment?.likely_place ? ` You are at ${environment.likely_place}.` : "";
+  const timeHint = context.currentClock ? ` It is ${context.currentClock}.` : "";
+
+  const systemPrompt = `You are yourOwn, a warm caring AI companion for ${name}, who has Alzheimer's.${placeHint}${timeHint}
+${memoryLines ? `Recent context:\n${memoryLines}` : ""}
+
+Rules:
+- Reply naturally like a real caring friend, not a robot or a form.
+- Keep it short: one or two sentences only.
+- Directly answer or respond to what ${name} just said.
+- Never say "I am listening" as the whole response — actually engage with the topic.
+- Never echo back their words. Never mention timestamps, GPS, or care notes.
+- End with one natural follow-up question to continue the conversation.`;
+
+  try {
+    const res = await fetch(`${OLLAMA_URL}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: OLLAMA_MODEL,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: speech }
+        ],
+        stream: false,
+        options: { temperature: 0.8, top_p: 0.95 }
+      })
+    });
+
+    if (!res.ok) return null;
+    const data = await res.json();
+    const reply = (data.message?.content || "").trim();
+    if (!reply) return null;
+
+    const response = { reassurance: reply, context: "", next_step: "" };
+
+    return {
+      response_type: "conversation",
+      companion_message: reply,
+      response,
+      memory_summary: [],
+      care_reasoning: careReasoning ? {
+        ...careReasoning,
+        verification: { safe_to_send: true, grounding_score: 1 }
+      } : null,
+      ollama_meta: {
+        model: OLLAMA_MODEL,
+        inference_ms: Date.now() - inferenceStart,
+        function_calls: [],
+        vision_used: false,
+        local: true
+      }
+    };
+  } catch {
+    return null;
   }
 }
 
@@ -634,7 +706,7 @@ function buildConversationFallback({ context, environment, timeText, scheduleSen
     };
   }
 
-  if (/\b(sport|football|cricket|tennis|basketball|soccer|team|match|game|play)\b/i.test(speech)) {
+  if (/\b(sports?|football|cricket|tennis|basketball|soccer|team|match|game|play)\b/i.test(speech)) {
     return {
       reassurance: `${name}, that sounds like a fun topic!`,
       context: "",

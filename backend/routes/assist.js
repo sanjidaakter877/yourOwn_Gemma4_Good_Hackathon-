@@ -49,8 +49,11 @@ router.post("/voice", upload.single("audio"), async (req, res) => {
     const bodyPayload = safeJsonParse(req.body.payload, {});
     const mimeType = req.file.mimetype || "audio/webm";
 
-    const [transcript, humeEmotion] = await Promise.all([
-      speechToText(req.file.buffer, mimeType),
+    const [transcriptResult, humeEmotion] = await Promise.all([
+      speechToText(req.file.buffer, mimeType).catch((error) => {
+        console.warn("ElevenLabs STT failed:", error.message);
+        return null;
+      }),
       hume
         .analyzeAudio(req.file.buffer, mimeType)
         .catch((error) => {
@@ -58,6 +61,14 @@ router.post("/voice", upload.single("audio"), async (req, res) => {
           return null;
         })
     ]);
+
+    if (!transcriptResult || !transcriptResult.text) {
+      return res.status(503).json({
+        error: "Voice transcription unavailable. Please check your ElevenLabs API key or type your message instead.",
+      });
+    }
+
+    const transcript = transcriptResult;
 
     const body = {
       ...bodyPayload,
@@ -175,11 +186,10 @@ async function runAssistFlow(body, app) {
     languageInfo,
   });
 
-  const speechOutputText = [
-    aiResult.response.reassurance,
-    aiResult.response.context,
-    aiResult.response.next_step,
-  ].join(" ");
+  const speechOutputText = aiResult.companion_message ||
+    [aiResult.response.reassurance, aiResult.response.next_step]
+      .filter(Boolean)
+      .join(" ");
 
   let audioBase64 = null;
 
