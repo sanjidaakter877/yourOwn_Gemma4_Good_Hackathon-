@@ -1,6 +1,7 @@
 const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "gemma4:e4b";
 const { buildCareReasoning, verifyGrounding } = require("./care-reasoner");
+const { generateWithGemini } = require("./gemini");
 
 // Gemma 4 native function calling: care tool definitions
 const CARE_TOOLS = [
@@ -64,6 +65,13 @@ async function generateSupportResponse({
   try {
     const inferenceStart = Date.now();
 
+    // Gemini API — primary path (cloud, fast, natural, works on mobile)
+    const geminiResult = await generateWithGemini({
+      context, environment, scored, relevantMemories, careReasoning, inferenceStart
+    });
+    if (geminiResult) return geminiResult;
+
+    // Gemma 4 via Ollama — local fallback (privacy-first, no API key needed)
     // Fast conversational path — no JSON structure, just natural text
     if (scored.mode === "conversation" && !context.behaviorAnalysis?.silent_confusion) {
       const convResult = await generateConversationalResponse({
