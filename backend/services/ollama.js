@@ -97,7 +97,7 @@ async function generateSupportResponse({
         messages,
         tools: CARE_TOOLS,
         stream: false,
-        options: { temperature: 0.25, top_p: 0.85 }
+        options: { temperature: 0.7, top_p: 0.92 }
       })
     });
 
@@ -135,7 +135,7 @@ async function generateSupportResponse({
           messages,
           stream: false,
           format: "json",
-          options: { temperature: 0.25, top_p: 0.85 }
+          options: { temperature: 0.7, top_p: 0.92 }
         })
       });
 
@@ -338,14 +338,21 @@ Behavior rules:
 - Do not claim a person is physically present unless nearby_person says so.
 - Medication instructions must be limited to the doctor_note or a caregiver confirmation step, and should be spoken only when doctor_note_should_be_spoken is true.
 
+CRITICAL RULE for companion_message:
+- companion_message is what gets spoken aloud to the patient. It must sound like a real person talking, not a form being filled out.
+- For casual conversation (sports, weather, family, memories, preferences): reply like a warm friend. "That sounds fun! Who is your favourite team?" is perfect. "Mary, I am listening. What would you like to talk about?" is NOT acceptable.
+- Never echo back what the patient just said as the response.
+- Never put raw metadata like times, GPS notes, or care-note text into companion_message. That is backend context, not patient speech.
+- If the patient says anything — even something random or unexpected — respond to it directly and warmly. Keep the conversation going naturally with one follow-up question.
+
 Return ONLY valid JSON with this exact shape:
 {
   "response_type": "conversation|care",
-  "companion_message": "one natural spoken message for the patient",
+  "companion_message": "A single natural spoken sentence or two, directly responding to what the patient said. Must sound like a real warm person, not a form.",
   "response": {
     "reassurance": "one short calming sentence",
-    "context": "1-3 short sentences explaining what is happening right now",
-    "next_step": "one clear gentle action"
+    "context": "brief internal context note — NOT repeated metadata, NOT echoed speech",
+    "next_step": "one clear gentle action or follow-up question"
   },
   "memory_summary": [
     "short useful memory/context item",
@@ -516,7 +523,7 @@ function getResponseType({ context, scored, careReasoning }) {
 }
 
 function buildCompanionMessage(response) {
-  return [response?.reassurance, response?.context, response?.next_step]
+  return [response?.reassurance, response?.next_step]
     .filter(Boolean)
     .join(" ")
     .replace(/\s+/g, " ")
@@ -606,39 +613,97 @@ function applySilentConversationGuard(response, { context, environment }) {
 
 function buildConversationFallback({ context, environment, timeText, scheduleSentence }) {
   const speech = String(context.speechText || "").toLowerCase();
+  const name = context.userName || "Mary";
 
   if (/\b(what time is it|what's the time|what is the time)\b/i.test(speech)) {
     return {
-      reassurance: `${context.userName}, it is ${context.currentClock || "the current time"}.`,
-      context: timeText || "I am checking the time for you.",
-      next_step: scheduleSentence
-        ? `After this, you can focus on ${context.scheduleNow.label}.`
-        : "Would you like me to stay with you for a bit?"
+      reassurance: `${name}, it is ${context.currentClock || "the current time"}.`,
+      context: "",
+      next_step: scheduleSentence ? `After this, you can focus on ${context.scheduleNow.label}.` : "Is there anything else I can help with?"
     };
   }
 
-  if (/\b(what day is it|what date is it)\b/i.test(speech)) {
+  if (/\b(what day is it|what date is it|what is today)\b/i.test(speech)) {
     const dateText = context.currentTime
-      ? new Date(context.currentTime).toLocaleDateString("en-US", {
-          weekday: "long",
-          month: "long",
-          day: "numeric"
-        })
+      ? new Date(context.currentTime).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
       : "today";
-
     return {
-      reassurance: `${context.userName}, today is ${dateText}.`,
-      context: timeText || "I am using the clock to help orient you.",
-      next_step: "Is there something you wanted to remember today?"
+      reassurance: `${name}, today is ${dateText}.`,
+      context: "",
+      next_step: "Is there something you wanted to do today?"
     };
   }
 
+  if (/\b(sport|football|cricket|tennis|basketball|soccer|team|match|game|play)\b/i.test(speech)) {
+    return {
+      reassurance: `${name}, that sounds like a fun topic!`,
+      context: "",
+      next_step: "Do you have a favourite team or sport you enjoy watching?"
+    };
+  }
+
+  if (/\b(weather|rain|sun|sunny|cold|hot|warm|outside|temperature)\b/i.test(speech)) {
+    return {
+      reassurance: `${name}, I enjoy hearing about the weather too.`,
+      context: "",
+      next_step: "Is it nice outside today? Do you feel like taking a short walk later?"
+    };
+  }
+
+  if (/\b(family|daughter|son|husband|wife|grandchild|children|sister|brother|friend)\b/i.test(speech)) {
+    return {
+      reassurance: `${name}, it is lovely to talk about family.`,
+      context: "",
+      next_step: "Would you like to tell me more about them?"
+    };
+  }
+
+  if (/\b(food|eat|hungry|lunch|dinner|breakfast|cook|meal|tea|coffee)\b/i.test(speech)) {
+    return {
+      reassurance: `${name}, that sounds tasty.`,
+      context: "",
+      next_step: "What is your favourite thing to eat?"
+    };
+  }
+
+  if (/\b(music|song|sing|listen|radio|favourite)\b/i.test(speech)) {
+    return {
+      reassurance: `${name}, music is wonderful company.`,
+      context: "",
+      next_step: "Do you have a favourite song or singer you enjoy?"
+    };
+  }
+
+  if (/\b(remember|memory|used to|when i was|long ago|years ago|childhood|young)\b/i.test(speech)) {
+    return {
+      reassurance: `${name}, I love hearing your memories.`,
+      context: "",
+      next_step: "Please tell me more — I am listening."
+    };
+  }
+
+  if (/\b(how are you|are you okay|you alright|who are you|what are you)\b/i.test(speech)) {
+    return {
+      reassurance: `I am yourOwn, your companion. I am here with you, ${name}.`,
+      context: "",
+      next_step: "How are you feeling right now?"
+    };
+  }
+
+  if (/\b(thank you|thanks|you are great|you are helpful|appreciate)\b/i.test(speech)) {
+    return {
+      reassurance: `${name}, it is my pleasure to be here with you.`,
+      context: "",
+      next_step: "Is there anything else on your mind?"
+    };
+  }
+
+  // Generic fallback — acknowledge and continue, never echo raw context
+  const topicHint = speech.trim().split(/\s+/).slice(0, 4).join(" ");
   return {
-    reassurance: `${context.userName}, I am listening.`,
-    context: environment?.likely_place
-      ? `You are likely at ${environment.likely_place}.`
-      : "I can stay with you and talk.",
-    next_step: "What would you like to talk about?"
+    reassurance: `${name}, I hear you.`,
+    context: "",
+    next_step: topicHint ? `Tell me more about that — I am listening.` : "What is on your mind today?"
   };
 }
 
