@@ -48,7 +48,7 @@
       "name": "Patient Dashboard",
       "short_name": "Patient",
       "description": "Voice interaction and alerts",
-      "url": "/app/patient/dashboard",
+      "url": "/",
       "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
     },
     {
