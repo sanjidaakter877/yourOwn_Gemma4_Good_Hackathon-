@@ -2762,11 +2762,7 @@ export default function Home() {
               <SectionTitle
                 emoji="💬"
                 title={result?.response_type === "conversation" ? "Companion conversation" : "Care response"}
-                description={
-                  result?.response_type === "conversation"
-                    ? "A natural reply from yourOwn."
-                    : "Patient reassurance, risk, evidence, and action plan."
-                }
+                description="yourOwn is listening and responding."
                 theme={currentTheme}
               />
 
@@ -3723,27 +3719,12 @@ function ResultPanel({
       )}
 
       <div className={theme.responseBox}>
-        {result.response_type === "conversation" ? (
-          <p className={theme.responseText}>
-            {result.companion_message ||
-              [
-                result.response.reassurance,
-                result.response.context,
-                result.response.next_step
-              ].filter(Boolean).join(" ")}
-          </p>
-        ) : (
-          <>
-            <p className={theme.responseTitle}>{result.response.reassurance}</p>
-            <p className={theme.responseText}>{result.response.context}</p>
-            <div className={theme.nextStepBox}>
-              <p className="text-xs font-black uppercase tracking-[0.18em] opacity-70">
-                Next step
-              </p>
-              <p className="mt-1 text-lg font-black">{result.response.next_step}</p>
-            </div>
-          </>
-        )}
+        <p className={theme.responseText}>
+          {result.companion_message ||
+            [result.response.reassurance, result.response.next_step]
+              .filter(Boolean)
+              .join(" ")}
+        </p>
       </div>
 
       {result.care_reasoning && (
