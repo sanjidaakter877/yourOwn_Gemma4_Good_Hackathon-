@@ -111,15 +111,170 @@ export default function PatientDashboard() {
   const [ollamaMeta, setOllamaMeta] = useState<AssistResult["ollama_meta"] | null>(null);
   const [webcamActive, setWebcamActive] = useState(false);
   const [webcamError, setWebcamError] = useState("");
+  const [recording, setRecording] = useState(false);
+  const [micReady, setMicReady] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const [autoMode, setAutoMode] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const micStreamRef = useRef<MediaStream | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const autoModeRef = useRef(false);
+  const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const AUTO_STAGES: Stage[] = ["guidance", "check_in", "hearing_check", "caregiver_warning", "alert_sent"];
+  const AUTO_DELAY_MS = 6000;
 
   useEffect(() => {
     return () => {
       streamRef.current?.getTracks().forEach(t => t.stop());
+      micStreamRef.current?.getTracks().forEach(t => t.stop());
+      if (autoTimerRef.current) clearTimeout(autoTimerRef.current);
+      window.speechSynthesis?.cancel();
     };
   }, []);
+
+  const speakText = (text: string, audioBase64?: string | null) => {
+    if (audioBase64) {
+      const audio = new Audio(`data:audio/mpeg;base64,${audioBase64}`);
+      audio.play().catch(() => speakFallback(text));
+      return;
+    }
+    speakFallback(text);
+  };
+
+  const speakFallback = (text: string) => {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.85;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const startAutoMonitor = async () => {
+    autoModeRef.current = true;
+    setAutoMode(true);
+    setStage("guidance");
+    setRisk("Low");
+    setAiResponse("");
+    setCaregiverAlert("");
+    setTranscript("");
+    setError("");
+    setTimeline(["Auto monitor started — caregiver has stepped away."]);
+    warmMic();
+    await runAutoSequence(0);
+  };
+
+  const stopAutoMonitor = () => {
+    autoModeRef.current = false;
+    setAutoMode(false);
+    if (autoTimerRef.current) clearTimeout(autoTimerRef.current);
+    window.speechSynthesis?.cancel();
+    addTimeline("Auto monitor stopped.");
+  };
+
+  const runAutoSequence = async (index: number) => {
+    if (!autoModeRef.current || index >= AUTO_STAGES.length) {
+      autoModeRef.current = false;
+      setAutoMode(false);
+      return;
+    }
+    const s = AUTO_STAGES[index];
+    await runAssist(s, s === "alert_sent");
+    if (index < AUTO_STAGES.length - 1) {
+      autoTimerRef.current = setTimeout(() => runAutoSequence(index + 1), AUTO_DELAY_MS);
+    } else {
+      autoModeRef.current = false;
+      setAutoMode(false);
+    }
+  };
+
+  const warmMic = async () => {
+    if (micStreamRef.current) return;
+    try {
+      micStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setMicReady(true);
+    } catch {
+      setError("Microphone unavailable — check browser permissions.");
+    }
+  };
+
+  const startRecording = async () => {
+    if (!micStreamRef.current) {
+      await warmMic();
+      if (!micStreamRef.current) return;
+    }
+    const mediaRecorder = new MediaRecorder(micStreamRef.current);
+    mediaRecorderRef.current = mediaRecorder;
+    audioChunksRef.current = [];
+    mediaRecorder.ondataavailable = (e) => { audioChunksRef.current.push(e.data); };
+    mediaRecorder.onstop = async () => {
+      const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+      await sendVoice(audioBlob);
+    };
+    mediaRecorder.start();
+    setRecording(true);
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current?.state === "recording") {
+      mediaRecorderRef.current.stop();
+    }
+    setRecording(false);
+  };
+
+  const sendVoice = async (audioBlob: Blob) => {
+    setLoading(true);
+    setError("");
+    setIsOffline(false);
+    const capturedImage = captureFrame();
+    try {
+      const formData = new FormData();
+      formData.append("audio", audioBlob, "recording.webm");
+      formData.append("payload", JSON.stringify({
+        profile: { userName: "Mary", mainLanguage: "English" },
+        signals: {
+          speakerRole: "patient",
+          room: "kitchen",
+          task: "making tea",
+          capturedImage: capturedImage || undefined,
+          behaviorSignals: {
+            quietPause: false,
+            noProgress: false,
+            hesitation: false,
+            liveSilenceCheckCount: 0
+          },
+          conversationState: {
+            turnType: "patient_speech",
+            stage: "conversation",
+            task: "making tea",
+            room: "kitchen"
+          }
+        }
+      }));
+      const response = await fetch(apiUrl("/assist/voice"), { method: "POST", body: formData });
+      const data: AssistResult & { transcript?: string; audio_base64?: string } = await response.json();
+      if (data.transcript) setTranscript(data.transcript);
+      const spoken = [data.response?.reassurance, data.response?.context, data.response?.next_step].filter(Boolean).join(" ");
+      setAiResponse(spoken || "Mary, I am here with you.");
+      if (data.ollama_meta) setOllamaMeta(data.ollama_meta);
+      if (data.escalation?.stage) setStage(data.escalation.stage as Stage);
+      if (data.family_alert?.sent) setCaregiverAlert(data.family_alert.alert?.message || "Caregiver alerted.");
+      addTimeline(data.transcript ? `You said: "${data.transcript}"` : "Voice message processed.");
+      if (data.audio_base64) {
+        const audio = new Audio(`data:audio/mpeg;base64,${data.audio_base64}`);
+        audio.play().catch(() => {});
+      }
+    } catch {
+      setError("Voice processing failed — check microphone and backend.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const startWebcam = async () => {
     setWebcamError("");
@@ -172,8 +327,10 @@ export default function PatientDashboard() {
     setRisk("Low");
     setAiResponse("");
     setCaregiverAlert("");
+    setTranscript("");
     setError("");
     setTimeline(["Mary starts making tea in the kitchen."]);
+    warmMic();
   };
 
   const triggerSilentPause = () => {
@@ -266,10 +423,12 @@ export default function PatientDashboard() {
         .filter(Boolean)
         .join(" ");
 
+      const finalSpoken = spoken || "Mary, I am here with you. Are you okay?";
       setStage(requestedStage);
       setRisk(requestedStage === "alert_sent" || requestedStage === "caregiver_warning" ? "High" : "Medium");
-      setAiResponse(spoken || "Mary, I am here with you. Are you okay?");
+      setAiResponse(finalSpoken);
       if (data.ollama_meta) setOllamaMeta(data.ollama_meta);
+      speakText(finalSpoken, (data as AssistResult & { audio_base64?: string }).audio_base64);
 
       if (data.family_alert?.sent || requestedStage === "alert_sent") {
         setCaregiverAlert(
@@ -291,6 +450,7 @@ export default function PatientDashboard() {
         setRisk(requestedStage === "alert_sent" || requestedStage === "caregiver_warning" ? "High" : "Medium");
         setAiResponse(spoken);
         setIsOffline(true);
+        speakText(spoken);
         if (offline.alert) setCaregiverAlert(offline.alert);
         addTimeline(
           requestedStage === "alert_sent"
@@ -331,6 +491,20 @@ export default function PatientDashboard() {
             {caregiverAlert ? <p style={styles.alertSpeech}>{caregiverAlert}</p> : null}
           </div>
 
+          <div style={styles.autoMonitorRow}>
+            {!autoMode ? (
+              <button type="button" style={styles.autoButton} onClick={startAutoMonitor} disabled={loading}>
+                Start Auto Monitor — Caregiver Steps Away
+              </button>
+            ) : (
+              <div style={styles.autoActiveRow}>
+                <div style={styles.autoPulse} />
+                <span style={styles.autoActiveText}>Auto monitoring active — watching for silence</span>
+                <button type="button" style={styles.autoStopButton} onClick={stopAutoMonitor}>Stop</button>
+              </div>
+            )}
+          </div>
+
           <div style={styles.webcamRow}>
             <div style={styles.webcamBox}>
               <video ref={videoRef} style={styles.webcamVideo} muted playsInline />
@@ -363,7 +537,7 @@ export default function PatientDashboard() {
           </div>
 
           <div style={styles.buttonGrid}>
-            <button style={styles.button} onClick={startTeaRoutine} disabled={loading}>
+            <button style={styles.button} onClick={startTeaRoutine} disabled={loading || autoMode}>
               Start Tea Routine
             </button>
             <button style={styles.button} onClick={triggerSilentPause} disabled={loading}>
@@ -378,6 +552,23 @@ export default function PatientDashboard() {
             <button style={styles.alertButton} onClick={showCaregiverAlert} disabled={loading}>
               Show Caregiver Alert
             </button>
+          </div>
+
+          <div style={styles.voiceRow}>
+            <button
+              type="button"
+              style={recording ? styles.voiceButtonActive : styles.voiceButton}
+              onMouseDown={startRecording}
+              onMouseUp={stopRecording}
+              onTouchStart={startRecording}
+              onTouchEnd={stopRecording}
+              disabled={loading}
+            >
+              {recording ? "Listening..." : micReady ? "Hold to Speak" : "Hold to Speak (mic warms on first press)"}
+            </button>
+            {transcript && (
+              <p style={styles.transcriptBox}>You said: &ldquo;{transcript}&rdquo;</p>
+            )}
           </div>
 
           {error ? <p style={styles.error}>{error}</p> : null}
@@ -708,5 +899,91 @@ const styles: Record<string, CSSProperties> = {
     fontSize: 14,
     color: "#52616B",
     lineHeight: 1.5
+  },
+  voiceRow: {
+    marginTop: 14,
+    display: "flex",
+    flexDirection: "column",
+    gap: 10
+  },
+  voiceButton: {
+    minHeight: 54,
+    border: "2px solid #2F6FED",
+    borderRadius: 8,
+    backgroundColor: "#EAF2FF",
+    color: "#173B73",
+    fontSize: 16,
+    fontWeight: 800,
+    cursor: "pointer",
+    letterSpacing: 0.2
+  },
+  voiceButtonActive: {
+    minHeight: 54,
+    border: "2px solid #1A4DB8",
+    borderRadius: 8,
+    backgroundColor: "#2F6FED",
+    color: "white",
+    fontSize: 16,
+    fontWeight: 800,
+    cursor: "pointer",
+    letterSpacing: 0.2
+  },
+  transcriptBox: {
+    margin: 0,
+    padding: "10px 14px",
+    backgroundColor: "#F0F4FF",
+    border: "1px solid #C3D4F7",
+    borderRadius: 6,
+    color: "#173B73",
+    fontSize: 15,
+    fontStyle: "italic"
+  },
+  autoMonitorRow: {
+    marginBottom: 14
+  },
+  autoButton: {
+    width: "100%",
+    minHeight: 58,
+    border: "2px solid #214D36",
+    borderRadius: 8,
+    backgroundColor: "#1A4D30",
+    color: "white",
+    fontSize: 16,
+    fontWeight: 800,
+    cursor: "pointer",
+    letterSpacing: 0.2
+  },
+  autoActiveRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    padding: "14px 16px",
+    backgroundColor: "#EAF5ED",
+    border: "2px solid #2A7A4B",
+    borderRadius: 8
+  },
+  autoPulse: {
+    width: 12,
+    height: 12,
+    borderRadius: "50%",
+    backgroundColor: "#2A7A4B",
+    flexShrink: 0,
+    animation: "pulse 1.4s ease-in-out infinite"
+  },
+  autoActiveText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: 800,
+    color: "#1A4D30"
+  },
+  autoStopButton: {
+    padding: "6px 14px",
+    border: "1px solid #B95021",
+    borderRadius: 6,
+    backgroundColor: "white",
+    color: "#B95021",
+    fontSize: 13,
+    fontWeight: 800,
+    cursor: "pointer"
   }
 };
