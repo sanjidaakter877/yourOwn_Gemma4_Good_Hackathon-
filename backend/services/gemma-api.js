@@ -146,21 +146,27 @@ Respond as a calm caregiver in 2-3 sentences:
 - Use simple warm words. Never mention GPS, timestamps, or raw system data.`;
 }
 
-// Gemma 4 thinking model outputs reasoning steps then the final answer.
-// Extract the last meaningful line, strip quotes and deduplicate.
+// Gemma 4 thinking model may output reasoning steps before the final answer.
+// The Google AI API typically strips thinking blocks, but the response can still
+// span multiple lines. Collect ALL content lines (not just the last one) so
+// multi-sentence replies like "Why don't scientists trust atoms? Because they
+// make up everything! Want to hear another one?" are never truncated.
 function extractFinalAnswer(text) {
-  const lines = text.split('\n');
+  // Strip explicit thinking blocks if present (e.g. <think>…</think>)
+  const withoutThinking = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+  const source = withoutThinking || text;
 
-  // Find the last non-bullet, non-empty line
-  let lastLine = '';
-  for (let i = lines.length - 1; i >= 0; i--) {
-    const t = lines[i].trim();
-    if (t && !t.startsWith('*') && !t.startsWith('-') && !/^\d+\./.test(t)) {
-      lastLine = t;
-      break;
-    }
-  }
-  if (!lastLine) return text.trim();
+  const lines = source.split('\n');
+
+  // Keep all non-empty, non-list lines and join into a single block
+  const contentLines = lines
+    .map(l => l.trim())
+    .filter(t => t && !t.startsWith('*') && !t.startsWith('-') && !/^\d+\./.test(t));
+
+  if (!contentLines.length) return text.trim();
+
+  // Join lines — preserves multi-sentence answers that span newlines
+  let lastLine = contentLines.join(' ').trim();
 
   // Strip surrounding quotes
   lastLine = lastLine.replace(/^["'"']|["'"']$/g, '').trim();

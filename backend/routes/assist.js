@@ -306,6 +306,8 @@ async function runAssistFlow(body, app) {
   return {
     mode: scored.mode,
     confidence: scored.confidence,
+    response_type: aiResult.response_type || (scored.mode === "conversation" ? "conversation" : "care"),
+    companion_message: aiResult.companion_message || null,
     detected_language: languageInfo.detectedLanguage,
     interpreted_language: languageInfo.interpretedLanguage,
     environment,
