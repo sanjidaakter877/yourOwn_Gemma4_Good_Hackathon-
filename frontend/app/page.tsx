@@ -245,6 +245,22 @@ const styles = {
 type ThemeName = "light" | "dark";
 type ViewMode = "laptop" | "mobile";
 type RoleName = "patient" | "family" | "doctor";
+
+type PersonRecord = {
+  id: string;
+  name: string;
+  relationship: string;
+  notes: string;
+  photo_url: string | null;
+};
+
+type MedicineEntry = {
+  id: string;
+  name: string;
+  dosage: string;
+  schedule: string;
+  appearance: string;
+};
 type CameraButtonName = "start" | "capture" | "stop";
 type GpsButtonName = "get" | "live";
 type MobilePatientButtonName = "scared" | "where" | "medicine" | "speak" | "send";
@@ -554,6 +570,9 @@ export default function Home() {
   const [settingsButtonState, setSettingsButtonState] =
     useState<"idle" | "saving" | "saved">("idle");
   const [familyAlerts, setFamilyAlerts] = useState<FamilyAlert[]>([]);
+  const [people, setPeople] = useState<PersonRecord[]>([]);
+  const [peopleLoading, setPeopleLoading] = useState(false);
+  const [medicines, setMedicines] = useState<MedicineEntry[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -854,9 +873,38 @@ export default function Home() {
     if (!isFamilyDashboard) return;
     fetchCareSettings();
     fetchFamilyAlerts();
+    fetchPeople();
     const timer = window.setInterval(fetchFamilyAlerts, 15000);
     return () => window.clearInterval(timer);
   }, [isFamilyDashboard]);
+
+  const fetchPeople = async () => {
+    setPeopleLoading(true);
+    try {
+      const res = await fetch(apiUrl(`/api/people?patient=${encodeURIComponent(userName)}`));
+      const data = await res.json();
+      setPeople(data.people || []);
+    } catch {
+      setPeople([]);
+    } finally {
+      setPeopleLoading(false);
+    }
+  };
+
+  const handleAddPersonToSupabase = async (formData: FormData) => {
+    try {
+      const res = await fetch(apiUrl("/api/people"), { method: "POST", body: formData });
+      const data = await res.json();
+      if (data.ok) fetchPeople();
+    } catch { /* ignore */ }
+  };
+
+  const handleDeletePerson = async (id: string) => {
+    try {
+      await fetch(apiUrl(`/api/people/${id}`), { method: "DELETE" });
+      setPeople((prev) => prev.filter((p) => p.id !== id));
+    } catch { /* ignore */ }
+  };
 
   const updateScheduleItem = (
     index: number,
@@ -3045,7 +3093,9 @@ export default function Home() {
                 doctorNote={doctorNote}
                 followUpPlan={followUpPlan}
                 medicationPlan={medicationPlan}
+                medicines={medicines}
                 onSave={saveCareInfo}
+                onMedicinesChange={setMedicines}
                 result={result}
                 saveButtonState={saveButtonState}
                 saveStatus={saveStatus}
@@ -3054,6 +3104,17 @@ export default function Home() {
                 setDoctorNote={setDoctorNote}
                 setFollowUpPlan={setFollowUpPlan}
                 setMedicationPlan={setMedicationPlan}
+              />
+            )}
+
+            {isFamilyDashboard && (
+              <PeopleMemoryDashboard
+                currentTheme={currentTheme}
+                people={people}
+                loading={peopleLoading}
+                userName={userName}
+                onAdd={handleAddPersonToSupabase}
+                onDelete={handleDeletePerson}
               />
             )}
 
@@ -3218,13 +3279,95 @@ function blankCareContact(): CareContact {
   };
 }
 
+function PeopleMemoryDashboard({
+  currentTheme,
+  people,
+  loading,
+  userName,
+  onAdd,
+  onDelete
+}: {
+  currentTheme: typeof lightTheme;
+  people: PersonRecord[];
+  loading: boolean;
+  userName: string;
+  onAdd: (formData: FormData) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+}) {
+  const [name, setName] = useState("");
+  const [relationship, setRelationship] = useState("");
+  const [notes, setNotes] = useState("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!name.trim()) return;
+    setSaving(true);
+    const fd = new FormData();
+    fd.append("patientName", userName);
+    fd.append("name", name.trim());
+    fd.append("relationship", relationship.trim());
+    fd.append("notes", notes.trim());
+    if (photoFile) fd.append("photo", photoFile);
+    await onAdd(fd);
+    setName(""); setRelationship(""); setNotes(""); setPhotoFile(null);
+    setSaving(false);
+  };
+
+  return (
+    <Card theme={currentTheme}>
+      <SectionTitle
+        emoji="👨‍👩‍👧"
+        title="People memory"
+        description="Add family members so the patient can ask 'Who is Anna?' and see their face."
+        theme={currentTheme}
+      />
+
+      <div className="mt-4 grid gap-3">
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name, e.g. Anna" className={currentTheme.input} />
+        <input value={relationship} onChange={(e) => setRelationship(e.target.value)} placeholder="Relationship, e.g. daughter" className={currentTheme.input} />
+        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes, e.g. visits every Sunday, brings flowers" className={`${currentTheme.input} min-h-[72px] resize-none`} />
+        <label className={currentTheme.uploadButton}>
+          {photoFile ? `📷 ${photoFile.name}` : "📷 Upload photo"}
+          <input type="file" accept="image/*" className="hidden" onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)} />
+        </label>
+        <button type="button" onClick={handleSubmit} disabled={saving || !name.trim()} className={currentTheme.saveButton}>
+          {saving ? "Saving..." : "Save to memory"}
+        </button>
+      </div>
+
+      <div className="mt-6 space-y-3">
+        {loading && <p className={currentTheme.miniText}>Loading...</p>}
+        {!loading && people.length === 0 && <p className={currentTheme.miniText}>No people saved yet. Add someone above.</p>}
+        {people.map((person) => (
+          <div key={person.id} className={`${currentTheme.photoMemoryCard} flex items-center gap-4`}>
+            {person.photo_url ? (
+              <img src={person.photo_url} alt={person.name} className="h-16 w-16 rounded-full object-cover border-2 border-[#4ECDC4] flex-shrink-0" />
+            ) : (
+              <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-[#4ECDC4] text-2xl">👤</div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="font-black text-base">{person.name}</p>
+              {person.relationship && <p className="text-sm font-semibold text-[#4ECDC4]">{person.relationship}</p>}
+              {person.notes && <p className="text-xs opacity-70 truncate">{person.notes}</p>}
+            </div>
+            <button type="button" onClick={() => onDelete(person.id)} className={currentTheme.softButton}>Remove</button>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 function DoctorDashboard({
   clinicalAssessment,
   currentTheme,
   doctorNote,
   followUpPlan,
   medicationPlan,
+  medicines,
   onSave,
+  onMedicinesChange,
   result,
   saveButtonState,
   saveStatus,
@@ -3239,7 +3382,9 @@ function DoctorDashboard({
   doctorNote: string;
   followUpPlan: string;
   medicationPlan: string;
+  medicines: MedicineEntry[];
   onSave: () => void;
+  onMedicinesChange: Dispatch<SetStateAction<MedicineEntry[]>>;
   result: AssistResponse | null;
   saveButtonState: "idle" | "saved";
   saveStatus: string;
@@ -3317,10 +3462,63 @@ function DoctorDashboard({
           />
         </Field>
 
-        <Field label="Medication / care plan" theme={currentTheme}>
+        <div className="col-span-full">
+          <p className="mb-2 text-xs font-black uppercase tracking-widest opacity-60">💊 Medicine List</p>
+          <div className="space-y-3">
+            {medicines.map((med) => (
+              <div key={med.id} className={`${currentTheme.photoMemoryCard} grid gap-2`}>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    value={med.name}
+                    onChange={(e) => onMedicinesChange((prev) => prev.map((m) => m.id === med.id ? { ...m, name: e.target.value } : m))}
+                    placeholder="Medicine name"
+                    className={currentTheme.input}
+                  />
+                  <input
+                    value={med.dosage}
+                    onChange={(e) => onMedicinesChange((prev) => prev.map((m) => m.id === med.id ? { ...m, dosage: e.target.value } : m))}
+                    placeholder="Dosage, e.g. 10mg"
+                    className={currentTheme.input}
+                  />
+                  <input
+                    value={med.schedule}
+                    onChange={(e) => onMedicinesChange((prev) => prev.map((m) => m.id === med.id ? { ...m, schedule: e.target.value } : m))}
+                    placeholder="When, e.g. morning with food"
+                    className={currentTheme.input}
+                  />
+                  <input
+                    value={med.appearance}
+                    onChange={(e) => onMedicinesChange((prev) => prev.map((m) => m.id === med.id ? { ...m, appearance: e.target.value } : m))}
+                    placeholder="Appearance, e.g. small white round pill"
+                    className={currentTheme.input}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onMedicinesChange((prev) => prev.filter((m) => m.id !== med.id))}
+                  className={currentTheme.softButton}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => onMedicinesChange((prev) => [...prev, { id: crypto.randomUUID(), name: "", dosage: "", schedule: "", appearance: "" }])}
+              className={currentTheme.softButton}
+            >
+              + Add medicine
+            </button>
+          </div>
+        </div>
+
+        <Field label="Medication / care plan (auto-generated)" theme={currentTheme}>
           <textarea
-            value={medicationPlan}
+            value={medicines.length > 0
+              ? medicines.filter(m => m.name).map(m => `${m.name}${m.dosage ? ` ${m.dosage}` : ""}${m.schedule ? ` — ${m.schedule}` : ""}${m.appearance ? ` (${m.appearance})` : ""}`).join("\n")
+              : medicationPlan}
             onChange={(e) => setMedicationPlan(e.target.value)}
+            readOnly={medicines.length > 0}
             className={`${currentTheme.input} min-h-[92px] resize-none`}
           />
         </Field>

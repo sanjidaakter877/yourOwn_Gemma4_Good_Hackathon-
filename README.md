@@ -12,14 +12,22 @@ Built for the **[Gemma 4 Good Hackathon](https://www.kaggle.com/competitions/gem
 
 ## 💡 The Problem
 
-55 million people worldwide live with Alzheimer's and related dementia. At night, when caregivers sleep, patients can:
+55 million people worldwide live with Alzheimer's and related dementia. **yourOwn targets the middle stage** — the most common and most underserved phase of the disease.
+
+In the middle stage, patients are still at home, still able to speak, still able to drink tea and watch television. But confusion strikes without warning, often when no one is watching. They forget familiar faces. They go quiet mid-activity with no idea why. They need help — but cannot ask for it.
+
+This is the gap yourOwn fills:
 
 - Get confused mid-activity and not know where they are
-- Forget a family member's face
-- Wander, fall, or go silent for dangerous amounts of time
-- Need help — but be unable to ask for it
+- Forget a family member's face — "Who is Anna?"
+- Go silent for dangerous amounts of time after a fall or episode
+- Need gentle orientation — not an alarm, not a hospital
 
 Existing solutions are **passive alarms**. They detect crisis after it starts. yourOwn is different: it is always present, always listening, always ready.
+
+### 👨‍👩‍👧 Designed for Families, Not Just Patients
+
+A patient with middle-stage Alzheimer's cannot be expected to manage technology. **yourOwn is set up once by a caregiver.** Before leaving for work, a family member opens the app, starts the live monitor, and the companion takes over. The patient only ever sees a warm voice that speaks their name — never a settings screen, never a toggle.
 
 ---
 
