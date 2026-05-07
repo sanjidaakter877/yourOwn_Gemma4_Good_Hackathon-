@@ -295,7 +295,10 @@ httpServer.listen(PORT, async () => {
 
 app.get("/api/gemma/status", async (req, res) => {
   const ollamaUrl = process.env.OLLAMA_URL || "http://localhost:11434";
-  const model = process.env.OLLAMA_MODEL || "gemma4:e4b";
+  const ollamaModel = process.env.OLLAMA_MODEL || "gemma4:e2b";
+  const geminiKey = (process.env.GEMINI_API_KEY || "").trim();
+  const apiModel = process.env.GEMMA_API_MODEL || "gemma-4-26b-a4b-it";
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 1500);
 
@@ -308,25 +311,32 @@ app.get("/api/gemma/status", async (req, res) => {
     const modelNames = models.map((item) => item.name);
 
     res.json({
-      local_inference: response.ok,
+      local_inference: true,
       provider: "Ollama",
-      model,
+      model: ollamaModel,
+      api_model: apiModel,
+      api_ready: Boolean(geminiKey),
       ollama_url: ollamaUrl,
-      model_available: modelNames.some((name) => name === model || name.startsWith(`${model}:`)),
+      model_available: modelNames.some((name) => name === ollamaModel || name.startsWith(`${ollamaModel}:`)),
       installed_models: modelNames.slice(0, 8),
-      privacy: "Patient context is sent to the local Ollama runtime, not a hosted API."
+      privacy: "Running locally via Ollama — no data leaves your device."
     });
-  } catch (error) {
+  } catch {
+    clearTimeout(timeout);
     res.json({
       local_inference: false,
-      provider: "Ollama",
-      model,
+      provider: geminiKey ? "Google AI Studio" : "none",
+      model: apiModel,
+      api_model: apiModel,
+      api_ready: Boolean(geminiKey),
       ollama_url: ollamaUrl,
-      model_available: false,
+      model_available: Boolean(geminiKey),
       installed_models: [],
-      privacy: "Ollama was not reachable from the backend.",
-      error: error.message
+      privacy: geminiKey
+        ? "Running via Google AI Studio API. Only a single frame per request is transmitted."
+        : "No AI provider configured."
     });
+    return;
   } finally {
     clearTimeout(timeout);
   }

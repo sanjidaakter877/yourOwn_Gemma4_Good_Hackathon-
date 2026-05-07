@@ -428,6 +428,8 @@ type GemmaStatus = {
   local_inference: boolean;
   provider: string;
   model: string;
+  api_model?: string;
+  api_ready?: boolean;
   ollama_url: string;
   model_available: boolean;
   installed_models: string[];
@@ -2479,7 +2481,9 @@ export default function Home() {
                   value={
                     gemmaStatus?.local_inference
                       ? `${gemmaStatus.model} local`
-                      : "local status pending"
+                      : gemmaStatus?.api_ready
+                      ? `${gemmaStatus.api_model} API`
+                      : "configuring..."
                   }
                   tone="low"
                 />
