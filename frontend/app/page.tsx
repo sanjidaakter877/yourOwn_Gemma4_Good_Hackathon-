@@ -2328,8 +2328,22 @@ export default function Home() {
 
       rec.onerror = (event: any) => {
         const err = String(event?.error || "");
-        if (err !== "no-speech") {
-          setError("Microphone error: " + err + ". Please try again.");
+        // no-speech: user didn't say anything — reset silently.
+        if (err === "no-speech") {
+          setRecording(false);
+          return;
+        }
+        // network: Chrome couldn't reach Google's speech servers — transient.
+        // Show a soft hint so the patient knows to try again or type instead.
+        if (err === "network") {
+          setRecording(false);
+          setError("Couldn't catch that — please tap Speak again or type your message.");
+          return;
+        }
+        if (err === "not-allowed" || err === "service-not-allowed") {
+          setError("Microphone access was denied. Please allow microphone in your browser settings.");
+        } else {
+          setError("Could not hear you. Please tap Speak and try again.");
         }
         setRecording(false);
       };
