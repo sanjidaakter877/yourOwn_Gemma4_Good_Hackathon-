@@ -1321,7 +1321,7 @@ export default function Home() {
         } catch {
           setLiveMonitoringStatus("Live mic is waiting to resume.");
         }
-      }, 2500);
+      }, 4000);
     };
 
     if (!data.audio_base64 || !data.audio_mime_type) {

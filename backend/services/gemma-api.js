@@ -147,7 +147,7 @@ Respond as a calm caregiver in 2-3 sentences:
 }
 
 // Gemma 4 thinking model outputs reasoning steps then the final answer.
-// Extract the last meaningful line, strip quotes and deduplication.
+// Extract the last meaningful line, strip quotes and deduplicate.
 function extractFinalAnswer(text) {
   const lines = text.split('\n');
 
@@ -162,11 +162,27 @@ function extractFinalAnswer(text) {
   }
   if (!lastLine) return text.trim();
 
-  // Strip surrounding quotes the model sometimes wraps the answer in
+  // Strip surrounding quotes
   lastLine = lastLine.replace(/^["'"']|["'"']$/g, '').trim();
 
-  // Deduplicate: if the same sentence appears twice in a row, keep one copy
-  // e.g. "You are safe. You are safe." → "You are safe."
+  // Detect full-paragraph duplication: model outputs the whole response twice
+  // e.g. "Hi Mary, are you okay? Hi Mary, are you okay?"
+  // Try splitting at every word boundary from the middle and check if second half starts with first half
+  const words = lastLine.split(' ');
+  if (words.length >= 6) {
+    const mid = Math.floor(words.length / 2);
+    for (let i = mid; i <= words.length - 2; i++) {
+      const firstHalf = words.slice(0, i).join(' ').trim();
+      const secondHalf = words.slice(i).join(' ').trim();
+      const prefix = firstHalf.slice(0, Math.min(40, firstHalf.length));
+      if (secondHalf.startsWith(prefix)) {
+        lastLine = firstHalf.replace(/[,\s]+$/, '') + (firstHalf.match(/[.!?]$/) ? '' : '.');
+        break;
+      }
+    }
+  }
+
+  // Deduplicate consecutive identical sentences
   const sentences = lastLine.match(/[^.!?]+[.!?]+/g) || [];
   const unique = sentences.filter((s, i) => s.trim() !== (sentences[i - 1] || '').trim());
 
