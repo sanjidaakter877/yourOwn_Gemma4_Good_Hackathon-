@@ -2455,7 +2455,7 @@ export default function Home() {
                 }
               >
                 {viewMode === "mobile"
-                  ? "Tea routine rescue."
+                  ? "Detect silent disorientation, restore reality, escalate safely."
                   : "Detect silent disorientation, restore reality, escalate safely."}
               </h1>
               <p
@@ -3780,6 +3780,26 @@ function MobilePatientMode({
           >
             {recording ? "⏹ Stop" : "🎙️ Speak"}
           </button>
+
+          <label htmlFor="ai-photo-upload-mobile" className="sr-only">Upload a photo for AI to describe</label>
+          <input
+            id="ai-photo-upload-mobile"
+            type="file"
+            accept="image/*"
+            ref={aiPhotoInputRef}
+            className="hidden"
+            onChange={handleAiPhotoExplain}
+            aria-label="Upload a photo for AI to describe"
+          />
+          <button
+            type="button"
+            onClick={() => aiPhotoInputRef.current?.click()}
+            disabled={loading}
+            className={currentTheme.mobileVoiceButton}
+            title="Upload a photo — AI will describe what it sees"
+          >
+            📷 Photo
+          </button>
         </div>
 
         <button
@@ -3833,54 +3853,12 @@ function MobilePatientMode({
           </div>
         )}
 
-        {result && <MobileResult result={result} theme={currentTheme} />}
+        {result && <ResultPanel result={result} theme={currentTheme} hideTranscript />}
       </div>
     </section>
   );
 }
 
-function MobileResult({
-  result,
-  theme
-}: {
-  result: AssistResponse;
-  theme: typeof lightTheme;
-}) {
-  return (
-    <div className="mt-5 space-y-3">
-      <div className={theme.mobileResponseBox}>
-        <p className="text-2xl font-black">{result.response.reassurance}</p>
-        <p className="mt-3 text-base font-bold leading-7">
-          {result.response.context}
-        </p>
-        <p className="mt-4 rounded-2xl bg-white/70 p-3 text-sm font-black">
-          {result.response.next_step}
-        </p>
-      </div>
-
-      {result.care_reasoning && (
-        <div className="grid grid-cols-2 gap-3">
-          <SignalPill
-            label="Risk"
-            value={result.care_reasoning.risk.level.toUpperCase()}
-            tone={result.care_reasoning.risk.level}
-          />
-          <SignalPill
-            label="Grounding"
-            value={
-              result.care_reasoning.verification.safe_to_send
-                ? "Verified"
-                : "Review"
-            }
-            tone={
-              result.care_reasoning.verification.safe_to_send ? "low" : "high"
-            }
-          />
-        </div>
-      )}
-    </div>
-  );
-}
 
 function SectionTitle({
   emoji,
@@ -3961,14 +3939,16 @@ function EmptyState({
 
 function ResultPanel({
   result,
-  theme
+  theme,
+  hideTranscript = false
 }: {
   result: AssistResponse;
   theme: typeof lightTheme;
+  hideTranscript?: boolean;
 }) {
   return (
     <div className="mt-5 space-y-4">
-      {result.transcript && (
+      {!hideTranscript && result.transcript && (
         <InfoCard title="Transcript" theme={theme}>
           <Bullet>{result.transcript}</Bullet>
         </InfoCard>
