@@ -1,7 +1,10 @@
 const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434";
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "gemma4:e4b";
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "gemma4:e2b";
+const OLLAMA_TIMEOUT_MS = 90000;       // full care JSON response
+const OLLAMA_CONV_TIMEOUT_MS = 15000;  // fail fast to Gemma 4 API on CPU-only machines
 const { buildCareReasoning, verifyGrounding } = require("./care-reasoner");
 const { generateWithGemini } = require("./gemini");
+const { generateWithGemmaApi } = require("./gemma-api");
 
 // Gemma 4 native function calling: care tool definitions
 const CARE_TOOLS = [
@@ -65,20 +68,23 @@ async function generateSupportResponse({
   try {
     const inferenceStart = Date.now();
 
-    // Gemini API — primary path (cloud, fast, natural, works on mobile)
+    // PRIMARY: Gemma 4 26B A4B-IT via API — same model used in hackathon notebook
+    const gemmaApiResult = await generateWithGemmaApi({
+      context, environment, scored, relevantMemories, careReasoning, inferenceStart
+    });
+    if (gemmaApiResult) return gemmaApiResult;
+
+    // FALLBACK: Gemma 4 via Ollama — local, private, no data leaves the device
+    const gemma4Result = await generateConversationalResponse({
+      context, environment, scored, relevantMemories, careReasoning, inferenceStart
+    });
+    if (gemma4Result) return gemma4Result;
+
+    // LAST RESORT: Gemini cloud
     const geminiResult = await generateWithGemini({
       context, environment, scored, relevantMemories, careReasoning, inferenceStart
     });
     if (geminiResult) return geminiResult;
-
-    // Gemma 4 via Ollama — local fallback (privacy-first, no API key needed)
-    // Fast conversational path — no JSON structure, just natural text
-    if (scored.mode === "conversation" && !context.behaviorAnalysis?.silent_confusion) {
-      const convResult = await generateConversationalResponse({
-        context, environment, relevantMemories, careReasoning, inferenceStart
-      });
-      if (convResult) return convResult;
-    }
 
     const { systemPrompt, userData } = buildChatData({
       context,
@@ -105,9 +111,12 @@ async function generateSupportResponse({
     ];
 
     // First request: Gemma 4 function calling + optional multimodal camera image
+    const firstAbort = new AbortController();
+    const firstTimeout = setTimeout(() => firstAbort.abort(), OLLAMA_TIMEOUT_MS);
     const firstRes = await fetch(`${OLLAMA_URL}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal: firstAbort.signal,
       body: JSON.stringify({
         model: OLLAMA_MODEL,
         messages,
@@ -116,6 +125,7 @@ async function generateSupportResponse({
         options: { temperature: 0.7, top_p: 0.92 }
       })
     });
+    clearTimeout(firstTimeout);
 
     if (!firstRes.ok) {
       throw new Error(`Ollama returned ${firstRes.status}`);
@@ -210,73 +220,139 @@ async function generateSupportResponse({
       }
     };
   } catch (error) {
-    console.warn("Gemma/Ollama unavailable, using fallback:", error.message);
+    console.warn("Gemma/Ollama unavailable:", error.message);
+
+    // For conversation, try cloud providers after local Ollama failed
+    if (scored.mode === "conversation" && context.speechText?.trim()) {
+      try {
+        const gemmaApiRetry = await generateWithGemmaApi({
+          context, environment, scored, relevantMemories, careReasoning,
+          inferenceStart: Date.now()
+        });
+        if (gemmaApiRetry) return gemmaApiRetry;
+
+
+      } catch {
+        // All cloud providers failed — fall through to honest message
+      }
+
+      const name = context.userName || "Mary";
+      return {
+        response_type: "conversation",
+        companion_message: `Sorry ${name}, I had a little trouble just now. Could you say that again? I am here and listening.`,
+        response: {
+          reassurance: `I am here with you, ${name}.`,
+          context: "",
+          next_step: "Could you say that again? I want to make sure I hear you."
+        },
+        memory_summary: [],
+        care_reasoning: null,
+        ollama_meta: { provider: "fallback", local: false }
+      };
+    }
+
     return fallback;
   }
 }
 
-async function generateConversationalResponse({ context, environment, relevantMemories, careReasoning, inferenceStart }) {
+async function generateConversationalResponse({ context, environment, scored, relevantMemories, careReasoning, inferenceStart }) {
   const name = context.userName || "Mary";
   const speech = context.speechText || "";
-  if (!speech.trim()) return null;
+  const isSilentCheck = context.behaviorAnalysis?.silent_confusion;
+  if (!speech.trim() && !isSilentCheck) return null;
+
+  console.log(`[Ollama conv] entering — speech="${speech.slice(0, 60)}", model=${OLLAMA_MODEL}`);
 
   const memoryLines = relevantMemories.slice(0, 2).map(m => `- ${m.interpreted_text}`).join("\n");
-  const placeHint = environment?.likely_place ? ` You are at ${environment.likely_place}.` : "";
-  const timeHint = context.currentClock ? ` It is ${context.currentClock}.` : "";
+  const placeHint = environment?.likely_place ? ` ${name} is likely at ${environment.likely_place}.` : "";
+  const timeHint = context.currentClock ? ` It is ${context.currentClock}, ${context.timeOfDay}.` : "";
+  const careNote = context.careNote ? ` Family note: ${context.careNote}` : "";
 
-  const systemPrompt = `You are yourOwn, a warm caring AI companion for ${name}, who has Alzheimer's.${placeHint}${timeHint}
-${memoryLines ? `Recent context:\n${memoryLines}` : ""}
+  const modeInstructions = isSilentCheck
+    ? `${name} has been quiet for a while. Gently check in with one warm question to make sure they are okay. Do not repeat previous check-ins.`
+    : scored?.mode === "orientation"
+    ? `${name} seems confused. Gently orient them — tell them the time, where they are, and something reassuring.`
+    : scored?.mode === "emotional_support"
+    ? `${name} seems upset or scared. Respond with calm warmth. Acknowledge their feelings and reassure them they are safe.`
+    : scored?.mode === "routine_guidance" || scored?.mode === "memory_recall"
+    ? `${name} needs help with a routine or memory. Give one clear helpful answer, then ask a gentle follow-up.`
+    : `Reply naturally like a real caring friend. Directly respond to what ${name} said. End with one warm follow-up question.`;
 
-Rules:
-- Reply naturally like a real caring friend, not a robot or a form.
-- Keep it short: one or two sentences only.
-- Directly answer or respond to what ${name} just said.
-- Never say "I am listening" as the whole response — actually engage with the topic.
-- Never echo back their words. Never mention timestamps, GPS, or care notes.
-- End with one natural follow-up question to continue the conversation.`;
+  const userMessage = speech.trim() || `[${name} has been quiet for a while]`;
 
-  try {
-    const res = await fetch(`${OLLAMA_URL}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: OLLAMA_MODEL,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: speech }
-        ],
-        stream: false,
-        options: { temperature: 0.8, top_p: 0.95 }
-      })
-    });
+  const systemPrompt = `You are yourOwn, a warm caring AI companion for ${name}, who has Alzheimer's.${placeHint}${timeHint}${careNote}
+${memoryLines ? `Context:\n${memoryLines}` : ""}
 
-    if (!res.ok) return null;
-    const data = await res.json();
-    const reply = (data.message?.content || "").trim();
-    if (!reply) return null;
+${modeInstructions}
+Keep it short: 1-2 sentences only. Never mention GPS, timestamps, or raw system data.`;
 
-    const response = { reassurance: reply, context: "", next_step: "" };
+  // Try configured model first, then other Gemma 4 variants — skip Gemma 3 for hackathon
+  const uniqueModels = [...new Set([OLLAMA_MODEL, "gemma4:e4b", "gemma4:e2b"])];
 
-    return {
-      response_type: "conversation",
-      companion_message: reply,
-      response,
-      memory_summary: [],
-      care_reasoning: careReasoning ? {
-        ...careReasoning,
-        verification: { safe_to_send: true, grounding_score: 1 }
-      } : null,
-      ollama_meta: {
-        model: OLLAMA_MODEL,
-        inference_ms: Date.now() - inferenceStart,
-        function_calls: [],
-        vision_used: false,
-        local: true
+  for (const model of uniqueModels) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), OLLAMA_CONV_TIMEOUT_MS);
+
+      const res = await fetch(`${OLLAMA_URL}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userMessage }
+          ],
+          stream: false,
+          options: { temperature: 0.8, top_p: 0.95 }
+        })
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        console.warn(`[Ollama conv] ${model} returned ${res.status}:`, errText.slice(0, 200));
+        continue;
       }
-    };
-  } catch {
-    return null;
+
+      const data = await res.json();
+      const reply = (data.message?.content || "").trim();
+
+      if (!reply) {
+        console.warn(`[Ollama conv] ${model} returned empty reply`);
+        continue;
+      }
+
+      console.log(`[Ollama conv] ${model} replied: "${reply.slice(0, 80)}"`);
+
+      const response = { reassurance: reply, context: "", next_step: "" };
+
+      return {
+        response_type: "conversation",
+        companion_message: reply,
+        response,
+        memory_summary: [],
+        care_reasoning: careReasoning ? {
+          ...careReasoning,
+          verification: { safe_to_send: true, grounding_score: 1 }
+        } : null,
+        ollama_meta: {
+          model,
+          inference_ms: Date.now() - inferenceStart,
+          function_calls: [],
+          vision_used: false,
+          local: true
+        }
+      };
+    } catch (err) {
+      console.warn(`[Ollama conv] ${model} exception:`, err.message);
+    }
   }
+
+  console.warn("[Ollama conv] all models failed, returning null");
+  return null;
 }
 
 function buildChatData({
@@ -778,12 +854,27 @@ function buildConversationFallback({ context, environment, timeText, scheduleSen
     };
   }
 
-  // Generic fallback — acknowledge and continue, never echo raw context
-  const topicHint = speech.trim().split(/\s+/).slice(0, 4).join(" ");
+  if (/\b(joke|funny|laugh|humour|humor|story|tell me|sing)\b/i.test(speech)) {
+    return {
+      reassurance: `${name}, I love that you are in a fun mood!`,
+      context: "",
+      next_step: "Here is one: Why did the gardener win an award? Because he was outstanding in his field! Did that make you smile?"
+    };
+  }
+
+  if (/\b(bored|boring|nothing to do|no fun|lonely|alone)\b/i.test(speech)) {
+    return {
+      reassurance: `${name}, I am right here with you and happy to chat!`,
+      context: "",
+      next_step: "What do you usually enjoy doing? We could talk about your favourite memory or a song you love."
+    };
+  }
+
+  // Generic fallback — acknowledge and continue
   return {
-    reassurance: `${name}, I hear you.`,
+    reassurance: `${name}, I am here and listening!`,
     context: "",
-    next_step: topicHint ? `Tell me more about that — I am listening.` : "What is on your mind today?"
+    next_step: "Tell me what is on your mind — I would love to hear."
   };
 }
 

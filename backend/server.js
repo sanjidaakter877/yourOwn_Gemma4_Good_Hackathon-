@@ -193,10 +193,46 @@ app.post("/api/alerts/:patientId/notify", async (req, res) => {
   }
 });
 
+// Care data export for fine-tuning (anonymised — no PII)
+app.get("/api/care-data/export", (req, res) => {
+  try {
+    // In production this reads from the persistent interaction log.
+    // Returns conversations in Unsloth/SFT training format.
+    const sampleExport = [
+      {
+        mode: "orientation",
+        system: "You are yourOwn, a calm caring AI companion for [patient], who has Alzheimer's.",
+        patient: "Where am I? I don't recognise this place.",
+        response: "You are safe at home. It is late at night — things look different in the dark. Your bedroom is just down the hall.",
+        risk_level: "medium",
+        escalated: false
+      },
+      {
+        mode: "silent_check",
+        system: "You are yourOwn. The patient has been silent for a while. Check-in 2.",
+        patient: "[silent]",
+        response: "I am still here with you. Can you let me know you are okay? Just say something or press the button.",
+        risk_level: "medium",
+        escalated: false
+      }
+    ];
+    res.json({
+      format: "unsloth-sft",
+      model: "gemma-4-26b-a4b-it",
+      total_interactions: sampleExport.length,
+      note: "All patient names replaced with [patient]. No GPS, timestamps, or PII included.",
+      conversations: sampleExport
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Routes
 app.use("/assist", assistRoute);
 app.use("/doctor", doctorRoute);
 app.use("/api/care-settings", careSettingsRoute);
+app.use("/api/people", require("./routes/people"));
 
 // Service initialization
 async function initializeServices() {
@@ -238,6 +274,23 @@ httpServer.listen(PORT, async () => {
   
   ✅ Ready to transform Alzheimer's care
   `);
+
+  // Pre-warm Gemma 4 so first patient request responds immediately
+  const ollamaUrl = process.env.OLLAMA_URL || "http://localhost:11434";
+  const ollamaModel = process.env.OLLAMA_MODEL || "gemma4:e2b";
+  console.log(`[Warmup] Loading ${ollamaModel} into memory...`);
+  fetch(ollamaUrl + "/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: ollamaModel,
+      messages: [{ role: "user", content: "hi" }],
+      stream: false,
+      options: { temperature: 0.1 }
+    })
+  })
+    .then(() => console.log(`[Warmup] ${ollamaModel} is loaded and ready`))
+    .catch(() => console.log(`[Warmup] ${ollamaModel} not available — cloud fallback will be used`));
 });
 
 app.get("/api/gemma/status", async (req, res) => {

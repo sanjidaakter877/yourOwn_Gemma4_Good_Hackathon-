@@ -69,6 +69,7 @@ function buildContext({ profile = {}, signals = {} }) {
     behaviorAnalysis: signals.behaviorAnalysis || null,
     behaviorSignals: signals.behaviorSignals || {},
     conversationState: signals.conversationState || {},
+    conversationHistory: Array.isArray(signals.conversationHistory) ? signals.conversationHistory.slice(-6) : [],
     escalation: signals.escalation || null,
 
     scheduleNow: signals.scheduleNow || null,

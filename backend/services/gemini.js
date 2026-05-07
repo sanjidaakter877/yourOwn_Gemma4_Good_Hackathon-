@@ -78,15 +78,20 @@ function buildConversationPrompt({ name, speech, context, environment, relevantM
   const placeHint = environment?.likely_place ? `${name} is at ${environment.likely_place}.` : "";
   const memoryHint = relevantMemories.slice(0, 2).map(m => `- ${m.interpreted_text}`).join("\n");
   const imageHint = imagePart ? "A live camera image of the scene is attached." : "";
+  const history = (context.conversationHistory || []).slice(-6);
+  const historyHint = history.length
+    ? history.map(t => `${t.role === "patient" ? name : "You"}: ${t.text}`).join("\n")
+    : "";
 
   return `You are yourOwn, a warm caring AI companion for ${name}, who has Alzheimer's.
 ${timeHint} ${placeHint}
-${memoryHint ? `Recent context:\n${memoryHint}` : ""}
+${memoryHint ? `Saved context:\n${memoryHint}` : ""}
+${historyHint ? `Recent conversation:\n${historyHint}` : ""}
 ${imageHint}
 
 ${name} just said: "${speech}"
 
-Reply naturally like a real caring friend in 1-2 sentences. Directly respond to what ${name} said — do NOT just say "I am listening." If there is a camera image, you can reference what you see naturally. End with one warm follow-up question to keep the conversation going.`;
+Reply naturally like a real caring friend in 1-2 sentences. Use the conversation above so your reply feels connected and in-context. Directly respond to what ${name} said — do NOT just say "I am listening." If there is a camera image, you can reference what you see naturally. End with one warm follow-up question to keep the conversation going.`;
 }
 
 function buildCarePrompt({ name, speech, context, environment, relevantMemories, careReasoning, imagePart }) {
@@ -98,6 +103,10 @@ function buildCarePrompt({ name, speech, context, environment, relevantMemories,
   const imageHint = imagePart ? "A live camera image of the patient scene is attached." : "";
 
   const memoryHint = relevantMemories.slice(0, 2).map(m => `- ${m.interpreted_text}`).join("\n");
+  const history = (context.conversationHistory || []).slice(-4);
+  const historyHint = history.length
+    ? history.map(t => `${t.role === "patient" ? name : "You"}: ${t.text}`).join("\n")
+    : "";
 
   const situationHint = context.behaviorAnalysis?.silent_confusion
     ? silentChecks >= 4
@@ -118,11 +127,13 @@ Situation: ${situationHint}
 ${timeHint} ${placeHint}
 ${careNote}
 ${memoryHint ? `Context:\n${memoryHint}` : ""}
+${historyHint ? `Recent conversation:\n${historyHint}` : ""}
 ${imageHint}
 ${escalationHint}
 
-Respond as a calm caregiver in 2-3 sentences:
+Respond as a calm caregiver in 2-3 sentences. Use the conversation above so your reply feels natural and in-context:
 - If ${name} seems confused or lost: gently orient them (time, place, what they were doing)
+- If ${name} can't find something: help them think through where it might be
 - If this is a check-in after silence: ask one gentle question to make sure they are okay
 - If risk is high: calmly mention that you may ask family to check in
 - Use simple warm words. Never mention GPS coordinates, timestamps, or raw system data.`;

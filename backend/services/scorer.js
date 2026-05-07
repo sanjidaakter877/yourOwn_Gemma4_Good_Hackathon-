@@ -58,6 +58,16 @@ function scoreSupportMode({
     "what should i do now"
   ];
 
+  const medicationClues = [
+    "can't find the pill", "cannot find the pill", "don't find the pill",
+    "can't find my pill", "can't find my medicine", "can't find my medication",
+    "lost my pill", "lost my medicine", "lost my medication",
+    "where is my pill", "where are my pills", "where is my medicine",
+    "where is my tablet", "where are my tablets",
+    "did i take my pill", "did i take my medicine", "did i take my tablet",
+    "forgot my pill", "forgot my medicine", "forgot to take my"
+  ];
+
   if (includesAny(speechText, orientationClues)) {
     mode = "orientation";
     confidence += 0.14;
@@ -80,6 +90,12 @@ function scoreSupportMode({
     mode = "routine_guidance";
     confidence += 0.1;
     reasons.push("Detected routine guidance request");
+  }
+
+  if (includesAny(speechText, medicationClues)) {
+    mode = "routine_guidance";
+    confidence += 0.14;
+    reasons.push("Detected medication concern");
   }
 
   // Any speech that isn't a safety/care signal is normal conversation

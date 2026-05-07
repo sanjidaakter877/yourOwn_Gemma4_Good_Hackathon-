@@ -13,13 +13,21 @@ function detectEnvironment(context) {
       })
     : null;
 
+  // If GPS has coordinates but the nearest saved place is >50km away, the GPS fix
+  // is almost certainly wrong (browser coarse IP-based location). Treat as unavailable.
+  const GPS_SANITY_LIMIT_M = 50000;
+  const gpsIsReliable = hasGps && (
+    gpsPlace !== null ||
+    (nearestKnownPlace && nearestKnownPlace.distance_meters <= GPS_SANITY_LIMIT_M)
+  );
+
   const lowerRoom = context.room.toLowerCase();
   const lowerLocation = context.locationName.toLowerCase();
   const lowerObjects = context.objects.map((item) => String(item).toLowerCase());
 
   const likelyPlace = gpsPlace
     ? gpsPlace.name
-    : hasGps
+    : gpsIsReliable
       ? "unknown location"
     : inferPlace({
         locationName: lowerLocation,
@@ -51,10 +59,10 @@ function detectEnvironment(context) {
     routine_hint: routineHint,
     gps_status: gpsPlace
       ? "matched_known_place"
-      : hasGps
+      : gpsIsReliable
         ? "unmatched_known_place"
         : "gps_unavailable",
-    nearest_known_place: nearestKnownPlace,
+    nearest_known_place: gpsIsReliable ? nearestKnownPlace : null,
     gps_match: gpsPlace
       ? {
           id: gpsPlace.id,

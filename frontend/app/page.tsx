@@ -360,6 +360,18 @@ type AssistResponse = {
   family_alert?: FamilyAlertResult;
   audio_base64?: string | null;
   audio_mime_type?: string | null;
+  ollama_meta?: {
+    model: string;
+    inference_ms: number;
+    local: boolean;
+    provider?: string;
+  };
+  person_result?: {
+    name: string;
+    relationship: string;
+    notes: string;
+    photo_url: string | null;
+  } | null;
 };
 
 type FamilyAlertResult = {
@@ -551,6 +563,7 @@ export default function Home() {
   const speechRecognitionRef = useRef<any>(null);
   const liveMonitoringRef = useRef(false);
   const liveAssistInFlightRef = useRef(false);
+  const liveAssistAbortRef = useRef<AbortController | null>(null);
   const assistantSpeakingRef = useRef(false);
   const speechResumeTimerRef = useRef<number | null>(null);
   const speechPlaybackIdRef = useRef(0);
@@ -568,6 +581,7 @@ export default function Home() {
   const patientQuietModeRef = useRef(false);
   const quietCheckCountRef = useRef(0);
   const rolePanelRef = useRef<HTMLDivElement | null>(null);
+  const conversationHistoryRef = useRef<Array<{role: "patient"|"assistant", text: string}>>([]);
 
   const currentTheme = theme === "light" ? lightTheme : darkTheme;
 
@@ -1162,7 +1176,8 @@ export default function Home() {
         id,
         timestamp,
         text
-      }))
+      })),
+      conversationHistory: conversationHistoryRef.current.slice(-6)
     }
   });
 
@@ -1233,20 +1248,25 @@ export default function Home() {
 
     const resumeLiveMic = () => {
       if (speechPlaybackIdRef.current !== playbackId) return;
-      assistantSpeakingRef.current = false;
-      if (!liveMonitoringRef.current || !speechRecognitionRef.current) return;
+      if (!liveMonitoringRef.current || !speechRecognitionRef.current) {
+        assistantSpeakingRef.current = false;
+        return;
+      }
 
+      // Keep assistantSpeakingRef true during the full delay so buffered TTS echo
+      // in the speech recognition queue is dropped, not sent back as patient speech.
       speechResumeTimerRef.current = window.setTimeout(() => {
         speechResumeTimerRef.current = null;
+        assistantSpeakingRef.current = false;
+        lastLiveSpeechAtRef.current = Date.now();
         if (!liveMonitoringRef.current || !speechRecognitionRef.current) return;
         try {
           speechRecognitionRef.current.start();
           liveSpeechReadyRef.current = true;
-          lastLiveSpeechAtRef.current = Date.now();
         } catch {
           setLiveMonitoringStatus("Live mic is waiting to resume.");
         }
-      }, 1000);
+      }, 2500);
     };
 
     if (!data.audio_base64 || !data.audio_mime_type) {
@@ -1499,6 +1519,14 @@ export default function Home() {
       if (!res.ok) throw new Error(data?.error || "Request failed");
 
       setResult(data);
+      if (speechText.trim()) {
+        const aiText = data.companion_message || (data as any).response?.reassurance || "";
+        conversationHistoryRef.current = [
+          ...conversationHistoryRef.current,
+          { role: "patient" as const, text: speechText.trim() },
+          ...(aiText ? [{ role: "assistant" as const, text: aiText }] : [])
+        ].slice(-10);
+      }
       addLog(speechText.trim() ? `Asked: ${speechText}` : "Live companion check");
       fetchSeverityTrend();
       await playAudio(data);
@@ -1515,8 +1543,18 @@ export default function Home() {
     transcript: string,
     source: "speech" | "quiet_check" = "speech"
   ) => {
-    if (liveAssistInFlightRef.current) return;
+    if (liveAssistInFlightRef.current) {
+      // Patient spoke while a silent check was in-flight — cancel the check and respond to speech instead
+      if (source === "speech" && liveAssistAbortRef.current) {
+        liveAssistAbortRef.current.abort();
+        liveAssistInFlightRef.current = false;
+      } else {
+        return;
+      }
+    }
 
+    const abortController = new AbortController();
+    liveAssistAbortRef.current = abortController;
     liveAssistInFlightRef.current = true;
     setLoading(true);
     setError("");
@@ -1567,6 +1605,7 @@ export default function Home() {
         headers: {
           "Content-Type": "application/json"
         },
+        signal: abortController.signal,
         body: JSON.stringify({
           ...payload,
           signals: {
@@ -1587,6 +1626,14 @@ export default function Home() {
       if (!res.ok) throw new Error(data?.error || "Live monitor request failed");
 
       setResult(data);
+      if (source === "speech" && transcript) {
+        const aiText = data.companion_message || (data as any).response?.reassurance || "";
+        conversationHistoryRef.current = [
+          ...conversationHistoryRef.current,
+          { role: "patient" as const, text: transcript },
+          ...(aiText ? [{ role: "assistant" as const, text: aiText }] : [])
+        ].slice(-10);
+      }
       setLiveMonitoringStatus(
         source === "quiet_check"
           ? "Silent pause support was generated."
@@ -1600,11 +1647,14 @@ export default function Home() {
       fetchSeverityTrend();
       await playAudio(data);
     } catch (err: unknown) {
+      // Silently drop aborted requests — they were cancelled intentionally by patient speech
+      if (err instanceof Error && err.name === "AbortError") return;
       const message =
         err instanceof Error ? err.message : "Could not process live monitoring";
       setError(message);
     } finally {
       liveAssistInFlightRef.current = false;
+      liveAssistAbortRef.current = null;
       setLoading(false);
     }
   };
@@ -1772,105 +1822,114 @@ export default function Home() {
       return;
     }
 
-    const audioMonitorReady = await startAudioActivityMonitor();
-    if (audioMonitorReady) {
-      startQuietCheckTimer();
-    }
+    // Audio monitor opens its own mic stream — running it alongside speech recognition
+    // causes aborted errors. Skip it; the quiet timer uses speech recognition's onresult instead.
+    startQuietCheckTimer();
 
-    if (!SpeechRecognitionClass) {
-      return;
-    }
+    const langTag = spokenLanguage && spokenLanguage !== "English" ? spokenLanguage : "en-US";
 
-    const recognition = new SpeechRecognitionClass();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = spokenLanguage === "English" ? "en-US" : undefined;
-
-    recognition.onresult = (event: any) => {
-      if (assistantSpeakingRef.current) return;
-      lastLiveSpeechAtRef.current = Date.now();
-
-      const results = Array.from(event.results || []) as any[];
-      const transcript = results
-        .slice(event.resultIndex || 0)
-        .map((result) => String(result?.[0]?.transcript || ""))
-        .join(" ")
-        .trim();
-      if (!transcript) return;
-
-      const isFinal = results.some((result) => Boolean(result?.isFinal));
-      setLiveMonitoringStatus(
-        isFinal ? `Heard: ${transcript}` : `Listening: ${transcript}`
-      );
-
-      if (!isFinal) return;
-
-      if (isRestOrStopSpeech(transcript)) {
-        patientQuietModeRef.current = true;
-        quietCheckCountRef.current = 0;
-        window.speechSynthesis?.cancel?.();
-        setLiveMonitoringStatus("Mary said she is resting. I will stay quiet and keep listening.");
-        addLog(`Resting mode: ${transcript}`);
-        return;
-      }
-
-      if (patientQuietModeRef.current) {
-        patientQuietModeRef.current = false;
-        lastLiveSpeechAtRef.current = Date.now();
-        setLiveMonitoringStatus(`Mary started talking again: ${transcript}`);
-      }
-
-      sendLiveMonitoringAssist(transcript);
-    };
-
-    recognition.onerror = (event: any) => {
-      liveMicErrorCountRef.current += 1;
-      const errorName = String(event?.error || "");
-
-      if (errorName === "not-allowed" || errorName === "service-not-allowed") {
-        liveSpeechReadyRef.current = false;
-        setLiveMonitoringStatus("Microphone permission is blocked. Type in the message box or use Speak.");
-        return;
-      }
-
-      if (liveMicErrorCountRef.current <= 1) {
-        setLiveMonitoringStatus("Live mic paused briefly. Restarting listener...");
-      }
-    };
-
-    recognition.onend = () => {
+    const createRecognition = () => {
       if (!liveMonitoringRef.current) return;
-      if (assistantSpeakingRef.current) return;
-      if (liveMicErrorCountRef.current > 4) {
-        liveSpeechReadyRef.current = false;
-        setLiveMonitoringStatus("Live mic is unstable. Type in the message box or use Speak.");
-        return;
-      }
 
-      if (liveRecognitionRestartRef.current !== null) return;
-      liveRecognitionRestartRef.current = window.setTimeout(() => {
-        liveRecognitionRestartRef.current = null;
-        try {
-          recognition.start();
-        } catch {
-          if (liveMicErrorCountRef.current <= 1) {
-            setLiveMonitoringStatus("Live mic is waiting to restart.");
-          }
+      const rec = new SpeechRecognitionClass();
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.lang = langTag;
+
+      rec.onresult = (event: any) => {
+        // Always update the timestamp so quiet timer doesn't fire while patient is speaking
+        lastLiveSpeechAtRef.current = Date.now();
+        // Don't send to AI while TTS is playing, but keep listening
+        if (assistantSpeakingRef.current) return;
+
+        const results = Array.from(event.results || []) as any[];
+        const transcript = results
+          .slice(event.resultIndex || 0)
+          .map((result) => String(result?.[0]?.transcript || ""))
+          .join(" ")
+          .trim();
+        if (!transcript) return;
+
+        const isFinal = results.some((result) => Boolean(result?.isFinal));
+        setLiveMonitoringStatus(
+          isFinal ? `Heard: ${transcript}` : `Listening: ${transcript}`
+        );
+
+        if (!isFinal) return;
+
+        liveMicErrorCountRef.current = 0;
+
+        if (isRestOrStopSpeech(transcript)) {
+          patientQuietModeRef.current = true;
+          quietCheckCountRef.current = 0;
+          window.speechSynthesis?.cancel?.();
+          setLiveMonitoringStatus("Mary said she is resting. I will stay quiet and keep listening.");
+          addLog(`Resting mode: ${transcript}`);
+          return;
         }
-      }, 350);
+
+        if (patientQuietModeRef.current) {
+          patientQuietModeRef.current = false;
+          lastLiveSpeechAtRef.current = Date.now();
+          setLiveMonitoringStatus(`Mary started talking again: ${transcript}`);
+        }
+
+        sendLiveMonitoringAssist(transcript);
+      };
+
+      rec.onerror = (event: any) => {
+        const errorName = String(event?.error || "");
+
+        if (errorName === "not-allowed" || errorName === "service-not-allowed") {
+          liveSpeechReadyRef.current = false;
+          setLiveMonitoringStatus("Microphone permission is blocked. Type in the message box or use Speak.");
+          return;
+        }
+
+        // These are transient — browser fires them during silence or brief server hiccups.
+        // Don't count them; just let onend restart the recognition.
+        if (errorName === "no-speech" || errorName === "network") return;
+
+        liveMicErrorCountRef.current += 1;
+        if (liveMicErrorCountRef.current <= 2) {
+          setLiveMonitoringStatus(`Live mic paused (${errorName}). Restarting...`);
+        }
+      };
+
+      rec.onend = () => {
+        if (!liveMonitoringRef.current) return;
+        if (liveMicErrorCountRef.current > 12) {
+          liveSpeechReadyRef.current = false;
+          setLiveMonitoringStatus("Live mic is unstable. Type in the message box or use Speak.");
+          return;
+        }
+
+        // Don't auto-restart while TTS is playing — resumeLiveMic will restart it
+        // manually after the echo-guard delay. Auto-restarting here would create a new
+        // recognition instance that immediately picks up speaker output as patient speech.
+        if (assistantSpeakingRef.current) return;
+
+        if (liveRecognitionRestartRef.current !== null) return;
+        // Delay before creating fresh instance — browser needs time to fully close the old one
+        liveRecognitionRestartRef.current = window.setTimeout(() => {
+          liveRecognitionRestartRef.current = null;
+          createRecognition();
+        }, 300);
+      };
+
+      speechRecognitionRef.current = rec;
+      try {
+        rec.start();
+      } catch {
+        if (liveMicErrorCountRef.current <= 1) {
+          setLiveMonitoringStatus("Live mic is waiting to restart.");
+        }
+      }
     };
 
-    speechRecognitionRef.current = recognition;
-
-    try {
-      recognition.start();
-      liveSpeechReadyRef.current = true;
-      lastLiveSpeechAtRef.current = Date.now();
-      if (!audioMonitorReady) startQuietCheckTimer();
-    } catch {
-      liveSpeechReadyRef.current = false;
-      setLiveMonitoringStatus("Live mic is already starting.");
-    }
+    liveSpeechReadyRef.current = true;
+    lastLiveSpeechAtRef.current = Date.now();
+    createRecognition();
   };
 
   const stopLiveMonitoring = () => {
@@ -2001,11 +2060,83 @@ export default function Home() {
     setError("");
     setResult(null);
 
+    const SpeechRecognitionClass =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
+
+    // Use browser Web Speech API — free, no ElevenLabs key needed
+    if (SpeechRecognitionClass) {
+      const rec = new SpeechRecognitionClass();
+      rec.continuous = false;
+      rec.interimResults = true;
+      rec.lang = spokenLanguage && spokenLanguage !== "English" ? spokenLanguage : "en-US";
+
+      let capturedTranscript = "";
+
+      rec.onresult = (event: any) => {
+        const results = Array.from(event.results || []) as any[];
+        const transcript = results
+          .map((r) => String(r?.[0]?.transcript || ""))
+          .join(" ")
+          .trim();
+        if (transcript) {
+          capturedTranscript = transcript;
+          setSpeechText(transcript);
+        }
+      };
+
+      rec.onend = async () => {
+        setRecording(false);
+        if (!capturedTranscript) return;
+        setLoading(true);
+        setError("");
+        try {
+          const payload = getPayload();
+          const res = await fetch(apiUrl("/assist"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...payload,
+              signals: { ...payload.signals, speechText: capturedTranscript }
+            })
+          });
+          const data: AssistResponse & { error?: string } = await res.json();
+          if (!res.ok) throw new Error(data?.error || "Request failed");
+          setSpeechText(capturedTranscript);
+          setResult(data);
+          addLog(`Heard: ${capturedTranscript}`);
+          fetchSeverityTrend();
+          await playAudio(data);
+          const aiText = data.companion_message || (data as any).response?.reassurance || "";
+          conversationHistoryRef.current = [
+            ...conversationHistoryRef.current,
+            { role: "patient" as const, text: capturedTranscript },
+            ...(aiText ? [{ role: "assistant" as const, text: aiText }] : [])
+          ].slice(-10);
+        } catch (err: unknown) {
+          setError(err instanceof Error ? err.message : "Could not process voice");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      rec.onerror = (event: any) => {
+        const err = String(event?.error || "");
+        if (err !== "no-speech") {
+          setError("Microphone error: " + err + ". Please try again.");
+        }
+        setRecording(false);
+      };
+
+      rec.start();
+      setRecording(true);
+      return;
+    }
+
+    // Fallback: MediaRecorder + ElevenLabs (only if Web Speech unavailable)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: "audio/webm"
-      });
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
 
       audioChunksRef.current = [];
       mediaRecorderRef.current = mediaRecorder;
@@ -2016,9 +2147,7 @@ export default function Home() {
 
       mediaRecorder.onstop = async () => {
         stream.getTracks().forEach((track) => track.stop());
-        const audioBlob = new Blob(audioChunksRef.current, {
-          type: "audio/webm"
-        });
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         await sendVoiceToBackend(audioBlob);
       };
 
@@ -2030,6 +2159,15 @@ export default function Home() {
   };
 
   const stopRecording = () => {
+    // Stop Web Speech recognition if active
+    const SpeechRecognitionClass =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
+    if (SpeechRecognitionClass && recording) {
+      // onend fires automatically and calls handleAssist
+      setRecording(false);
+      return;
+    }
     if (!mediaRecorderRef.current) return;
     setRecording(false);
     setLoading(true);
@@ -3727,12 +3865,54 @@ function ResultPanel({
         </p>
       </div>
 
+      {result.person_result && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: "16px",
+          background: "linear-gradient(135deg, #e8f5e9, #e3f2fd)",
+          borderRadius: "16px", padding: "16px", marginTop: "8px",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
+        }}>
+          {result.person_result.photo_url ? (
+            <img
+              src={result.person_result.photo_url}
+              alt={result.person_result.name}
+              style={{ width: 80, height: 80, borderRadius: "50%", objectFit: "cover", border: "3px solid #4ECDC4" }}
+            />
+          ) : (
+            <div style={{ width: 80, height: 80, borderRadius: "50%", background: "#4ECDC4", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>
+              👤
+            </div>
+          )}
+          <div>
+            <p style={{ margin: 0, fontWeight: "bold", fontSize: 20, color: "#333" }}>{result.person_result.name}</p>
+            {result.person_result.relationship && (
+              <p style={{ margin: "2px 0 0 0", fontSize: 14, color: "#4ECDC4", fontWeight: 600 }}>{result.person_result.relationship}</p>
+            )}
+            {result.person_result.notes && (
+              <p style={{ margin: "4px 0 0 0", fontSize: 13, color: "#666" }}>{result.person_result.notes}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {result.ollama_meta && (
+        <div className="mt-3 flex items-center gap-2 text-xs opacity-70">
+          <span className={`px-2 py-0.5 rounded-full font-semibold ${result.ollama_meta.local ? "bg-green-100 text-green-700" : "bg-purple-100 text-purple-700"}`}>
+            {result.ollama_meta.local ? "🔒 Local" : "⚡ Fast"}
+          </span>
+          <span className="font-mono">Gemma 4</span>
+          {result.ollama_meta.inference_ms > 0 && (
+            <span>{result.ollama_meta.inference_ms}ms</span>
+          )}
+        </div>
+      )}
+
       {result.care_reasoning && (
         <InfoCard
           title={
             result.response_type === "conversation"
               ? "Live risk monitor"
-              : "Gemma care reasoning"
+              : "Gemma 4 care reasoning"
           }
           theme={theme}
         >

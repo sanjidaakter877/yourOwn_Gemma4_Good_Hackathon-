@@ -202,10 +202,19 @@ function classifyCareRisk({ context, environment, scored }) {
     score -= 0.08;
     reasons.push(`Known place matched: ${environment.likely_place}.`);
   } else if (environment?.gps_status === "unmatched_known_place") {
-    score += 0.22;
-    flags.push("unknown_location");
-    flags.push("gps_safe_place_mismatch");
-    reasons.push("GPS exists but did not match a saved family safe place.");
+    const distanceMeters = environment?.nearest_known_place?.distance_meters || 0;
+    // If nearest saved place is > 100 km away, the saved location is wrong — ignore it
+    const savedPlaceLooksValid = distanceMeters < 100000;
+    // Only raise risk when patient shows actual confusion signals, not casual conversation
+    const hasRealConcern = scored.mode !== "conversation" ||
+      context.behaviorAnalysis?.silent_confusion ||
+      context.behaviorAnalysis?.level === "possible_confusion";
+    if (savedPlaceLooksValid && hasRealConcern) {
+      score += 0.22;
+      flags.push("unknown_location");
+      flags.push("gps_safe_place_mismatch");
+      reasons.push("GPS exists but did not match a saved family safe place.");
+    }
   }
 
   if (context.timeOfDay === "night") {

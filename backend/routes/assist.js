@@ -18,6 +18,14 @@ const hume = require("../services/hume");
 const { analyzeBehaviorSignals } = require("../services/behavior-detector");
 const { notifyFamilyIfNeeded } = require("../services/caregiver-alerts");
 const { evaluateEscalation } = require("../services/escalation-manager");
+const {
+  detectPersonQuery,
+  detectActivityQuery,
+  findPerson,
+  findEpisodicMemories,
+  saveEpisodicMemory,
+  isAvailable: memoryAvailable
+} = require("../services/people-memory");
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -177,6 +185,36 @@ async function runAssistFlow(body, app) {
     speakerRole: context.speakerRole,
   });
 
+  // ── People memory: "Who is Anna?" / "What was I doing?" ───────────────────
+  let personResult = null;
+  let activityMemories = [];
+
+  if (memoryAvailable() && context.speechText) {
+    const personName = detectPersonQuery(context.speechText);
+    if (personName) {
+      personResult = await findPerson(context.userName, personName).catch(() => null);
+    }
+
+    if (detectActivityQuery(context.speechText)) {
+      activityMemories = await findEpisodicMemories(context.userName, "", 5).catch(() => []);
+    }
+  }
+
+  // Inject person info into context so Gemma 4 knows who they are
+  if (personResult) {
+    context.personQueryResult = personResult;
+    const desc = [
+      personResult.name,
+      personResult.relationship ? `(${personResult.relationship})` : "",
+      personResult.notes || ""
+    ].filter(Boolean).join(" — ");
+    context.nearbyPerson = desc;
+  }
+
+  if (activityMemories.length) {
+    context.activityMemories = activityMemories;
+  }
+
   const aiResult = await generateSupportResponse({
     context,
     environment,
@@ -250,6 +288,21 @@ async function runAssistFlow(body, app) {
     aiResult
   });
 
+  // Auto-save this interaction as an episodic memory
+  if (memoryAvailable() && context.speechText) {
+    saveEpisodicMemory({
+      patientName: context.userName,
+      type: personResult ? "person_asked" : scored.mode,
+      content: context.speechText,
+      context: {
+        location: context.locationName || environment?.likely_place,
+        time: context.currentClock,
+        response_summary: aiResult.companion_message?.slice(0, 120),
+        risk_level: aiResult.care_reasoning?.risk?.level
+      }
+    }).catch(() => {});
+  }
+
   return {
     mode: scored.mode,
     confidence: scored.confidence,
@@ -272,6 +325,9 @@ async function runAssistFlow(body, app) {
     },
     audio_base64: audioBase64,
     audio_mime_type: audioBase64 ? "audio/mpeg" : null,
+    person_result: personResult
+      ? { name: personResult.name, relationship: personResult.relationship, notes: personResult.notes, photo_url: personResult.photo_url }
+      : null,
   };
 }
 

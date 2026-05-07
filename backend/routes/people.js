@@ -1,0 +1,79 @@
+const express = require("express");
+const multer = require("multer");
+const router = express.Router();
+const {
+  addPerson,
+  listPeople,
+  findPerson,
+  deletePerson,
+  getRecentMemories
+} = require("../services/people-memory");
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+
+// List all saved people for a patient
+router.get("/", async (req, res) => {
+  try {
+    const patientName = req.query.patient || "Mary";
+    const people = await listPeople(patientName);
+    res.json({ people });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add a person (family action)
+router.post("/", upload.single("photo"), async (req, res) => {
+  try {
+    const { patientName, name, relationship, notes } = req.body;
+    if (!name) return res.status(400).json({ error: "name is required" });
+
+    const person = await addPerson({
+      patientName: patientName || "Mary",
+      name,
+      relationship: relationship || "",
+      notes: notes || "",
+      photoBuffer: req.file?.buffer || null,
+      mimeType: req.file?.mimetype || "image/jpeg"
+    });
+
+    res.json({ ok: true, person });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Look up a person by name
+router.get("/find", async (req, res) => {
+  try {
+    const { patient, name } = req.query;
+    if (!name) return res.status(400).json({ error: "name is required" });
+    const person = await findPerson(patient || "Mary", name);
+    res.json({ person: person || null });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete a person
+router.delete("/:id", async (req, res) => {
+  try {
+    await deletePerson(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Recent activity memories
+router.get("/memories", async (req, res) => {
+  try {
+    const patientName = req.query.patient || "Mary";
+    const memories = await getRecentMemories(patientName, 20);
+    res.json({ memories });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+module.exports = router;
