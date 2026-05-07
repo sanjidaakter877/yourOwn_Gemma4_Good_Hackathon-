@@ -52,11 +52,16 @@ async function generateWithGemmaApi({
     });
 
     const result = await model.generateContent(contentParts);
-    const raw = result.response.text().trim();
+
+    // Gemma 4 thinking model: parts with thought:true are internal reasoning.
+    // Filter them out so only the actual reply text reaches the patient.
+    const parts = result.response.candidates?.[0]?.content?.parts || [];
+    const answerParts = parts.filter(p => !p.thought);
+    const raw = answerParts.length
+      ? answerParts.map(p => p.text || "").join("").trim()
+      : result.response.text().trim(); // fallback for non-thinking models
     if (!raw) return null;
 
-    // Gemma 4 API shows thinking steps before the final answer.
-    // The actual reply always appears after the last closing quote in the thinking block.
     const reply = extractFinalAnswer(raw);
     if (!reply) return null;
 
