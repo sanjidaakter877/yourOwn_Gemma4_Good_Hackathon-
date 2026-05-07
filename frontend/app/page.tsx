@@ -2546,6 +2546,8 @@ export default function Home() {
             error={error}
             gpsStatus={gpsStatus}
             handleAssist={handleAssist}
+            handleAiPhotoExplain={handleAiPhotoExplain}
+            aiPhotoInputRef={aiPhotoInputRef}
             handleQuickPrompt={handleQuickPrompt}
             loading={loading}
             liveMonitoring={liveMonitoring}
@@ -3659,6 +3661,8 @@ function MobilePatientMode({
   error,
   gpsStatus,
   handleAssist,
+  handleAiPhotoExplain,
+  aiPhotoInputRef,
   handleQuickPrompt,
   loading,
   liveMonitoring,
@@ -3677,6 +3681,8 @@ function MobilePatientMode({
   error: string;
   gpsStatus: string;
   handleAssist: () => Promise<void>;
+  handleAiPhotoExplain: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
+  aiPhotoInputRef: React.RefObject<HTMLInputElement | null>;
   handleQuickPrompt: (
     prompt: string,
     visualOverrides?: {
@@ -3853,7 +3859,7 @@ function MobilePatientMode({
           </div>
         )}
 
-        {result && <ResultPanel result={result} theme={currentTheme} hideTranscript />}
+        {result && <ResultPanel result={result} theme={currentTheme} />}
       </div>
     </section>
   );
