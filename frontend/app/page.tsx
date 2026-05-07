@@ -485,8 +485,19 @@ const protectedLogin = {
   doctor: { id: "doctor", password: "1234" }
 };
 
-const SILENT_CHECK_AFTER_MS = 10000;
-const SILENT_CHECK_COOLDOWN_MS = 15000;
+const SILENT_CHECK_COOLDOWN_MS = 45000;
+
+// Activity-aware silence thresholds
+// frozen   = was moving, suddenly stopped    → check after 90s
+// settled  = slowed down after activity      → check after 3 min
+// resting  = calm/still since monitor started → check after 6 min
+// active   = currently moving               → no check
+const SILENT_CHECK_MS: Record<string, number> = {
+  frozen:  90_000,
+  settled: 180_000,
+  resting: 360_000,
+  active:  999_999
+};
 
 function getSilentCareStage(checkCount: number) {
   if (checkCount <= 1) return "initial_guidance";
@@ -584,6 +595,10 @@ export default function Home() {
   const prevFrameDataRef = useRef<Uint8ClampedArray | null>(null);
   const movementIntervalRef = useRef<number | null>(null);
   const noMovementCountRef = useRef(0);
+  const activityHistoryRef = useRef<boolean[]>([]); // true=moved, false=still, last 24 samples (60s)
+  const lastActiveAtRef = useRef(0);               // timestamp of last detected movement
+  const activityStateRef = useRef<"active"|"frozen"|"settled"|"resting">("resting");
+  const cameraActiveRef = useRef(false);
   const cameraFailedRef = useRef(false);
   const lastAlarmKeyRef = useRef("");
   const speechRecognitionRef = useRef<any>(null);
@@ -1507,6 +1522,7 @@ export default function Home() {
       }
 
       cameraFailedRef.current = false;
+      cameraActiveRef.current = true;
       setCameraActive(true);
       setCameraStatus("Camera active");
       startMovementDetection();
@@ -1526,6 +1542,7 @@ export default function Home() {
       videoRef.current.srcObject = null;
     }
 
+    cameraActiveRef.current = false;
     setCameraActive(false);
     setCameraStatus("Camera stopped");
   };
@@ -1572,10 +1589,34 @@ export default function Home() {
     return ctx.getImageData(0, 0, 80, 60).data;
   };
 
+  const computeActivityState = () => {
+    const history = activityHistoryRef.current;
+    const now = Date.now();
+    const lastActive = lastActiveAtRef.current;
+    const msSinceActive = lastActive > 0 ? now - lastActive : Infinity;
+
+    // Any movement in the last 12.5s (5 samples) = currently active
+    const recentlyActive = history.slice(-5).some(Boolean);
+    if (recentlyActive) return "active" as const;
+
+    // Was active in last 2 minutes but not in last 12.5s = frozen (sudden stop)
+    if (msSinceActive < 120_000) return "frozen" as const;
+
+    // Was active 2-5 minutes ago = settled (sat down after doing something)
+    if (msSinceActive < 300_000) return "settled" as const;
+
+    // Still for 5+ minutes = resting (watching TV, reading, sleeping)
+    return "resting" as const;
+  };
+
   const startMovementDetection = () => {
     if (movementIntervalRef.current !== null) return;
     noMovementCountRef.current = 0;
     prevFrameDataRef.current = null;
+    activityHistoryRef.current = [];
+    lastActiveAtRef.current = 0;
+    activityStateRef.current = "resting";
+
     movementIntervalRef.current = window.setInterval(() => {
       const curr = sampleFrameData();
       if (!curr) return;
@@ -1586,11 +1627,19 @@ export default function Home() {
           diff += Math.abs(prev[i] - curr[i]) + Math.abs(prev[i+1] - curr[i+1]) + Math.abs(prev[i+2] - curr[i+2]);
         }
         const avgDiff = diff / (prev.length / 4);
-        if (avgDiff < 8) { // threshold: <8 per pixel = essentially still
-          noMovementCountRef.current += 1;
-        } else {
+        const moved = avgDiff >= 8;
+
+        // Maintain rolling 24-sample (60s) history
+        activityHistoryRef.current = [...activityHistoryRef.current.slice(-23), moved];
+
+        if (moved) {
           noMovementCountRef.current = 0;
+          lastActiveAtRef.current = Date.now();
+        } else {
+          noMovementCountRef.current += 1;
         }
+
+        activityStateRef.current = computeActivityState();
       }
       prevFrameDataRef.current = curr;
     }, 2500);
@@ -1603,6 +1652,9 @@ export default function Home() {
     }
     noMovementCountRef.current = 0;
     prevFrameDataRef.current = null;
+    activityHistoryRef.current = [];
+    lastActiveAtRef.current = 0;
+    activityStateRef.current = "resting";
   };
 
   // ── Photo → AI explain ────────────────────────────────────────────────────
@@ -1727,8 +1779,9 @@ export default function Home() {
             capturedImageAvailable: Boolean(liveFrame || capturedImage),
             movementDetected: cameraActive && noMovementCountRef.current === 0,
             noMovementCount: noMovementCountRef.current,
+            activityState: activityStateRef.current,
             microphoneStatus: liveMicErrorCountRef.current > 0 ? "unstable_or_blocked" : "available",
-            source: cameraActive ? "movement_detector" : "timer"
+            source: cameraActiveRef.current && !cameraFailedRef.current ? "movement_detector" : "mic_gps"
           }
         : { hesitation: hasHesitationPattern(transcript), source: "speech" };
       const conversationState = source === "quiet_check"
@@ -1909,8 +1962,12 @@ export default function Home() {
       const quietForMs = nowMs - lastLiveSpeechAtRef.current;
       const quietCooldownMs = nowMs - lastQuietAssistAtRef.current;
 
+      const cameraUsable = cameraActiveRef.current && !cameraFailedRef.current;
+      const threshold = cameraUsable
+        ? (SILENT_CHECK_MS[activityStateRef.current] ?? 180_000)
+        : 90_000; // camera off or failed → mic+GPS only, check sooner
       if (
-        quietForMs < SILENT_CHECK_AFTER_MS ||
+        quietForMs < threshold ||
         quietCooldownMs < SILENT_CHECK_COOLDOWN_MS
       ) return;
 
