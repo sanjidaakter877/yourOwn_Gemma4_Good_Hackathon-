@@ -47,7 +47,7 @@ async function generateWithGemmaApi({
       systemInstruction: systemPrompt,
       generationConfig: {
         temperature: isConversation ? 0.85 : 0.6,
-        maxOutputTokens: 200
+        maxOutputTokens: 150
       }
     });
 
@@ -146,11 +146,12 @@ Respond as a calm caregiver in 2-3 sentences:
 - Use simple warm words. Never mention GPS, timestamps, or raw system data.`;
 }
 
-// Gemma 4 API (thinking model) outputs reasoning steps then the final answer.
-// The actual reply is always the LAST non-bullet line — take its last 1-2 sentences.
+// Gemma 4 thinking model outputs reasoning steps then the final answer.
+// Extract the last meaningful line, strip quotes and deduplication.
 function extractFinalAnswer(text) {
-  // Find the last non-bullet, non-empty line — this is always where the real answer ends
   const lines = text.split('\n');
+
+  // Find the last non-bullet, non-empty line
   let lastLine = '';
   for (let i = lines.length - 1; i >= 0; i--) {
     const t = lines[i].trim();
@@ -161,15 +162,19 @@ function extractFinalAnswer(text) {
   }
   if (!lastLine) return text.trim();
 
-  // The last line may start with a thinking marker like "Perfect." or "Done."
-  // Split into sentences and skip any short leading fragment (the thinking marker)
+  // Strip surrounding quotes the model sometimes wraps the answer in
+  lastLine = lastLine.replace(/^["'"']|["'"']$/g, '').trim();
+
+  // Deduplicate: if the same sentence appears twice in a row, keep one copy
+  // e.g. "You are safe. You are safe." → "You are safe."
   const sentences = lastLine.match(/[^.!?]+[.!?]+/g) || [];
-  if (sentences.length >= 2) {
-    // Drop a leading short fragment (thinking marker like "Perfect." / "Done.")
-    const start = sentences[0].trim().split(' ').length <= 3 ? 1 : 0;
-    return sentences.slice(start).join(' ').trim();
+  const unique = sentences.filter((s, i) => s.trim() !== (sentences[i - 1] || '').trim());
+
+  if (unique.length >= 2) {
+    const start = unique[0].trim().split(' ').length <= 3 ? 1 : 0;
+    return unique.slice(start).join(' ').trim();
   }
-  if (sentences.length === 1) return sentences[0].trim();
+  if (unique.length === 1) return unique[0].trim();
   return lastLine;
 }
 

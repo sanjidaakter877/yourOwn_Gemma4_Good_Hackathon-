@@ -7,7 +7,8 @@
       "WebFetch(domain:api.github.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "PowerShell(Get-WmiObject Win32_Processor | Select-Object Name, NumberOfCores, MaxClockSpeed | Format-List; Get-WmiObject Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum | Select-Object @{N='TotalRAM_GB';E={[math]::Round\\($_.Sum/1GB,1\\)}})",
-      "PowerShell(\\(Get-WmiObject Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum\\).Sum / 1GB)"
+      "PowerShell(\\(Get-WmiObject Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum\\).Sum / 1GB)",
+      "Bash(node -e ' *)"
     ]
   }
 }

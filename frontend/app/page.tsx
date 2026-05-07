@@ -559,6 +559,11 @@ export default function Home() {
   const gpsWatchIdRef = useRef<number | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
+  const aiPhotoInputRef = useRef<HTMLInputElement | null>(null);
+  const prevFrameDataRef = useRef<Uint8ClampedArray | null>(null);
+  const movementIntervalRef = useRef<number | null>(null);
+  const noMovementCountRef = useRef(0);
+  const cameraFailedRef = useRef(false);
   const lastAlarmKeyRef = useRef("");
   const speechRecognitionRef = useRef<any>(null);
   const liveMonitoringRef = useRef(false);
@@ -1451,15 +1456,19 @@ export default function Home() {
         await videoRef.current.play();
       }
 
+      cameraFailedRef.current = false;
       setCameraActive(true);
       setCameraStatus("Camera active");
+      startMovementDetection();
     } catch {
-      setCameraStatus("Camera permission denied or unavailable.");
+      cameraFailedRef.current = true;
+      setCameraStatus("Camera unavailable — voice-only monitoring active.");
     }
   };
 
   const stopCamera = () => {
     setActiveCameraButton("stop");
+    stopMovementDetection();
     cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
     cameraStreamRef.current = null;
 
@@ -1498,6 +1507,92 @@ export default function Home() {
     setVisualConcern("");
     setCameraStatus("Frame captured. Add labels only if you want to describe what is visible.");
     return imageData;
+  };
+
+  // ── Movement detection ────────────────────────────────────────────────────
+  // Compares consecutive low-res frames; if pixel diff < threshold → no movement
+  const sampleFrameData = (): Uint8ClampedArray | null => {
+    const video = videoRef.current;
+    if (!video || video.videoWidth === 0) return null;
+    const canvas = document.createElement("canvas");
+    canvas.width = 80; canvas.height = 60; // low-res for performance
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(video, 0, 0, 80, 60);
+    return ctx.getImageData(0, 0, 80, 60).data;
+  };
+
+  const startMovementDetection = () => {
+    if (movementIntervalRef.current !== null) return;
+    noMovementCountRef.current = 0;
+    prevFrameDataRef.current = null;
+    movementIntervalRef.current = window.setInterval(() => {
+      const curr = sampleFrameData();
+      if (!curr) return;
+      const prev = prevFrameDataRef.current;
+      if (prev) {
+        let diff = 0;
+        for (let i = 0; i < prev.length; i += 4) {
+          diff += Math.abs(prev[i] - curr[i]) + Math.abs(prev[i+1] - curr[i+1]) + Math.abs(prev[i+2] - curr[i+2]);
+        }
+        const avgDiff = diff / (prev.length / 4);
+        if (avgDiff < 8) { // threshold: <8 per pixel = essentially still
+          noMovementCountRef.current += 1;
+        } else {
+          noMovementCountRef.current = 0;
+        }
+      }
+      prevFrameDataRef.current = curr;
+    }, 2500);
+  };
+
+  const stopMovementDetection = () => {
+    if (movementIntervalRef.current !== null) {
+      window.clearInterval(movementIntervalRef.current);
+      movementIntervalRef.current = null;
+    }
+    noMovementCountRef.current = 0;
+    prevFrameDataRef.current = null;
+  };
+
+  // ── Photo → AI explain ────────────────────────────────────────────────────
+  const handleAiPhotoExplain = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = String(reader.result || "");
+      setLoading(true);
+      setError("");
+      setResult(null);
+      try {
+        const payload = getPayload();
+        const res = await fetch(apiUrl("/assist"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...payload,
+            signals: {
+              ...payload.signals,
+              capturedImage: dataUrl,
+              speechText: "What do you see in this picture? Please describe it simply.",
+              visualDescription: "Patient uploaded a photo and wants it described."
+            }
+          })
+        });
+        const data: AssistResponse & { error?: string } = await res.json();
+        if (!res.ok) throw new Error(data?.error || "Request failed");
+        setResult(data);
+        setCapturedImage(dataUrl);
+        await playAudio(data);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Could not analyse photo");
+      } finally {
+        setLoading(false);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleAssist = async () => {
@@ -1568,18 +1663,22 @@ export default function Home() {
           ? captureCameraFrame()
           : capturedImage;
       const payload = getPayload();
+      const realNoMovement = cameraActive && noMovementCountRef.current >= 2;
       const behaviorSignals = source === "quiet_check"
         ? {
-            noProgress: true,
+            noProgress: realNoMovement || !cameraActive,
             quietPause: true,
             hesitation: true,
             repeatedSilentCheck: quietCheckCountRef.current > 1,
             liveSilenceCheckCount: quietCheckCountRef.current,
             gpsAvailable: latitude !== null && longitude !== null,
-            cameraAvailable: cameraActive || Boolean(capturedImage),
+            cameraAvailable: cameraActive && !cameraFailedRef.current,
+            cameraFailed: cameraFailedRef.current,
             capturedImageAvailable: Boolean(liveFrame || capturedImage),
+            movementDetected: cameraActive && noMovementCountRef.current === 0,
+            noMovementCount: noMovementCountRef.current,
             microphoneStatus: liveMicErrorCountRef.current > 0 ? "unstable_or_blocked" : "available",
-            source: "timer"
+            source: cameraActive ? "movement_detector" : "timer"
           }
         : { hesitation: hasHesitationPattern(transcript), source: "speech" };
       const conversationState = source === "quiet_check"
@@ -2544,19 +2643,34 @@ export default function Home() {
                 theme={currentTheme}
               />
 
-                <div className="mt-5">
+                <div className="mt-5 flex flex-wrap gap-3 items-center">
                   <button
                     onClick={recording ? stopRecording : startRecording}
                     disabled={loading || isProtectedRoleLocked}
-                  className={
-                    recording
-                      ? currentTheme.dangerButton
-                      : currentTheme.voiceButton
-                  }
-                >
-                  {recording ? "⏹ Stop" : "🎤 Speak"}
+                    className={recording ? currentTheme.dangerButton : currentTheme.voiceButton}
+                  >
+                    {recording ? "⏹ Stop" : "🎤 Speak"}
                   </button>
 
+                  <label htmlFor="ai-photo-upload" className="sr-only">Upload a photo for AI to describe</label>
+                  <input
+                    id="ai-photo-upload"
+                    type="file"
+                    accept="image/*"
+                    ref={aiPhotoInputRef}
+                    className="hidden"
+                    onChange={handleAiPhotoExplain}
+                    aria-label="Upload a photo for AI to describe"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => aiPhotoInputRef.current?.click()}
+                    disabled={loading || isProtectedRoleLocked}
+                    className={currentTheme.voiceButton}
+                    title="Upload a photo — AI will describe what it sees"
+                  >
+                    📷 Upload Photo
+                  </button>
                 </div>
 
                 <button
