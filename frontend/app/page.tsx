@@ -3765,7 +3765,7 @@ function MobilePatientMode({
           </button>
         </div>
 
-        <div className="mt-5">
+        <div className="mt-5 flex gap-3">
           <button
             onClick={() => {
               setActivePatientButton("speak");
@@ -3776,13 +3776,13 @@ function MobilePatientMode({
               }
             }}
             disabled={loading}
-            className={
+            className={`flex-1 rounded-2xl py-3 text-sm font-black ${
               recording
                 ? currentTheme.mobileStopButton
                 : activePatientButton === "speak"
                   ? currentTheme.mobileVoiceSelectedButton
                   : currentTheme.mobileVoiceButton
-            }
+            }`}
           >
             {recording ? "⏹ Stop" : "🎙️ Speak"}
           </button>
@@ -3801,7 +3801,7 @@ function MobilePatientMode({
             type="button"
             onClick={() => aiPhotoInputRef.current?.click()}
             disabled={loading}
-            className={currentTheme.mobileVoiceButton}
+            className={`flex-1 rounded-2xl py-3 text-sm font-black ${currentTheme.mobileVoiceButton}`}
             title="Upload a photo — AI will describe what it sees"
           >
             📷 Photo
