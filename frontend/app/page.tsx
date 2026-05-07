@@ -97,7 +97,7 @@ function LegacyHome() {
               <span style={styles.featureIcon}>🔒</span>
               <h4 style={styles.featureTitle}>Privacy First</h4>
               <p style={styles.featureText}>
-                Core reasoning runs locally with Gemma 4 via Ollama. Optional cloud APIs support voice and emotion detection.
+                Powered by Gemma 4. Voice, vision, and care reasoning — with full local Ollama mode for complete privacy.
               </p>
             </div>
           </div>
@@ -2467,7 +2467,7 @@ export default function Home() {
               >
                 {viewMode === "mobile"
                   ? "Mary pauses while making tea. yourOwn checks in and alerts family if she cannot respond."
-                  : "Core reasoning runs locally with Gemma 4 via Ollama. Optional cloud APIs support voice and emotion detection."}
+                  : "Powered by Gemma 4. Voice, vision, and care reasoning — with full local Ollama mode for complete privacy."}
               </p>
               <div
                 className={
@@ -2483,7 +2483,7 @@ export default function Home() {
                       ? `${gemmaStatus.model} local`
                       : gemmaStatus?.api_ready
                       ? `${gemmaStatus.api_model} API`
-                      : "configuring..."
+                      : "gemma-4-26b-a4b-it"
                   }
                   tone="low"
                 />
