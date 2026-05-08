@@ -488,14 +488,14 @@ const protectedLogin = {
 const SILENT_CHECK_COOLDOWN_MS = 45000;
 
 // Activity-aware silence thresholds
-// frozen   = was moving, suddenly stopped    → check after 90s
-// settled  = slowed down after activity      → check after 3 min
-// resting  = calm/still since monitor started → check after 6 min
+// frozen   = was moving, suddenly stopped    → check after 60s  (urgent — something may have happened)
+// settled  = slowed down after activity      → check after 2 min
+// resting  = calm/still since monitor started → check after 2 min (was 6 min — too slow for care)
 // active   = currently moving               → no check
 const SILENT_CHECK_MS: Record<string, number> = {
-  frozen:  90_000,
-  settled: 180_000,
-  resting: 360_000,
+  frozen:  60_000,
+  settled: 120_000,
+  resting: 120_000,
   active:  999_999
 };
 
@@ -1984,8 +1984,8 @@ export default function Home() {
 
       const cameraUsable = cameraActiveRef.current && !cameraFailedRef.current;
       const threshold = cameraUsable
-        ? (SILENT_CHECK_MS[activityStateRef.current] ?? 180_000)
-        : 90_000; // camera off or failed → mic+GPS only, check sooner
+        ? (SILENT_CHECK_MS[activityStateRef.current] ?? 120_000)
+        : 60_000; // camera off or failed → mic+GPS only, check after 1 min
       if (
         quietForMs < threshold ||
         quietCooldownMs < SILENT_CHECK_COOLDOWN_MS
