@@ -303,6 +303,21 @@ async function runAssistFlow(body, app) {
     }).catch(() => {});
   }
 
+  // Save live-monitor visual snapshot when camera frame was included in the request
+  if (memoryAvailable() && context.capturedImage) {
+    const visualCtx = aiResult.care_reasoning?.evidence
+      ? { labels: context.imageLabels || "", concern: context.visualConcern || "none", source: "live_monitor", time: new Date().toISOString() }
+      : null;
+    if (visualCtx && context.visualDescription) {
+      saveEpisodicMemory({
+        patientName: context.userName,
+        type: "visual_capture",
+        content: context.visualDescription,
+        context: visualCtx
+      }).catch(() => {});
+    }
+  }
+
   return {
     mode: scored.mode,
     confidence: scored.confidence,

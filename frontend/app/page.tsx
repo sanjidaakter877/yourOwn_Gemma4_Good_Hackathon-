@@ -1572,7 +1572,27 @@ export default function Home() {
     setVisualDescription("");
     setImageLabels("");
     setVisualConcern("");
-    setCameraStatus("Frame captured. Add labels only if you want to describe what is visible.");
+    setCameraStatus("Analyzing scene with Gemma 4...");
+
+    // Auto-analyze with Gemma 4 vision — fills description + labels + concern
+    fetch(apiUrl("/api/vision"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        image: imageData,
+        patientName: userName || "patient",
+        source: "capture"
+      })
+    })
+      .then(r => r.json())
+      .then(analysis => {
+        if (analysis.description) setVisualDescription(analysis.description);
+        if (analysis.labels?.length) setImageLabels(analysis.labels.join(", "));
+        if (analysis.concern && analysis.concern !== "none") setVisualConcern(analysis.concern);
+        setCameraStatus("Scene analyzed and saved. Description and labels are filled.");
+      })
+      .catch(() => setCameraStatus("Frame captured. Vision analysis unavailable — fill labels manually."));
+
     return imageData;
   };
 
@@ -2775,26 +2795,6 @@ export default function Home() {
                     className={recording ? currentTheme.dangerButton : currentTheme.voiceButton}
                   >
                     {recording ? "⏹ Stop" : "🎤 Speak"}
-                  </button>
-
-                  <label htmlFor="ai-photo-upload" className="sr-only">Upload a photo for AI to describe</label>
-                  <input
-                    id="ai-photo-upload"
-                    type="file"
-                    accept="image/*"
-                    ref={aiPhotoInputRef}
-                    className="hidden"
-                    onChange={handleAiPhotoExplain}
-                    aria-label="Upload a photo for AI to describe"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => aiPhotoInputRef.current?.click()}
-                    disabled={loading || isProtectedRoleLocked}
-                    className={currentTheme.voiceButton}
-                    title="Upload a photo — AI will describe what it sees"
-                  >
-                    📷 Upload Photo
                   </button>
                 </div>
 

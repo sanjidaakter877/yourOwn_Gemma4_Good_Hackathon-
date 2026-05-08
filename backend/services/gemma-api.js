@@ -205,4 +205,50 @@ function extractFinalAnswer(text) {
   return lastLine;
 }
 
-module.exports = { generateWithGemmaApi };
+// Analyze a camera image and return structured scene description + labels + concern.
+// Used by /api/vision when patient captures a frame or live monitor saves a snapshot.
+async function analyzeVision(base64Image) {
+  const ai = getClient();
+  if (!ai) return null;
+
+  try {
+    const model = ai.getGenerativeModel({
+      model: GEMMA_API_MODEL,
+      generationConfig: { temperature: 0.3, maxOutputTokens: 200 }
+    });
+
+    const imageData = base64Image.replace(/^data:[^;]+;base64,/, "");
+    const result = await model.generateContent([
+      { inlineData: { mimeType: "image/jpeg", data: imageData } },
+      { text: `Analyze this camera image for an elderly patient care system.
+Return ONLY valid JSON — no explanation, no markdown:
+{
+  "description": "1-2 natural sentences describing the scene",
+  "labels": ["object1", "activity1", "person_state"],
+  "concern": "none"
+}
+Valid concern values: none, medicine_check, unsafe_scene, fall_risk, confusion_sign` }
+    ]);
+
+    const parts = result.response.candidates?.[0]?.content?.parts || [];
+    const answerParts = parts.filter(p => !p.thought);
+    const raw = answerParts.length
+      ? answerParts.map(p => p.text || "").join("").trim()
+      : result.response.text().trim();
+
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    return {
+      description: String(parsed.description || ""),
+      labels: Array.isArray(parsed.labels) ? parsed.labels : [],
+      concern: String(parsed.concern || "none")
+    };
+  } catch (err) {
+    console.warn("[GemmaAPI] analyzeVision failed:", err.message);
+    return null;
+  }
+}
+
+module.exports = { generateWithGemmaApi, analyzeVision };
