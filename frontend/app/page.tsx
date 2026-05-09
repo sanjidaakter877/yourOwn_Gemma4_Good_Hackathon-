@@ -2093,6 +2093,14 @@ export default function Home() {
       (window as any).SpeechRecognition ||
       (window as any).webkitSpeechRecognition;
 
+    // Unlock Web Speech Synthesis on mobile — must run inside a user gesture (tap).
+    // Without this, iOS/Android silently blocks programmatic speak() calls from async callbacks.
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      const unlock = new SpeechSynthesisUtterance("");
+      unlock.volume = 0;
+      window.speechSynthesis.speak(unlock);
+    }
+
     setLiveMonitoringStatus("Checking microphone access...");
     const microphone = await checkMicrophoneAccess();
     setLiveMonitoringStatus("Checking GPS access...");
@@ -2370,6 +2378,13 @@ export default function Home() {
   const startRecording = async () => {
     setError("");
     setResult(null);
+
+    // Unlock speech synthesis on mobile (must run inside user gesture)
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      const unlock = new SpeechSynthesisUtterance("");
+      unlock.volume = 0;
+      window.speechSynthesis.speak(unlock);
+    }
 
     const SpeechRecognitionClass =
       (window as any).SpeechRecognition ||
