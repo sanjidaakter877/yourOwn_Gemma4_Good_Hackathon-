@@ -594,6 +594,9 @@ export default function Home() {
   const aiPhotoInputRef = useRef<HTMLInputElement | null>(null);
   const prevFrameDataRef = useRef<Uint8ClampedArray | null>(null);
   const movementIntervalRef = useRef<number | null>(null);
+  const motionDetectionActiveRef = useRef(false);
+  const motionHandlerRef = useRef<((e: DeviceMotionEvent) => void) | null>(null);
+  const lastMotionSampleAtRef = useRef(0);
   const noMovementCountRef = useRef(0);
   const activityHistoryRef = useRef<boolean[]>([]); // true=moved, false=still, last 24 samples (60s)
   const lastActiveAtRef = useRef(0);               // timestamp of last detected movement
@@ -731,6 +734,10 @@ export default function Home() {
       speechRecognitionRef.current?.stop?.();
       if (quietCheckIntervalRef.current !== null) {
         window.clearInterval(quietCheckIntervalRef.current);
+      }
+      if (motionHandlerRef.current) {
+        window.removeEventListener("devicemotion", motionHandlerRef.current);
+        motionHandlerRef.current = null;
       }
     };
   }, []);
@@ -1689,6 +1696,68 @@ export default function Home() {
     activityStateRef.current = "resting";
   };
 
+  // ── Phone motion sensors (DeviceMotionEvent — Android + iOS) ─────────────
+  const startMotionDetection = async () => {
+    if (motionDetectionActiveRef.current) return;
+    if (typeof DeviceMotionEvent === "undefined") return;
+
+    // iOS 13+ requires explicit permission before DeviceMotionEvent fires
+    if (typeof (DeviceMotionEvent as any).requestPermission === "function") {
+      try {
+        const permission = await (DeviceMotionEvent as any).requestPermission();
+        if (permission !== "granted") {
+          setLiveMonitoringStatus("Motion sensor permission denied — camera pixel-diff will be used instead.");
+          return;
+        }
+      } catch {
+        // requestPermission can throw if called outside a user gesture; fall through silently
+        return;
+      }
+    }
+
+    let prevMagnitude: number | null = null;
+
+    const handler = (e: DeviceMotionEvent) => {
+      const now = Date.now();
+      // Throttle to one sample per 2500ms to match camera pixel-diff cadence
+      if (now - lastMotionSampleAtRef.current < 2500) return;
+      lastMotionSampleAtRef.current = now;
+
+      const a = e.accelerationIncludingGravity;
+      if (!a || a.x == null) return;
+
+      const magnitude = Math.sqrt((a.x ?? 0) ** 2 + (a.y ?? 0) ** 2 + (a.z ?? 0) ** 2);
+      const moved = prevMagnitude !== null && Math.abs(magnitude - prevMagnitude) > 1.5;
+      prevMagnitude = magnitude;
+
+      activityHistoryRef.current = [...activityHistoryRef.current.slice(-23), moved];
+
+      if (moved) {
+        noMovementCountRef.current = 0;
+        lastActiveAtRef.current = now;
+      } else {
+        noMovementCountRef.current += 1;
+      }
+
+      activityStateRef.current = computeActivityState();
+    };
+
+    motionHandlerRef.current = handler;
+    motionDetectionActiveRef.current = true;
+    window.addEventListener("devicemotion", handler);
+    setLiveMonitoringStatus("Motion sensor active (phone accelerometer).");
+  };
+
+  const stopMotionDetection = () => {
+    if (!motionDetectionActiveRef.current) return;
+    if (motionHandlerRef.current) {
+      window.removeEventListener("devicemotion", motionHandlerRef.current);
+      motionHandlerRef.current = null;
+    }
+    motionDetectionActiveRef.current = false;
+    lastMotionSampleAtRef.current = 0;
+  };
+
   // ── Photo → AI explain ────────────────────────────────────────────────────
   const handleAiPhotoExplain = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -2056,6 +2125,9 @@ export default function Home() {
         : "Microphone unavailable. Silent pause timer is watching quietly."
     );
 
+    // Start phone motion sensor — supplements camera pixel-diff on mobile devices
+    startMotionDetection();
+
     if (!microphone.ok) {
       return;
     }
@@ -2187,6 +2259,7 @@ export default function Home() {
     }
     clearQuietCheckTimer();
     stopAudioActivityMonitor();
+    stopMotionDetection();
     speechRecognitionRef.current?.stop?.();
   };
 
