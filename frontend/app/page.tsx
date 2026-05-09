@@ -258,7 +258,8 @@ type MedicineEntry = {
   id: string;
   name: string;
   dosage: string;
-  schedule: string;
+  time: string;       // "HH:MM" 24-hour clock — when patient should take it
+  schedule: string;   // free-text notes (e.g. "with food")
   appearance: string;
 };
 type CameraButtonName = "start" | "capture" | "stop";
@@ -656,6 +657,26 @@ export default function Home() {
     playReminderAlarm();
   }, [alarmEnabled, now, careSchedule]);
 
+  // Medicine time-based reminders — fires when clock matches a medicine's scheduled time
+  useEffect(() => {
+    if (!medicines.length) return;
+    const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    const dueMed = medicines.find(m => m.name && m.time === currentTime);
+    if (!dueMed) return;
+    const alarmKey = `med-${now.toDateString()}-${dueMed.time}-${dueMed.id}`;
+    if (lastAlarmKeyRef.current === alarmKey) return;
+    lastAlarmKeyRef.current = alarmKey;
+    const label = `Time to take ${dueMed.name}${dueMed.dosage ? ` (${dueMed.dosage})` : ""}${dueMed.schedule ? ` — ${dueMed.schedule}` : ""}`;
+    setActiveReminder({ time: dueMed.time, label, careMoment: true, alarm: true, kind: "medication" });
+    addLog(`Medicine reminder: ${label}`);
+    playReminderAlarm();
+    if ("speechSynthesis" in window) {
+      const u = new SpeechSynthesisUtterance(`${userName || "Mary"}, it is time to take your ${dueMed.name}. You can show me the medicine bottle to confirm.`);
+      u.rate = 0.85;
+      window.speechSynthesis.speak(u);
+    }
+  }, [now, medicines]);
+
   useEffect(() => {
     fetch(apiUrl("/api/gemma/status"))
       .then((res) => res.json())
@@ -684,6 +705,7 @@ export default function Home() {
       if (Array.isArray(data.careSchedule)) setCareSchedule(data.careSchedule);
       if (Array.isArray(data.photoMemories)) setPhotoMemories(data.photoMemories);
       if (Array.isArray(data.patientNotes)) setPatientNotes(data.patientNotes);
+      if (Array.isArray(data.medicines)) setMedicines(data.medicines);
     } catch {
       setSaveStatus("");
     }
@@ -957,7 +979,8 @@ export default function Home() {
       followUpPlan,
       careSchedule,
       photoMemories,
-      patientNotes
+      patientNotes,
+      medicines
     };
 
     window.localStorage.setItem("yourown-care-info", JSON.stringify(data));
@@ -1008,6 +1031,17 @@ export default function Home() {
     }).catch(() => {});
 
     window.setTimeout(() => setPatientNoteSaveState("idle"), 1800);
+  };
+
+  const deleteNote = (id: string) => {
+    const updatedNotes = patientNotes.filter(n => n.id !== id);
+    setPatientNotes(updatedNotes);
+    let existing: Record<string, unknown> = {};
+    try {
+      const saved = window.localStorage.getItem("yourown-care-info");
+      existing = saved ? JSON.parse(saved) : {};
+    } catch { existing = {}; }
+    window.localStorage.setItem("yourown-care-info", JSON.stringify({ ...existing, patientNotes: updatedNotes }));
   };
 
   const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1418,6 +1452,7 @@ export default function Home() {
         setLoginId("");
         setLoginPassword("");
         setError("");
+        window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 100);
       } else {
         setError("Wrong family ID or password.");
       }
@@ -1433,6 +1468,7 @@ export default function Home() {
         setLoginId("");
         setLoginPassword("");
         setError("");
+        window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 100);
       } else {
         setError("Wrong doctor ID or password.");
       }
@@ -1585,13 +1621,16 @@ export default function Home() {
     setCameraStatus("Analyzing scene with Gemma 4...");
 
     // Auto-analyze with Gemma 4 vision — fills description + labels + concern + medicine info
+    const currentTime = `${String(new Date().getHours()).padStart(2, "0")}:${String(new Date().getMinutes()).padStart(2, "0")}`;
     fetch(apiUrl("/api/vision"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         image: imageData,
         patientName: userName || "patient",
-        source: "capture"
+        source: "capture",
+        medicines: medicines.filter(m => m.name),
+        currentTime
       })
     })
       .then(r => r.json())
@@ -1609,6 +1648,14 @@ export default function Home() {
         setCameraStatus(analysis.medicine_info
           ? "Medicine identified. Description and labels are filled."
           : "Scene analyzed and saved. Description and labels are filled.");
+
+        // Speak the analysis aloud to the patient
+        if ("speechSynthesis" in window && desc) {
+          window.speechSynthesis.cancel();
+          const u = new SpeechSynthesisUtterance(desc);
+          u.rate = 0.85;
+          window.speechSynthesis.speak(u);
+        }
       })
       .catch(() => setCameraStatus("Frame captured. Vision analysis unavailable — fill labels manually."));
 
@@ -2055,7 +2102,7 @@ export default function Home() {
 
         liveSpeechReadyRef.current = true;
         lastLiveSpeechAtRef.current = Date.now();
-        setLiveMonitoringStatus("Mic readiness was slow. Silent pause checks are active now.");
+        setLiveMonitoringStatus("Listening quietly. Silent pause checks are active.");
         return;
       }
 
@@ -2199,8 +2246,9 @@ export default function Home() {
         const errorName = String(event?.error || "");
 
         if (errorName === "not-allowed" || errorName === "service-not-allowed") {
-          liveSpeechReadyRef.current = false;
-          setLiveMonitoringStatus("Microphone permission is blocked. Type in the message box or use Speak.");
+          // Don't flip liveSpeechReadyRef — the quiet check timer runs independently of speech recognition.
+          // Just update the status so the user knows voice input isn't available.
+          setLiveMonitoringStatus("Voice input blocked. Silent pause checks are still active. Type or use Speak.");
           return;
         }
 
@@ -2845,21 +2893,23 @@ export default function Home() {
                 <input
                   value={loginId}
                   onChange={(e) => setLoginId(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && unlockRole()}
                   placeholder="ID"
                   className={currentTheme.input}
                 />
                 <input
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && unlockRole()}
                   placeholder="Password"
                   type="password"
                   className={currentTheme.input}
                 />
-                <button onClick={unlockRole} className={currentTheme.softButton}>
+                <button type="button" onClick={unlockRole} className={currentTheme.softButton}>
                   Unlock {speakerRole}
                 </button>
                 <p className={currentTheme.miniText}>
-                  Care team login: family / 1234 or doctor / 1234
+                  Family login: ID <strong>family</strong> · Password <strong>1234</strong>
                 </p>
               </div>
             </Card>
@@ -2876,6 +2926,14 @@ export default function Home() {
               : "mt-6 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]"
           }
         >
+          {isCareTeamDashboard && (
+            <div className="col-span-full flex items-center justify-between rounded-xl px-4 py-2 text-sm font-semibold"
+              style={{ background: isFamilyDashboard ? "#d1fae5" : "#dbeafe", color: isFamilyDashboard ? "#065f46" : "#1e3a5f" }}>
+              <span>{isFamilyDashboard ? "👨‍👩‍👧 Family dashboard — you are logged in" : "🩺 Doctor dashboard — you are logged in"}</span>
+              <button type="button" onClick={() => { if (isFamilyDashboard) setFamilyUnlocked(false); else setDoctorUnlocked(false); setSpeakerRole("patient"); }}
+                className="text-xs opacity-60 hover:opacity-100 ml-4">Log out</button>
+            </div>
+          )}
           {(isPatientRole || isFamilyDashboard) && (
           <section className="space-y-5">
 
@@ -3225,11 +3283,21 @@ export default function Home() {
                   const timeStr = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
                   const noteNumber = patientNotes.length - index;
                   return (
-                    <div key={note.id} className={currentTheme.timelineItem}>
-                      <p className="text-xs font-semibold opacity-50 mb-1">
-                        Note {noteNumber} · {dateStr} at {timeStr}
-                      </p>
-                      <p>{note.text}</p>
+                    <div key={note.id} className={`${currentTheme.timelineItem} flex items-start justify-between gap-2`}>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold opacity-50 mb-1">
+                          Note {noteNumber} · {dateStr} at {timeStr}
+                        </p>
+                        <p>{note.text}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => deleteNote(note.id)}
+                        className="shrink-0 text-xs opacity-40 hover:opacity-80 hover:text-red-500 transition-opacity px-1"
+                        title="Delete note"
+                      >
+                        ✕
+                      </button>
                     </div>
                   );
                 })}
@@ -3285,24 +3353,18 @@ export default function Home() {
             )}
 
             {isFamilyDashboard && (
-              <PeopleMemoryDashboard
+              <FamilyInfoPanel
                 currentTheme={currentTheme}
                 people={people}
                 loading={peopleLoading}
                 userName={userName}
-                onAdd={handleAddPersonToSupabase}
-                onDelete={handleDeletePerson}
-              />
-            )}
-
-            {isFamilyDashboard && (
-              <FamilyPhotoDashboard
-                currentTheme={currentTheme}
+                onAddPerson={handleAddPersonToSupabase}
+                onDeletePerson={handleDeletePerson}
+                photoMemories={photoMemories}
                 onPhotoUpload={handlePhotoUpload}
                 onRemovePhoto={removePhotoMemory}
-                onSave={saveCareInfo}
                 onUpdatePhoto={updatePhotoMemory}
-                photoMemories={photoMemories}
+                onSave={saveCareInfo}
                 saveButtonState={saveButtonState}
                 saveStatus={saveStatus}
               />
@@ -3456,20 +3518,34 @@ function blankCareContact(): CareContact {
   };
 }
 
-function PeopleMemoryDashboard({
+function FamilyInfoPanel({
   currentTheme,
   people,
   loading,
   userName,
-  onAdd,
-  onDelete
+  onAddPerson,
+  onDeletePerson,
+  photoMemories,
+  onPhotoUpload,
+  onRemovePhoto,
+  onUpdatePhoto,
+  onSave,
+  saveButtonState,
+  saveStatus
 }: {
   currentTheme: typeof lightTheme;
   people: PersonRecord[];
   loading: boolean;
   userName: string;
-  onAdd: (formData: FormData) => Promise<void>;
-  onDelete: (id: string) => Promise<void>;
+  onAddPerson: (formData: FormData) => Promise<void>;
+  onDeletePerson: (id: string) => Promise<void>;
+  photoMemories: PhotoMemory[];
+  onPhotoUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onRemovePhoto: (id: string) => void;
+  onUpdatePhoto: (id: string, field: "name" | "relationship" | "description", value: string) => void;
+  onSave: () => void;
+  saveButtonState: "idle" | "saved";
+  saveStatus: string;
 }) {
   const [name, setName] = useState("");
   const [relationship, setRelationship] = useState("");
@@ -3486,7 +3562,7 @@ function PeopleMemoryDashboard({
     fd.append("relationship", relationship.trim());
     fd.append("notes", notes.trim());
     if (photoFile) fd.append("photo", photoFile);
-    await onAdd(fd);
+    await onAddPerson(fd);
     setName(""); setRelationship(""); setNotes(""); setPhotoFile(null);
     setSaving(false);
   };
@@ -3495,43 +3571,83 @@ function PeopleMemoryDashboard({
     <Card theme={currentTheme}>
       <SectionTitle
         emoji="👨‍👩‍👧"
-        title="People memory"
-        description="Add family members so the patient can ask 'Who is Anna?' and see their face."
+        title="Family information"
+        description="Add people the patient knows. They can ask 'Who is Anna?' and see the answer."
         theme={currentTheme}
       />
 
+      {/* ── Add person form ── */}
       <div className="mt-4 grid gap-3">
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name, e.g. Anna" className={currentTheme.input} />
-        <input value={relationship} onChange={(e) => setRelationship(e.target.value)} placeholder="Relationship, e.g. daughter" className={currentTheme.input} />
-        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes, e.g. visits every Sunday, brings flowers" className={`${currentTheme.input} min-h-[72px] resize-none`} />
-        <label className={currentTheme.uploadButton}>
-          {photoFile ? `📷 ${photoFile.name}` : "📷 Upload photo"}
-          <input type="file" accept="image/*" className="hidden" onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)} />
-        </label>
-        <button type="button" onClick={handleSubmit} disabled={saving || !name.trim()} className={currentTheme.saveButton}>
-          {saving ? "Saving..." : "Save to memory"}
-        </button>
+        <div className="grid grid-cols-2 gap-3">
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name, e.g. Anna" className={currentTheme.input} />
+          <input value={relationship} onChange={(e) => setRelationship(e.target.value)} placeholder="Relationship, e.g. daughter" className={currentTheme.input} />
+        </div>
+        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes, e.g. visits every Sunday, brings flowers" className={`${currentTheme.input} min-h-[60px] resize-none`} />
+        <div className="flex gap-3">
+          <label className={`${currentTheme.uploadButton} flex-1 text-center`}>
+            {photoFile ? `📷 ${photoFile.name}` : "📷 Photo (optional)"}
+            <input type="file" accept="image/*" className="hidden" onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)} />
+          </label>
+          <button type="button" onClick={handleSubmit} disabled={saving || !name.trim()} className={`${currentTheme.saveButton} flex-1`}>
+            {saving ? "Saving..." : "Save person"}
+          </button>
+        </div>
       </div>
 
-      <div className="mt-6 space-y-3">
+      {/* ── Saved people (Supabase) ── */}
+      <div className="mt-5 space-y-2">
         {loading && <p className={currentTheme.miniText}>Loading...</p>}
-        {!loading && people.length === 0 && <p className={currentTheme.miniText}>No people saved yet. Add someone above.</p>}
+        {!loading && people.length === 0 && <p className={currentTheme.miniText}>No people saved yet.</p>}
         {people.map((person) => (
-          <div key={person.id} className={`${currentTheme.photoMemoryCard} flex items-center gap-4`}>
-            {person.photo_url ? (
-              <img src={person.photo_url} alt={person.name} className="h-16 w-16 rounded-full object-cover border-2 border-[#4ECDC4] flex-shrink-0" />
-            ) : (
-              <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-[#4ECDC4] text-2xl">👤</div>
-            )}
+          <div key={person.id} className={`${currentTheme.photoMemoryCard} flex items-center gap-3`}>
+            {person.photo_url
+              ? <img src={person.photo_url} alt={person.name} className="h-12 w-12 rounded-full object-cover border-2 border-[#4ECDC4] flex-shrink-0" />
+              : <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-[#4ECDC4] text-xl">👤</div>
+            }
             <div className="flex-1 min-w-0">
-              <p className="font-black text-base">{person.name}</p>
-              {person.relationship && <p className="text-sm font-semibold text-[#4ECDC4]">{person.relationship}</p>}
-              {person.notes && <p className="text-xs opacity-70 truncate">{person.notes}</p>}
+              <p className="font-bold text-sm">{person.name}{person.relationship && <span className="font-normal opacity-60 ml-1">· {person.relationship}</span>}</p>
+              {person.notes && <p className="text-xs opacity-50 truncate">{person.notes}</p>}
             </div>
-            <button type="button" onClick={() => onDelete(person.id)} className={currentTheme.softButton}>Remove</button>
+            <button type="button" onClick={() => onDeletePerson(person.id)} className="text-lg opacity-40 hover:opacity-80 hover:text-red-500 transition-opacity px-1" title="Remove">🗑️</button>
           </div>
         ))}
       </div>
+
+      {/* ── Photo memories (localStorage) ── */}
+      {photoMemories.length > 0 && (
+        <div className="mt-6">
+          <p className="mb-3 text-xs font-black uppercase tracking-widest opacity-50">📷 Photo memories</p>
+          <div className="space-y-3">
+            {photoMemories.map((photo) => (
+              <div key={photo.id} className={currentTheme.photoMemoryCard}>
+                <div className="flex items-start gap-3">
+                  <img src={photo.imageDataUrl} alt={photo.name || "Memory"} className="h-16 w-16 rounded-xl object-cover flex-shrink-0" />
+                  <div className="flex-1 min-w-0 grid gap-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <input value={photo.name} onChange={(e) => onUpdatePhoto(photo.id, "name", e.target.value)} placeholder="Name" className={currentTheme.input} />
+                      <input value={photo.relationship} onChange={(e) => onUpdatePhoto(photo.id, "relationship", e.target.value)} placeholder="Relationship" className={currentTheme.input} />
+                    </div>
+                    <input value={photo.description} onChange={(e) => onUpdatePhoto(photo.id, "description", e.target.value)} placeholder="Description" className={currentTheme.input} />
+                  </div>
+                  <button type="button" onClick={() => onRemovePhoto(photo.id)} className="text-lg opacity-40 hover:opacity-80 hover:text-red-500 transition-opacity px-1 flex-shrink-0" title="Remove">🗑️</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Upload + save ── */}
+      <div className="mt-5 flex gap-3">
+        <label className={`${currentTheme.uploadButton} flex-1 text-center`}>
+          Upload photos
+          <input type="file" accept="image/*" multiple onChange={onPhotoUpload} className="hidden" />
+        </label>
+        <button type="button" onClick={onSave} className={`${currentTheme.saveButton} flex-1`}>
+          {saveButtonState === "saved" ? "Saved" : "Save updates"}
+        </button>
+      </div>
+      {saveStatus && <p className={currentTheme.miniText}>{saveStatus}</p>}
     </Card>
   );
 }
@@ -3657,17 +3773,27 @@ function DoctorDashboard({
                     placeholder="Dosage, e.g. 10mg"
                     className={currentTheme.input}
                   />
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs opacity-50">Time to take</label>
+                    <input
+                      type="time"
+                      title="Time to take this medicine"
+                      value={med.time || ""}
+                      onChange={(e) => onMedicinesChange((prev) => prev.map((m) => m.id === med.id ? { ...m, time: e.target.value } : m))}
+                      className={currentTheme.input}
+                    />
+                  </div>
                   <input
                     value={med.schedule}
                     onChange={(e) => onMedicinesChange((prev) => prev.map((m) => m.id === med.id ? { ...m, schedule: e.target.value } : m))}
-                    placeholder="When, e.g. morning with food"
+                    placeholder="Notes, e.g. with food"
                     className={currentTheme.input}
                   />
                   <input
                     value={med.appearance}
                     onChange={(e) => onMedicinesChange((prev) => prev.map((m) => m.id === med.id ? { ...m, appearance: e.target.value } : m))}
                     placeholder="Appearance, e.g. small white round pill"
-                    className={currentTheme.input}
+                    className={`${currentTheme.input} col-span-2`}
                   />
                 </div>
                 <button
@@ -3681,7 +3807,7 @@ function DoctorDashboard({
             ))}
             <button
               type="button"
-              onClick={() => onMedicinesChange((prev) => [...prev, { id: crypto.randomUUID(), name: "", dosage: "", schedule: "", appearance: "" }])}
+              onClick={() => onMedicinesChange((prev) => [...prev, { id: crypto.randomUUID(), name: "", dosage: "", time: "", schedule: "", appearance: "" }])}
               className={currentTheme.softButton}
             >
               + Add medicine
@@ -3725,116 +3851,6 @@ function DoctorDashboard({
   );
 }
 
-function FamilyPhotoDashboard({
-  currentTheme,
-  onPhotoUpload,
-  onRemovePhoto,
-  onSave,
-  onUpdatePhoto,
-  photoMemories,
-  saveButtonState,
-  saveStatus
-}: {
-  currentTheme: typeof lightTheme;
-  onPhotoUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  onRemovePhoto: (id: string) => void;
-  onSave: () => void;
-  onUpdatePhoto: (
-    id: string,
-    field: "name" | "relationship" | "description",
-    value: string
-  ) => void;
-  photoMemories: PhotoMemory[];
-  saveButtonState: "idle" | "saved";
-  saveStatus: string;
-}) {
-  return (
-    <Card theme={currentTheme}>
-      <SectionTitle
-        emoji="📷"
-        title="Family picture memory"
-        description="Upload patient and family photos so the companion can help with recognition."
-        theme={currentTheme}
-      />
-
-      <label className={currentTheme.uploadButton}>
-        Upload pictures
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={onPhotoUpload}
-          className="hidden"
-        />
-      </label>
-
-      <div className="mt-5 grid gap-4">
-        {photoMemories.length === 0 && (
-          <p className={currentTheme.miniText}>
-            Add photos of the patient, family members, and trusted caregivers.
-          </p>
-        )}
-
-        {photoMemories.map((photo) => (
-          <div key={photo.id} className={currentTheme.photoMemoryCard}>
-            <img
-              src={photo.imageDataUrl}
-              alt={photo.name || "Family memory"}
-              className="h-32 w-full rounded-xl object-cover"
-            />
-            <div className="mt-3 grid gap-3">
-              <input
-                value={photo.name}
-                onChange={(event) =>
-                  onUpdatePhoto(photo.id, "name", event.target.value)
-                }
-                placeholder="Name, e.g. Anna"
-                className={currentTheme.input}
-              />
-              <input
-                value={photo.relationship}
-                onChange={(event) =>
-                  onUpdatePhoto(photo.id, "relationship", event.target.value)
-                }
-                placeholder="Relationship, e.g. daughter"
-                className={currentTheme.input}
-              />
-              <textarea
-                value={photo.description}
-                onChange={(event) =>
-                  onUpdatePhoto(photo.id, "description", event.target.value)
-                }
-                placeholder="Description, e.g. visits every evening and wears blue glasses"
-                className={`${currentTheme.input} min-h-[76px] resize-none`}
-              />
-              <div className={currentTheme.nextStepBox}>
-                <p className="text-xs font-black uppercase tracking-[0.16em] opacity-70">
-                  Summary
-                </p>
-                <p className="mt-1 text-sm font-semibold">
-                  {[photo.name || "Unknown person", photo.relationship, photo.description]
-                    .filter(Boolean)
-                    .join(" - ")}
-                </p>
-              </div>
-              <button
-                onClick={() => onRemovePhoto(photo.id)}
-                className={currentTheme.softButton}
-              >
-                Remove picture
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <button onClick={onSave} className={currentTheme.saveButton}>
-        {saveButtonState === "saved" ? "Saved" : "Save family updates"}
-      </button>
-      {saveStatus && <p className={currentTheme.miniText}>{saveStatus}</p>}
-    </Card>
-  );
-}
 
 function FamilyAlertSetup({
   alerts,

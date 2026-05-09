@@ -104,19 +104,29 @@ function buildSystemPrompt({ name, isConversation, context, environment, relevan
   const silentChecks = Number(context.behaviorSignals?.liveSilenceCheckCount || 0);
   const visionHint = visionUsed ? "A live camera image of the scene is attached. You can refer to what you see naturally in your response." : "";
 
+  // Person lookup result — from Supabase people table ("who is Anna?")
+  const personResult = context.personQueryResult;
+  const personHint = personResult
+    ? `Person info: ${personResult.name}${personResult.relationship ? ` is ${name}'s ${personResult.relationship}` : ""}${personResult.notes ? `. ${personResult.notes}` : ""}.`
+    : "";
+
   if (isConversation) {
     return `You are yourOwn, a cheerful friendly companion chatting with ${name}.
 ${timeHint} ${placeHint}
+${personHint}
+${careNote}
 ${historyHint ? `Recent conversation:\n${historyHint}` : ""}
 ${visionHint}
 
 RULES:
 1. Answer what ${name} said IMMEDIATELY and directly. If they ask for a joke, TELL THE JOKE first.
-2. Do NOT ask if they are okay, safe, or comfortable — this is casual friendly chat.
-3. Keep it to 1-2 sentences, warm and fun.
-4. If a camera image is attached, you can reference what you see naturally (e.g. "I can see you're in the kitchen").
-5. End with one short friendly question to keep chatting.
-6. Never mention GPS, care notes, medication, or system data.`;
+2. If person info is provided above, use it to answer questions about that person naturally and warmly.
+3. If asked "who is [name]?" and you have person info, introduce them clearly: "[Name] is your [relationship]."
+4. Do NOT ask if they are okay, safe, or comfortable — this is casual friendly chat.
+5. Keep it to 1-2 sentences, warm and fun.
+6. If a camera image is attached, you can reference what you see naturally (e.g. "I can see you're in the kitchen").
+7. End with one short friendly question to keep chatting.
+8. Never mention GPS, system data, or that you retrieved this from a database.`;
   }
 
   const situationHint = context.behaviorAnalysis?.silent_confusion
@@ -138,6 +148,7 @@ RULES:
 Situation: ${situationHint}
 ${timeHint} ${placeHint}
 ${careNote}
+${personHint}
 ${memoryHint ? `Context:\n${memoryHint}` : ""}
 ${historyHint ? `Recent conversation:\n${historyHint}` : ""}
 ${visionHint}
@@ -207,20 +218,38 @@ function extractFinalAnswer(text) {
 
 // Analyze a camera image and return structured scene description + labels + concern.
 // Used by /api/vision when patient captures a frame or live monitor saves a snapshot.
-async function analyzeVision(base64Image) {
+// medicines: array of { name, dosage, time, schedule, appearance } from doctor's prescription list
+// currentTime: "HH:MM" string — used to check which medicine is due right now
+async function analyzeVision(base64Image, medicines = [], currentTime = "") {
   const ai = getClient();
   if (!ai) return null;
+
+  // Build medicine context for the prompt when doctor has saved a prescription list
+  const hasMedicines = Array.isArray(medicines) && medicines.length > 0;
+  const dueMed = hasMedicines && currentTime
+    ? medicines.find(m => m.time === currentTime)
+    : null;
+
+  const medicineContext = hasMedicines
+    ? `\n\nDoctor's prescribed medicines for this patient:\n${medicines.map(m =>
+        `- ${m.name}${m.dosage ? ` (${m.dosage})` : ""}${m.time ? `, due at ${m.time}` : ""}${m.schedule ? `, ${m.schedule}` : ""}${m.appearance ? ` — looks like: ${m.appearance}` : ""}`
+      ).join("\n")}${dueMed ? `\n\nIMPORTANT: It is currently ${currentTime}. The patient should be taking ${dueMed.name} right now.` : ""}`
+    : "";
+
+  const medicineInstruction = hasMedicines
+    ? `- "medicine_info": If you see any medicine — identify it, then check it against the prescribed list above. State whether it matches what the patient should take${dueMed ? ` (${dueMed.name} is due right now)` : " at this time"}. Explain what the medicine is used for in 1-2 sentences. If the medicine visible does NOT match what is due, warn clearly. Leave empty string if no medicine is visible.`
+    : `- "medicine_info": If you see any medicine, pill bottle, tablet, blister pack, or prescription label — identify the medicine name and explain in 1-2 sentences what it is typically used for. Leave empty string if no medicine visible.`;
 
   try {
     const model = ai.getGenerativeModel({
       model: GEMMA_API_MODEL,
-      generationConfig: { temperature: 0.3, maxOutputTokens: 200 }
+      generationConfig: { temperature: 0.3, maxOutputTokens: 250 }
     });
 
     const imageData = base64Image.replace(/^data:[^;]+;base64,/, "");
     const result = await model.generateContent([
       { inlineData: { mimeType: "image/jpeg", data: imageData } },
-      { text: `You are analyzing a camera image for an elderly Alzheimer's patient care system.
+      { text: `You are analyzing a camera image for an elderly Alzheimer's patient care system.${medicineContext}
 
 Look carefully at the image and return ONLY valid JSON — no markdown, no explanation:
 {
@@ -234,7 +263,7 @@ Rules:
 - "description": Always fill this. Describe the scene in plain warm language as if explaining to a caregiver.
 - "labels": List every object, person, or activity you can see.
 - "concern": Use one of — none, medicine_check, unsafe_scene, fall_risk, confusion_sign
-- "medicine_info": If you see any medicine, pill bottle, tablet, blister pack, or prescription label — identify the medicine name and explain in 1-2 sentences what it is typically used for. Leave empty string if no medicine visible.` }
+${medicineInstruction}` }
     ]);
 
     const parts = result.response.candidates?.[0]?.content?.parts || [];

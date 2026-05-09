@@ -4,16 +4,15 @@ const { analyzeVision } = require("../services/gemma-api");
 const { saveEpisodicMemory, isAvailable } = require("../services/people-memory");
 
 router.post("/", async (req, res) => {
-  const { image, patientName, source = "capture" } = req.body;
+  const { image, patientName, source = "capture", medicines = [], currentTime = "" } = req.body;
 
   if (!image) return res.status(400).json({ error: "No image provided" });
 
-  const analysis = await analyzeVision(image);
+  const analysis = await analyzeVision(image, medicines, currentTime);
   if (!analysis) {
     return res.status(503).json({ error: "Vision analysis unavailable" });
   }
 
-  // Save privately to Supabase so it can be retrieved later as patient context
   if (isAvailable() && patientName) {
     saveEpisodicMemory({
       patientName,
@@ -22,6 +21,7 @@ router.post("/", async (req, res) => {
       context: {
         labels: analysis.labels,
         concern: analysis.concern,
+        medicine_info: analysis.medicine_info,
         source,
         time: new Date().toISOString()
       }
