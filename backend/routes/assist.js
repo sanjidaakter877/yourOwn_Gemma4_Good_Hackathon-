@@ -288,7 +288,7 @@ async function runAssistFlow(body, app) {
     aiResult
   });
 
-  // Auto-save this interaction as an episodic memory
+  // Auto-save this interaction as an episodic memory (includes full ai_response for training export)
   if (memoryAvailable() && context.speechText) {
     saveEpisodicMemory({
       patientName: context.userName,
@@ -297,7 +297,7 @@ async function runAssistFlow(body, app) {
       context: {
         location: context.locationName || environment?.likely_place,
         time: context.currentClock,
-        response_summary: aiResult.companion_message?.slice(0, 120),
+        ai_response: aiResult.companion_message || aiResult.response?.reassurance || "",
         risk_level: aiResult.care_reasoning?.risk?.level
       }
     }).catch(() => {});

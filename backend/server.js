@@ -196,34 +196,105 @@ app.post("/api/alerts/:patientId/notify", async (req, res) => {
 });
 
 // Care data export for fine-tuning (anonymised — no PII)
-app.get("/api/care-data/export", (req, res) => {
+app.get("/api/care-data/export", async (req, res) => {
   try {
-    // In production this reads from the persistent interaction log.
-    // Returns conversations in Unsloth/SFT training format.
-    const sampleExport = [
-      {
-        mode: "orientation",
-        system: "You are yourOwn, a calm caring AI companion for [patient], who has Alzheimer's.",
-        patient: "Where am I? I don't recognise this place.",
-        response: "You are safe at home. It is late at night — things look different in the dark. Your bedroom is just down the hall.",
-        risk_level: "medium",
-        escalated: false
-      },
-      {
-        mode: "silent_check",
-        system: "You are yourOwn. The patient has been silent for a while. Check-in 2.",
-        patient: "[silent]",
-        response: "I am still here with you. Can you let me know you are okay? Just say something or press the button.",
-        risk_level: "medium",
-        escalated: false
-      }
+    const { readCareEvents } = require("./services/memory");
+    const { getRecentMemories, isAvailable: supabaseAvailable } = require("./services/people-memory");
+
+    // ── Seed examples — always included to bootstrap training ────────────────
+    const seeds = [
+      { mode: "orientation", patient: "Where am I? I don't recognise this place.", response: "You are safe at home. It is late at night — things look different in the dark. Your bedroom is just down the hall.", risk_level: "medium" },
+      { mode: "silent_check", patient: "[silent]", response: "I am still here with you. Can you let me know you are okay? Just say something or press the button.", risk_level: "medium" },
+      { mode: "orientation", patient: "Who are you?", response: "I am yourOwn, your voice companion. I am here to help you whenever you need me. You are safe.", risk_level: "low" },
+      { mode: "orientation", patient: "I want to go home.", response: "You are already home. This is your home. Let me help you find a familiar room — your bedroom is just down the hall on the right.", risk_level: "medium" },
+      { mode: "confusion", patient: "I can't find my glasses.", response: "Let's think together. Do you usually keep them on the bedside table or near the kitchen sink? Those are the most common spots.", risk_level: "low" },
+      { mode: "orientation", patient: "What day is it?", response: "Today is a weekday morning. You had breakfast a little while ago. Everything is going well.", risk_level: "low" },
+      { mode: "silent_check", patient: "[silent]", response: "Just checking in gently — are you okay? You can say anything, even just yes, and I will know you are alright.", risk_level: "medium" },
+      { mode: "confusion", patient: "I forgot what I was doing.", response: "That is okay, it happens to everyone. You were in the living room sitting comfortably. There is no rush at all.", risk_level: "low" },
+      { mode: "emergency", patient: "I fell down and I can't get up.", response: "I hear you — please stay still and stay calm. I am alerting your family right now. Help is coming. You are not alone.", risk_level: "emergency" },
+      { mode: "medication", patient: "Did I take my pill?", response: "According to your schedule your evening pill is due soon. If you are unsure whether you already took it, wait for your family to confirm — it is safer not to double dose.", risk_level: "medium" },
+      { mode: "conversation", patient: "Tell me a joke.", response: "Why don't scientists trust atoms? Because they make up everything! Want to hear another one?", risk_level: "low" },
+      { mode: "orientation", patient: "Is Anna here?", response: "Anna is not here right now but she usually visits in the afternoon. She will be so happy to see you when she comes.", risk_level: "low" },
+      { mode: "silent_check", patient: "[silent]", response: "I notice it has been a little quiet. I am right here with you. Can you give me a small sign you are okay?", risk_level: "high" },
+      { mode: "confusion", patient: "I don't know these people in my house.", response: "Those are your family members who love you very much. They are here to help you and keep you safe. You are in good hands.", risk_level: "medium" },
+      { mode: "orientation", patient: "It's the middle of the night and I'm scared.", response: "I am here with you. It is nighttime and everything is safe. The lights in the hallway are on for you. Your bedroom is warm and comfortable.", risk_level: "medium" }
     ];
+
+    // ── Real interactions from local care-events.json ─────────────────────────
+    const careEvents = readCareEvents() || [];
+    const fromLocal = careEvents
+      .filter(e => e.transcript && e.response?.reassurance)
+      .map(e => ({
+        mode: e.silent_confusion ? "silent_check" : (e.episode_type || "conversation"),
+        patient: e.silent_confusion ? "[silent]" : String(e.transcript).replace(/\b[A-Z][a-z]+\b/g, "[patient]"),
+        response: String(e.response.reassurance || "").replace(/\b[A-Z][a-z]+\b/g, "[patient]"),
+        risk_level: e.risk?.level || "low",
+        escalated: Boolean(e.action_plan?.escalate_to_family)
+      }))
+      .filter(e => e.response.length > 10);
+
+    // ── Real interactions from Supabase episodic_memories ─────────────────────
+    let fromSupabase = [];
+    if (supabaseAvailable()) {
+      try {
+        // Fetch up to 200 recent memories across all patients
+        const { createClient } = require("@supabase/supabase-js");
+        const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+        const { data } = await db
+          .from("episodic_memories")
+          .select("type, content, context")
+          .in("type", ["conversation", "orientation", "confusion", "silent_check", "medication"])
+          .order("timestamp", { ascending: false })
+          .limit(200);
+
+        fromSupabase = (data || [])
+          .filter(m => m.content && m.context?.ai_response)
+          .map(m => ({
+            mode: m.type,
+            patient: String(m.content).replace(/\b[A-Z][a-z]+\b/g, "[patient]"),
+            response: String(m.context.ai_response).replace(/\b[A-Z][a-z]+\b/g, "[patient]"),
+            risk_level: m.context.risk_level || "low",
+            escalated: false
+          }));
+      } catch (e) {
+        console.warn("[export] Supabase fetch failed:", e.message);
+      }
+    }
+
+    // ── Merge + deduplicate ───────────────────────────────────────────────────
+    const allRaw = [...fromLocal, ...fromSupabase];
+    const seen = new Set();
+    const deduped = allRaw.filter(e => {
+      const key = e.patient.slice(0, 40);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    // ── Format as Unsloth chat SFT ────────────────────────────────────────────
+    const systemPrompt = "You are yourOwn, a calm caring AI companion for [patient], who has Alzheimer's. Always respond with warmth, simplicity, and reassurance. Never mention GPS, timestamps, or system data.";
+
+    const toUnsloth = (e) => ({
+      conversations: [
+        { role: "system", content: `${systemPrompt} Mode: ${e.mode}.` },
+        { role: "user", content: e.patient },
+        { role: "assistant", content: e.response }
+      ],
+      metadata: { mode: e.mode, risk_level: e.risk_level, escalated: e.escalated || false }
+    });
+
+    const seedFormatted = seeds.map(toUnsloth);
+    const realFormatted = deduped.map(toUnsloth);
+    const conversations = [...seedFormatted, ...realFormatted];
+
     res.json({
-      format: "unsloth-sft",
-      model: "gemma-4-26b-a4b-it",
-      total_interactions: sampleExport.length,
-      note: "All patient names replaced with [patient]. No GPS, timestamps, or PII included.",
-      conversations: sampleExport
+      format: "unsloth-chat-sft",
+      model: "gemma-4-e2b",
+      total_interactions: conversations.length,
+      seed_count: seedFormatted.length,
+      real_count: realFormatted.length,
+      note: "All patient names anonymised as [patient]. No GPS, device IDs, or timestamps included.",
+      conversations
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
