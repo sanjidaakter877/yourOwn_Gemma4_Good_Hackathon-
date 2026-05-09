@@ -220,14 +220,21 @@ async function analyzeVision(base64Image) {
     const imageData = base64Image.replace(/^data:[^;]+;base64,/, "");
     const result = await model.generateContent([
       { inlineData: { mimeType: "image/jpeg", data: imageData } },
-      { text: `Analyze this camera image for an elderly patient care system.
-Return ONLY valid JSON — no explanation, no markdown:
+      { text: `You are analyzing a camera image for an elderly Alzheimer's patient care system.
+
+Look carefully at the image and return ONLY valid JSON — no markdown, no explanation:
 {
-  "description": "1-2 natural sentences describing the scene",
-  "labels": ["object1", "activity1", "person_state"],
-  "concern": "none"
+  "description": "2-3 natural sentences describing exactly what you see in the image",
+  "labels": ["list", "every", "visible", "object", "person", "activity"],
+  "concern": "none",
+  "medicine_info": ""
 }
-Valid concern values: none, medicine_check, unsafe_scene, fall_risk, confusion_sign` }
+
+Rules:
+- "description": Always fill this. Describe the scene in plain warm language as if explaining to a caregiver.
+- "labels": List every object, person, or activity you can see.
+- "concern": Use one of — none, medicine_check, unsafe_scene, fall_risk, confusion_sign
+- "medicine_info": If you see any medicine, pill bottle, tablet, blister pack, or prescription label — identify the medicine name and explain in 1-2 sentences what it is typically used for. Leave empty string if no medicine visible.` }
     ]);
 
     const parts = result.response.candidates?.[0]?.content?.parts || [];
@@ -236,6 +243,8 @@ Valid concern values: none, medicine_check, unsafe_scene, fall_risk, confusion_s
       ? answerParts.map(p => p.text || "").join("").trim()
       : result.response.text().trim();
 
+    console.log("[GemmaAPI] analyzeVision raw:", raw.slice(0, 200));
+
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return null;
     const parsed = JSON.parse(jsonMatch[0]);
@@ -243,7 +252,8 @@ Valid concern values: none, medicine_check, unsafe_scene, fall_risk, confusion_s
     return {
       description: String(parsed.description || ""),
       labels: Array.isArray(parsed.labels) ? parsed.labels : [],
-      concern: String(parsed.concern || "none")
+      concern: String(parsed.concern || "none"),
+      medicine_info: String(parsed.medicine_info || "")
     };
   } catch (err) {
     console.warn("[GemmaAPI] analyzeVision failed:", err.message);

@@ -1574,7 +1574,7 @@ export default function Home() {
     setVisualConcern("");
     setCameraStatus("Analyzing scene with Gemma 4...");
 
-    // Auto-analyze with Gemma 4 vision — fills description + labels + concern
+    // Auto-analyze with Gemma 4 vision — fills description + labels + concern + medicine info
     fetch(apiUrl("/api/vision"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1586,10 +1586,19 @@ export default function Home() {
     })
       .then(r => r.json())
       .then(analysis => {
-        if (analysis.description) setVisualDescription(analysis.description);
+        if (analysis.error || !analysis.description) {
+          setCameraStatus("Vision analysis failed — fill description manually.");
+          return;
+        }
+        const desc = analysis.medicine_info
+          ? `${analysis.description} — ${analysis.medicine_info}`
+          : analysis.description;
+        setVisualDescription(desc);
         if (analysis.labels?.length) setImageLabels(analysis.labels.join(", "));
         if (analysis.concern && analysis.concern !== "none") setVisualConcern(analysis.concern);
-        setCameraStatus("Scene analyzed and saved. Description and labels are filled.");
+        setCameraStatus(analysis.medicine_info
+          ? "Medicine identified. Description and labels are filled."
+          : "Scene analyzed and saved. Description and labels are filled.");
       })
       .catch(() => setCameraStatus("Frame captured. Vision analysis unavailable — fill labels manually."));
 
