@@ -7,6 +7,7 @@ const assistRoute = require("./routes/assist");
 const doctorRoute = require("./routes/doctor");
 const careSettingsRoute = require("./routes/care-settings");
 const visionRoute = require("./routes/vision");
+const notesRoute = require("./routes/notes");
 
 // Import new services
 let MultimodalDetector;
@@ -234,6 +235,7 @@ app.use("/assist", assistRoute);
 app.use("/doctor", doctorRoute);
 app.use("/api/care-settings", careSettingsRoute);
 app.use("/api/vision", visionRoute);
+app.use("/api/notes", notesRoute);
 app.use("/api/people", require("./routes/people"));
 
 // Service initialization

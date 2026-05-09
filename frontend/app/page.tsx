@@ -980,6 +980,7 @@ export default function Home() {
     setPatientNoteSaveState("saved");
     addLog("Patient note saved");
 
+    // Save to localStorage
     let existing = {};
     try {
       const saved = window.localStorage.getItem("yourown-care-info");
@@ -989,11 +990,15 @@ export default function Home() {
     }
     window.localStorage.setItem(
       "yourown-care-info",
-      JSON.stringify({
-        ...existing,
-        patientNotes: updatedNotes
-      })
+      JSON.stringify({ ...existing, patientNotes: updatedNotes })
     );
+
+    // Also save to Supabase so note is retrievable across devices
+    fetch(apiUrl("/api/notes"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ patientName: userName, text, timestamp: note.timestamp })
+    }).catch(() => {});
 
     window.setTimeout(() => setPatientNoteSaveState("idle"), 1800);
   };
@@ -1295,13 +1300,11 @@ export default function Home() {
     const playbackId = speechPlaybackIdRef.current + 1;
     speechPlaybackIdRef.current = playbackId;
 
-    const spokenText = [
-      data.response?.reassurance,
-      data.response?.context,
-      data.response?.next_step
-    ]
-      .filter(Boolean)
-      .join(" ");
+    const spokenText = (
+      data.companion_message ||
+      [data.response?.reassurance, data.response?.context, data.response?.next_step]
+        .filter(Boolean).join(" ")
+    ).trim();
 
     const pauseLiveMic = () => {
       assistantSpeakingRef.current = true;
@@ -3128,14 +3131,20 @@ export default function Home() {
                   <p className={currentTheme.miniText}>No saved notes yet.</p>
                 )}
 
-                {patientNotes.map((note) => (
-                  <div key={note.id} className={currentTheme.timelineItem}>
-                    <p>{note.text}</p>
-                    <p className="mt-1 text-xs opacity-70">
-                      {new Date(note.timestamp).toLocaleString()}
-                    </p>
-                  </div>
-                ))}
+                {patientNotes.map((note, index) => {
+                  const d = new Date(note.timestamp);
+                  const dateStr = d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+                  const timeStr = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+                  const noteNumber = patientNotes.length - index;
+                  return (
+                    <div key={note.id} className={currentTheme.timelineItem}>
+                      <p className="text-xs font-semibold opacity-50 mb-1">
+                        Note {noteNumber} · {dateStr} at {timeStr}
+                      </p>
+                      <p>{note.text}</p>
+                    </div>
+                  );
+                })}
               </div>
             </Card>
             )}
