@@ -2373,9 +2373,28 @@ export default function Home() {
     liveSpeechReadyRef.current = true;
     lastLiveSpeechAtRef.current = Date.now();
     createRecognition();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && liveMonitoringRef.current) {
+        liveMicErrorCountRef.current = 0;
+        if (!assistantSpeakingRef.current) {
+          setTimeout(() => {
+            if (liveMonitoringRef.current) createRecognition();
+          }, 500);
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    const removeVisibilityListener = () =>
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    (window as any).__liveMonitorCleanup = removeVisibilityListener;
   };
 
   const stopLiveMonitoring = () => {
+    if (typeof (window as any).__liveMonitorCleanup === "function") {
+      (window as any).__liveMonitorCleanup();
+      delete (window as any).__liveMonitorCleanup;
+    }
     liveMonitoringRef.current = false;
     setLiveMonitoring(false);
     setLiveMonitoringStatus("Live monitor is off");

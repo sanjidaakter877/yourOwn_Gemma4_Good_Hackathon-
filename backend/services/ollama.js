@@ -661,7 +661,7 @@ function buildFallbackResponse({
     contextText += ` ${context.careNote}`;
   }
 
-  if (shouldSpeakDoctorNote(context)) {
+  if (shouldSpeakDoctorNote(context, scored.mode)) {
     contextText += ` Doctor instruction: ${context.doctorNote}`;
   }
 
@@ -677,7 +677,7 @@ function buildFallbackResponse({
     {
       reassurance,
       context: cleanText(contextText),
-      next_step: getFallbackNextStep(context, environment)
+      next_step: getFallbackNextStep(context, environment, scored.mode)
     },
     { context, environment }
   );
@@ -689,7 +689,8 @@ function buildFallbackResponse({
     memory_summary: buildMemorySummary({
       context,
       environment,
-      relevantMemories
+      relevantMemories,
+      mode: scored.mode
     }),
     care_reasoning: normalizeCareReasoning(null, careReasoning, {
       response
@@ -946,7 +947,7 @@ function normalizeCareReasoning(modelReasoning, deterministicReasoning, { respon
   };
 }
 
-function getFallbackNextStep(context, environment) {
+function getFallbackNextStep(context, environment, mode = null) {
   if (context.behaviorAnalysis?.silent_confusion) {
     const checkCount = Number(context.behaviorSignals?.liveSilenceCheckCount || 1);
 
@@ -973,7 +974,7 @@ function getFallbackNextStep(context, environment) {
     return "Are you okay, or do you need more help? Stay where you are while I help.";
   }
 
-  if (shouldSpeakDoctorNote(context)) {
+  if (shouldSpeakDoctorNote(context, mode)) {
     return `Follow the doctor note: ${context.doctorNote}`;
   }
 
@@ -992,7 +993,7 @@ function getFallbackNextStep(context, environment) {
   return "Take one slow breath and stay where you are while I help.";
 }
 
-function buildMemorySummary({ context, environment, relevantMemories }) {
+function buildMemorySummary({ context, environment, relevantMemories, mode = null }) {
   const items = [];
 
   if (environment?.likely_place) {
@@ -1023,7 +1024,7 @@ function buildMemorySummary({ context, environment, relevantMemories }) {
     items.push(`Family note: ${context.careNote}`);
   }
 
-  if (shouldSpeakDoctorNote(context)) {
+  if (shouldSpeakDoctorNote(context, mode)) {
     items.push(`Doctor note: ${context.doctorNote}`);
   }
 
@@ -1055,8 +1056,11 @@ function cleanText(value) {
     .trim();
 }
 
-function shouldSpeakDoctorNote(context) {
+function shouldSpeakDoctorNote(context, mode = null) {
   if (!context.doctorNote) return false;
+  const blockModes = ["emergency", "wandering", "paranoia", "aggression",
+    "orientation", "emotional_support", "medicine_refusal"];
+  if (mode && blockModes.includes(mode)) return false;
   return (
     Boolean(context.mealOrMedicationTime) ||
     mentionsMedication(context.speechText) ||
