@@ -610,6 +610,7 @@ export default function Home() {
   const continuousVisionInFlightRef = useRef(false);
   const sceneHistoryRef = useRef<string[]>([]);
   const captureModeRef = useRef(false);
+  const pendingVisionAlertRef = useRef<string | null>(null);
   const lastAlarmKeyRef = useRef("");
   const speechRecognitionRef = useRef<any>(null);
   const liveMonitoringRef = useRef(false);
@@ -1691,7 +1692,7 @@ export default function Home() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.drawImage(video, 0, 0);
-    const imageData = canvas.toDataURL("image/jpeg", 0.7);
+    const imageData = canvas.toDataURL("image/jpeg", 0.82);
 
     continuousVisionInFlightRef.current = true;
     try {
@@ -1713,13 +1714,33 @@ export default function Home() {
 
       sceneHistoryRef.current = [analysis.description, ...sceneHistoryRef.current].slice(0, 3);
 
+      // Always update description box so caregiver can see what camera detected
+      setVisualDescription(analysis.description);
+      if (analysis.labels?.length) setImageLabels(analysis.labels.join(", "));
+      if (analysis.concern && analysis.concern !== "none") setVisualConcern(analysis.concern);
+
+      // Show detection in camera status
+      if (analysis.expression && analysis.expression !== "calm") {
+        setCameraStatus(`Detected: ${analysis.expression} expression`);
+      } else if (analysis.task_abandoned) {
+        setCameraStatus(`Detected: unfinished task — ${analysis.task_detail}`);
+      } else {
+        setCameraStatus("Camera active — monitoring");
+      }
+
+      // When something needs to be said — use assistantSpeakingRef to block mic from
+      // hearing the response (prevents app from replying to its own voice)
       if (analysis.should_speak && analysis.speak_message) {
-        if (typeof window !== "undefined" && "speechSynthesis" in window) {
-          window.speechSynthesis.cancel();
-          const u = new SpeechSynthesisUtterance(analysis.speak_message);
-          u.rate = 0.85;
-          window.speechSynthesis.speak(u);
-        }
+        pendingVisionAlertRef.current = analysis.speak_message;
+        assistantSpeakingRef.current = true;
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(analysis.speak_message);
+        u.rate = 0.85;
+        u.onend = () => {
+          setTimeout(() => { assistantSpeakingRef.current = false; }, 1500);
+        };
+        u.onerror = () => { assistantSpeakingRef.current = false; };
+        window.speechSynthesis.speak(u);
       }
     } catch {
       // silent fail — continuous vision never crashes the app
@@ -2060,9 +2081,15 @@ export default function Home() {
             speakerRole: "patient",
             speechText: source === "quiet_check" ? "" : transcript,
             capturedImage: liveFrame || payload.signals.capturedImage,
-            visualDescription: liveFrame
-              ? "Live monitor captured a fresh camera frame for safety context."
-              : payload.signals.visualDescription,
+            visualDescription: (() => {
+              const visionAlert = pendingVisionAlertRef.current;
+              if (visionAlert) {
+                pendingVisionAlertRef.current = null;
+                return `Camera detected: ${visionAlert}`;
+              }
+              if (liveFrame) return "Live monitor captured a fresh camera frame for safety context.";
+              return payload.signals.visualDescription;
+            })(),
             behaviorSignals,
             conversationState
           }
@@ -3775,15 +3802,17 @@ function FamilyInfoPanel({
         </div>
       )}
 
-      {/* ── Upload + save ── */}
+      {/* ── Upload photo memories (only shown when memories exist or being added) ── */}
       <div className="mt-5 flex gap-3">
         <label className={`${currentTheme.uploadButton} flex-1 text-center`}>
-          Upload photos
+          Upload photo memories
           <input type="file" accept="image/*" multiple onChange={onPhotoUpload} className="hidden" />
         </label>
-        <button type="button" onClick={onSave} className={`${currentTheme.saveButton} flex-1`}>
-          {saveButtonState === "saved" ? "Saved" : "Save updates"}
-        </button>
+        {photoMemories.length > 0 && (
+          <button type="button" onClick={onSave} className={`${currentTheme.saveButton} flex-1`}>
+            {saveButtonState === "saved" ? "Saved" : "Save updates"}
+          </button>
+        )}
       </div>
       {saveStatus && <p className={currentTheme.miniText}>{saveStatus}</p>}
     </Card>
