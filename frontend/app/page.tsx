@@ -534,6 +534,7 @@ export default function Home() {
     useState<CameraButtonName>("start");
   const [cameraStatus, setCameraStatus] = useState("Camera not started");
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [captureMode, setCaptureMode] = useState(false);
   const [careNote, setCareNote] = useState("Anna visits most afternoons.");
   const [doctorNote, setDoctorNote] = useState(
     "Take the blue pill after dinner."
@@ -604,6 +605,10 @@ export default function Home() {
   const activityStateRef = useRef<"active"|"frozen"|"settled"|"resting">("resting");
   const cameraActiveRef = useRef(false);
   const cameraFailedRef = useRef(false);
+  const continuousVisionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const continuousVisionInFlightRef = useRef(false);
+  const sceneHistoryRef = useRef<string[]>([]);
+  const captureModeRef = useRef(false);
   const lastAlarmKeyRef = useRef("");
   const speechRecognitionRef = useRef<any>(null);
   const liveMonitoringRef = useRef(false);
@@ -1570,8 +1575,11 @@ export default function Home() {
       cameraFailedRef.current = false;
       cameraActiveRef.current = true;
       setCameraActive(true);
-      setCameraStatus("Camera active");
+      setCameraStatus("Camera active — monitoring");
       startMovementDetection();
+      sceneHistoryRef.current = [];
+      if (continuousVisionIntervalRef.current) clearInterval(continuousVisionIntervalRef.current);
+      continuousVisionIntervalRef.current = setInterval(() => { grabFrameSilent(); }, 4000);
     } catch {
       cameraFailedRef.current = true;
       setCameraStatus("Camera unavailable — voice-only monitoring active.");
@@ -1591,10 +1599,19 @@ export default function Home() {
     cameraActiveRef.current = false;
     setCameraActive(false);
     setCameraStatus("Camera stopped");
+    if (continuousVisionIntervalRef.current) {
+      clearInterval(continuousVisionIntervalRef.current);
+      continuousVisionIntervalRef.current = null;
+    }
+    sceneHistoryRef.current = [];
+    captureModeRef.current = false;
+    setCaptureMode(false);
   };
 
   const captureCameraFrame = () => {
     setActiveCameraButton("capture");
+    captureModeRef.current = true;
+    setCaptureMode(true);
     const video = videoRef.current;
 
     if (!video || !cameraActive || video.videoWidth === 0) {
@@ -1660,6 +1677,66 @@ export default function Home() {
       .catch(() => setCameraStatus("Frame captured. Vision analysis unavailable — fill labels manually."));
 
     return imageData;
+  };
+
+  const grabFrameSilent = async () => {
+    if (continuousVisionInFlightRef.current) return;
+    if (captureModeRef.current) return;
+    if (!cameraActiveRef.current || !videoRef.current) return;
+    const video = videoRef.current;
+    if (video.videoWidth === 0) return;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0);
+    const imageData = canvas.toDataURL("image/jpeg", 0.7);
+
+    continuousVisionInFlightRef.current = true;
+    try {
+      const currentTime = `${String(new Date().getHours()).padStart(2, "0")}:${String(new Date().getMinutes()).padStart(2, "0")}`;
+      const res = await fetch(apiUrl("/api/vision"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          image: imageData,
+          patientName: userName || "patient",
+          source: "continuous",
+          medicines: medicines.filter((m: any) => m.name),
+          currentTime,
+          sceneHistory: sceneHistoryRef.current
+        })
+      });
+      const analysis = await res.json();
+      if (!analysis || analysis.error || !analysis.description) return;
+
+      sceneHistoryRef.current = [analysis.description, ...sceneHistoryRef.current].slice(0, 3);
+
+      if (analysis.should_speak && analysis.speak_message) {
+        if (typeof window !== "undefined" && "speechSynthesis" in window) {
+          window.speechSynthesis.cancel();
+          const u = new SpeechSynthesisUtterance(analysis.speak_message);
+          u.rate = 0.85;
+          window.speechSynthesis.speak(u);
+        }
+      }
+    } catch {
+      // silent fail — continuous vision never crashes the app
+    } finally {
+      continuousVisionInFlightRef.current = false;
+    }
+  };
+
+  const handleCaptureDone = () => {
+    captureModeRef.current = false;
+    setCaptureMode(false);
+    setCapturedImage(null);
+    setVisualDescription("");
+    setImageLabels("");
+    setVisualConcern("");
+    setCameraStatus("Continuous monitoring active");
   };
 
   // ── Movement detection ────────────────────────────────────────────────────
@@ -3030,17 +3107,28 @@ export default function Home() {
                     >
                       Start camera
                     </button>
-                    <button
-                      onClick={captureCameraFrame}
-                      disabled={!cameraActive}
-                      className={
-                        activeCameraButton === "capture"
-                          ? currentTheme.selectedButton
-                          : currentTheme.softButton
-                      }
-                    >
-                      Capture
-                    </button>
+                    {captureMode ? (
+                      <button
+                        type="button"
+                        onClick={handleCaptureDone}
+                        className={currentTheme.selectedButton}
+                      >
+                        Done
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={captureCameraFrame}
+                        disabled={!cameraActive}
+                        className={
+                          activeCameraButton === "capture"
+                            ? currentTheme.selectedButton
+                            : currentTheme.softButton
+                        }
+                      >
+                        Capture
+                      </button>
+                    )}
                     <button
                       onClick={stopCamera}
                       disabled={!cameraActive}

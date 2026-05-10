@@ -4,11 +4,11 @@ const { analyzeVision } = require("../services/gemma-api");
 const { saveEpisodicMemory, isAvailable } = require("../services/people-memory");
 
 router.post("/", async (req, res) => {
-  const { image, patientName, source = "capture", medicines = [], currentTime = "" } = req.body;
+  const { image, patientName, source = "capture", medicines = [], currentTime = "", sceneHistory = [] } = req.body;
 
   if (!image) return res.status(400).json({ error: "No image provided" });
 
-  const analysis = await analyzeVision(image, medicines, currentTime);
+  const analysis = await analyzeVision(image, medicines, currentTime, sceneHistory);
   if (!analysis) {
     return res.status(503).json({ error: "Vision analysis unavailable" });
   }

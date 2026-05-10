@@ -220,11 +220,10 @@ function extractFinalAnswer(text) {
 // Used by /api/vision when patient captures a frame or live monitor saves a snapshot.
 // medicines: array of { name, dosage, time, schedule, appearance } from doctor's prescription list
 // currentTime: "HH:MM" string — used to check which medicine is due right now
-async function analyzeVision(base64Image, medicines = [], currentTime = "") {
+async function analyzeVision(base64Image, medicines = [], currentTime = "", sceneHistory = []) {
   const ai = getClient();
   if (!ai) return null;
 
-  // Build medicine context for the prompt when doctor has saved a prescription list
   const hasMedicines = Array.isArray(medicines) && medicines.length > 0;
   const dueMed = hasMedicines && currentTime
     ? medicines.find(m => m.time === currentTime)
@@ -240,29 +239,43 @@ async function analyzeVision(base64Image, medicines = [], currentTime = "") {
     ? `- "medicine_info": If you see any medicine — identify it, then check it against the prescribed list above. State whether it matches what the patient should take${dueMed ? ` (${dueMed.name} is due right now)` : " at this time"}. Explain what the medicine is used for in 1-2 sentences. If the medicine visible does NOT match what is due, warn clearly. Leave empty string if no medicine is visible.`
     : `- "medicine_info": If you see any medicine, pill bottle, tablet, blister pack, or prescription label — identify the medicine name and explain in 1-2 sentences what it is typically used for. Leave empty string if no medicine visible.`;
 
+  const historyContext = Array.isArray(sceneHistory) && sceneHistory.length > 0
+    ? `\nPrevious observations (most recent first):\n${sceneHistory.map(s => `- ${s}`).join("\n")}\n`
+    : "";
+
   try {
     const model = ai.getGenerativeModel({
       model: GEMMA_API_MODEL,
-      generationConfig: { temperature: 0.3, maxOutputTokens: 250 }
+      generationConfig: { temperature: 0.3, maxOutputTokens: 350 }
     });
 
     const imageData = base64Image.replace(/^data:[^;]+;base64,/, "");
     const result = await model.generateContent([
       { inlineData: { mimeType: "image/jpeg", data: imageData } },
-      { text: `You are analyzing a camera image for an elderly Alzheimer's patient care system.${medicineContext}
+      { text: `You are analyzing a camera image for an elderly Alzheimer's patient care system.${medicineContext}${historyContext}
 
 Look carefully at the image and return ONLY valid JSON — no markdown, no explanation:
 {
   "description": "2-3 natural sentences describing exactly what you see in the image",
   "labels": ["list", "every", "visible", "object", "person", "activity"],
   "concern": "none",
-  "medicine_info": ""
+  "medicine_info": "",
+  "expression": "calm",
+  "task_abandoned": false,
+  "task_detail": "",
+  "should_speak": false,
+  "speak_message": ""
 }
 
 Rules:
 - "description": Always fill this. Describe the scene in plain warm language as if explaining to a caregiver.
 - "labels": List every object, person, or activity you can see.
 - "concern": Use one of — none, medicine_check, unsafe_scene, fall_risk, confusion_sign
+- "expression": Describe the patient's visible facial expression — calm, confused, distressed, blank, sad, or other. Use "calm" if no face is visible.
+- "task_abandoned": Set true if previous observations show the patient was doing something they have now stopped mid-way (e.g. was cooking, now sitting elsewhere).
+- "task_detail": If task_abandoned is true, briefly describe what was left unfinished.
+- "should_speak": Set true if expression is confused/distressed/blank, OR task_abandoned is true, OR concern is not none.
+- "speak_message": If should_speak is true, write one warm gentle sentence to say directly to the patient. Otherwise leave empty.
 ${medicineInstruction}` }
     ]);
 
@@ -282,7 +295,12 @@ ${medicineInstruction}` }
       description: String(parsed.description || ""),
       labels: Array.isArray(parsed.labels) ? parsed.labels : [],
       concern: String(parsed.concern || "none"),
-      medicine_info: String(parsed.medicine_info || "")
+      medicine_info: String(parsed.medicine_info || ""),
+      expression: String(parsed.expression || "calm"),
+      task_abandoned: Boolean(parsed.task_abandoned),
+      task_detail: String(parsed.task_detail || ""),
+      should_speak: Boolean(parsed.should_speak),
+      speak_message: String(parsed.speak_message || "")
     };
   } catch (err) {
     console.warn("[GemmaAPI] analyzeVision failed:", err.message);

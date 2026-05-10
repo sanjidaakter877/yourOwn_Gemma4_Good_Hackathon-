@@ -270,6 +270,16 @@ async function generateConversationalResponse({ context, environment, scored, re
 
   const modeInstructions = isSilentCheck
     ? `${name} has been quiet for a while. Gently check in with one warm question to make sure they are okay. Do not repeat previous check-ins.`
+    : scored?.mode === "emergency"
+    ? `EMERGENCY: ${name} may be injured or in physical danger. Stay very calm. Tell them to stay still and that help is on the way. Do NOT ask questions — just reassure and say family is being contacted immediately. One or two sentences only.`
+    : scored?.mode === "wandering"
+    ? `${name} is trying to leave. Do NOT tell them they cannot go. Gently redirect — ask warmly where they are hoping to go, then offer a comforting reason to stay (e.g. "dinner is nearly ready" or "your family is coming soon"). Keep it to one or two warm sentences.`
+    : scored?.mode === "paranoia"
+    ? `${name} is feeling suspicious or unsafe. Do NOT argue or correct them. First validate their feelings — say you understand they feel uneasy. Then gently reassure that they are safe and that everyone around them cares for them. One or two sentences only.`
+    : scored?.mode === "aggression"
+    ? `${name} is upset or refusing help. Do NOT push back or argue. Give them space — say you hear them and you will be quiet. One short sentence, then stop. Let them calm down.`
+    : scored?.mode === "medicine_refusal"
+    ? `${name} has refused their medicine or expressed concern about dosing. Do NOT force it. Acknowledge their concern warmly. Say their family or doctor will confirm the right dose. One or two sentences only.`
     : scored?.mode === "orientation"
     ? `${name} seems confused. Gently orient them — tell them the time, where they are, and something reassuring.`
     : scored?.mode === "emotional_support"
@@ -487,6 +497,11 @@ Behavior rules:
   - caregiver_warning: gently say a caregiver may be contacted if there is no response.
   - alert_sent: say a trusted caregiver is being notified and ask the patient to stay safe.
   - conversation: answer the patient normally like a companion.
+  - emergency: CRITICAL — patient may be injured. Stay completely calm. Do not ask questions. Say help is coming and they should stay still. Alert family immediately. Maximum two sentences.
+  - wandering: patient wants to leave. Never say they cannot go. Redirect warmly — ask where they want to go, offer a gentle reason to stay (dinner, family arriving). Maximum two sentences.
+  - paranoia: patient feels suspicious or unsafe. Never argue or correct. Validate feelings first ("I understand you feel uneasy"), then reassure they are safe and loved. Maximum two sentences.
+  - de_escalate: patient is angry or refusing help. Do not push back. One short sentence giving them space ("I hear you, I will be quiet now."), then stop completely.
+  - medicine_refusal: patient refused medicine or worried about double-dose. Acknowledge concern warmly. Say family or doctor will confirm. Never force. Maximum two sentences.
 - For silent_check turns, sound like a real caregiver in the room: observant, brief, varied, and specific to context.
 - For patient_speech turns, answer what the patient said first, then decide whether to reassure, guide, or ask a follow-up.
 - If GPS status is unmatched_known_place, explain gently that this does not match a saved safe place and ask whether the patient wants help or caregiver contact.
@@ -608,6 +623,21 @@ function buildFallbackResponse({
     });
     reassurance = companionFallback.reassurance;
     contextText = companionFallback.context;
+  } else if (scored.mode === "emergency") {
+    reassurance = `${context.userName}, stay still — help is on the way.`;
+    contextText = "Your family is being contacted right now.";
+  } else if (scored.mode === "wandering") {
+    reassurance = `${context.userName}, I hear you.`;
+    contextText = "Let me help — where are you hoping to go?";
+  } else if (scored.mode === "paranoia") {
+    reassurance = `${context.userName}, I understand you feel uneasy.`;
+    contextText = "You are safe here and everyone around you cares for you.";
+  } else if (scored.mode === "aggression") {
+    reassurance = `${context.userName}, I hear you. I will be quiet now.`;
+    contextText = "";
+  } else if (scored.mode === "medicine_refusal") {
+    reassurance = `${context.userName}, I understand your concern.`;
+    contextText = "Your family or doctor will confirm the right dose — there is no need to worry right now.";
   } else if (scored.mode === "orientation") {
     reassurance = `${context.userName}, you are safe.`;
     contextText = `${placeText} ${timeText} ${personText} ${memorySentence} ${scheduleSentence}`;
@@ -669,7 +699,10 @@ function buildFallbackResponse({
 
 function getResponseType({ context, scored, careReasoning }) {
   const riskLevel = careReasoning?.risk?.level || "low";
-  const safetyModes = ["orientation", "emotional_support", "routine_guidance"];
+  const safetyModes = [
+    "orientation", "emotional_support", "routine_guidance",
+    "emergency", "wandering", "paranoia", "aggression", "medicine_refusal"
+  ];
   const highRisk = ["medium", "high", "emergency"].includes(riskLevel);
 
   if (context.behaviorAnalysis?.silent_confusion) return "care";
