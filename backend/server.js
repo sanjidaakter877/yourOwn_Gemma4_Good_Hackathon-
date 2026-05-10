@@ -308,6 +308,7 @@ app.use("/api/care-settings", careSettingsRoute);
 app.use("/api/vision", visionRoute);
 app.use("/api/notes", notesRoute);
 app.use("/api/people", require("./routes/people"));
+app.use("/api/alert", require("./routes/alert"));
 
 // Service initialization
 async function initializeServices() {

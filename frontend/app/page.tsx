@@ -632,6 +632,7 @@ export default function Home() {
   const liveRecognitionRestartRef = useRef<number | null>(null);
   const patientQuietModeRef = useRef(false);
   const quietCheckCountRef = useRef(0);
+  const emailAlertSentRef = useRef(false);
   const rolePanelRef = useRef<HTMLDivElement | null>(null);
   const conversationHistoryRef = useRef<Array<{role: "patient"|"assistant", text: string}>>([]);
 
@@ -1728,19 +1729,28 @@ export default function Home() {
         setCameraStatus("Camera active — monitoring");
       }
 
-      // When something needs to be said — use assistantSpeakingRef to block mic from
-      // hearing the response (prevents app from replying to its own voice)
-      if (analysis.should_speak && analysis.speak_message) {
-        pendingVisionAlertRef.current = analysis.speak_message;
-        assistantSpeakingRef.current = true;
-        window.speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(analysis.speak_message);
-        u.rate = 0.85;
-        u.onend = () => {
-          setTimeout(() => { assistantSpeakingRef.current = false; }, 1500);
-        };
-        u.onerror = () => { assistantSpeakingRef.current = false; };
-        window.speechSynthesis.speak(u);
+      // If camera sees confusion/distress AND patient has already been silent for 1+ check-in, alert family
+      const isDistressed = analysis.expression === "confused" ||
+                           analysis.expression === "distressed" ||
+                           analysis.expression === "blank";
+      if (isDistressed && quietCheckCountRef.current >= 1) {
+        sendFamilyEmailAlert(
+          `Camera detected ${analysis.expression} expression${analysis.task_abandoned ? ` and unfinished task: ${analysis.task_detail}` : ""}`,
+          analysis.description
+        );
+      }
+
+      // When something needs attention — trigger full Gemma companion (not simple TTS)
+      // so Gemma sees the live frame, recognizes the emotion, and replies as a real caregiver
+      if (analysis.should_speak && liveMonitoringRef.current && !liveAssistInFlightRef.current) {
+        const visionContext = `Camera detected: ${analysis.expression} expression.${
+          analysis.task_abandoned ? ` Patient stopped mid-task: ${analysis.task_detail}.` : ""
+        } ${analysis.description}`;
+        pendingVisionAlertRef.current = visionContext;
+        sendLiveMonitoringAssist(
+          `Silent check. ${visionContext} Respond to what you see.`,
+          "quiet_check"
+        );
       }
     } catch {
       // silent fail — continuous vision never crashes the app
@@ -2002,6 +2012,32 @@ export default function Home() {
     }
   };
 
+  const sendFamilyEmailAlert = async (reason: string, lastSeen?: string) => {
+    if (emailAlertSentRef.current) return;
+    const familyEmail = careSettings?.contacts?.[0]?.email ||
+                        careSettings?.primaryCaregiver?.email || "";
+    if (!familyEmail) return;
+    emailAlertSentRef.current = true;
+    try {
+      await fetch(apiUrl("/api/alert/email"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: familyEmail,
+          patientName: userName || "Mary",
+          reason,
+          checkCount: quietCheckCountRef.current,
+          lastSeen: lastSeen || visualDescription || "",
+          detectedAt: new Date().toLocaleString()
+        })
+      });
+      addLog(`Family email alert sent to ${familyEmail}`);
+      setLiveMonitoringStatus("Family has been notified by email.");
+    } catch {
+      emailAlertSentRef.current = false;
+    }
+  };
+
   const sendLiveMonitoringAssist = async (
     transcript: string,
     source: "speech" | "quiet_check" = "speech"
@@ -2213,6 +2249,7 @@ export default function Home() {
     lastLiveSpeechAtRef.current = Date.now();
     lastQuietAssistAtRef.current = 0;
     quietCheckCountRef.current = 0;
+    emailAlertSentRef.current = false;
 
     quietCheckIntervalRef.current = window.setInterval(() => {
       if (!liveMonitoringRef.current || liveAssistInFlightRef.current) return;
@@ -2253,6 +2290,12 @@ export default function Home() {
       ];
       const quietPrompt = checkIns[quietCheckCountRef.current % checkIns.length];
       quietCheckCountRef.current += 1;
+
+      if (quietCheckCountRef.current >= 2) {
+        sendFamilyEmailAlert(
+          `Patient has not responded to ${quietCheckCountRef.current} check-ins`
+        );
+      }
 
       setLiveMonitoringStatus("Quiet pause noticed. Checking context gently...");
       sendLiveMonitoringAssist(quietPrompt, "quiet_check");
@@ -2351,6 +2394,7 @@ export default function Home() {
         if (isRestOrStopSpeech(transcript)) {
           patientQuietModeRef.current = true;
           quietCheckCountRef.current = 0;
+          emailAlertSentRef.current = false;
           window.speechSynthesis?.cancel?.();
           setLiveMonitoringStatus("Mary said she is resting. I will stay quiet and keep listening.");
           addLog(`Resting mode: ${transcript}`);

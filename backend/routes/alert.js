@@ -1,0 +1,88 @@
+const express = require("express");
+const router = express.Router();
+const nodemailer = require("nodemailer");
+
+const EMAIL_USER = (process.env.EMAIL_USER || "").trim();
+const EMAIL_PASS = (process.env.EMAIL_PASS || "").trim();
+
+function getTransporter() {
+  if (!EMAIL_USER || !EMAIL_PASS) return null;
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: { user: EMAIL_USER, pass: EMAIL_PASS }
+  });
+}
+
+// POST /api/alert/email
+// Body: { to, patientName, reason, checkCount, lastSeen, detectedAt }
+router.post("/email", async (req, res) => {
+  const { to, patientName, reason, checkCount, lastSeen, detectedAt } = req.body;
+
+  if (!to) return res.status(400).json({ error: "Missing recipient email" });
+
+  const transporter = getTransporter();
+  if (!transporter) {
+    console.warn("[Alert] Email not configured — set EMAIL_USER and EMAIL_PASS in .env");
+    return res.status(503).json({ error: "Email not configured on server" });
+  }
+
+  const name = patientName || "Your patient";
+  const time = detectedAt || new Date().toLocaleString();
+  const count = checkCount || 2;
+  const seen = lastSeen || "No recent visual information";
+  const reasonText = reason || "Patient has not responded to multiple check-ins";
+
+  const subject = `[yourOwn Alert] ${name} may need attention`;
+
+  const html = `
+<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+  <div style="background: #dc2626; color: white; padding: 16px 24px; border-radius: 8px 8px 0 0;">
+    <h2 style="margin: 0;">⚠️ yourOwn Care Alert</h2>
+  </div>
+  <div style="background: #fef2f2; border: 1px solid #fecaca; padding: 24px; border-radius: 0 0 8px 8px;">
+    <p style="font-size: 16px; color: #7f1d1d; margin-top: 0;">
+      <strong>${name}</strong> may need your attention.
+    </p>
+    <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+      <tr style="border-bottom: 1px solid #fecaca;">
+        <td style="padding: 8px 0; color: #6b7280; width: 40%;">Detected at</td>
+        <td style="padding: 8px 0; font-weight: 600;">${time}</td>
+      </tr>
+      <tr style="border-bottom: 1px solid #fecaca;">
+        <td style="padding: 8px 0; color: #6b7280;">Reason</td>
+        <td style="padding: 8px 0; font-weight: 600;">${reasonText}</td>
+      </tr>
+      <tr style="border-bottom: 1px solid #fecaca;">
+        <td style="padding: 8px 0; color: #6b7280;">Unanswered check-ins</td>
+        <td style="padding: 8px 0; font-weight: 600;">${count}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; color: #6b7280;">Last camera observation</td>
+        <td style="padding: 8px 0;">${seen}</td>
+      </tr>
+    </table>
+    <p style="color: #374151; margin: 0; font-size: 14px;">
+      Please check on ${name} as soon as possible or call them directly.
+    </p>
+  </div>
+  <p style="color: #9ca3af; font-size: 12px; text-align: center; margin-top: 12px;">
+    Sent automatically by yourOwn Alzheimer's care companion
+  </p>
+</div>`;
+
+  try {
+    await transporter.sendMail({
+      from: `"yourOwn Care" <${EMAIL_USER}>`,
+      to,
+      subject,
+      html
+    });
+    console.log(`[Alert] Email sent to ${to} for patient ${name}`);
+    return res.json({ ok: true, to, subject });
+  } catch (err) {
+    console.error("[Alert] Email send failed:", err.message);
+    return res.status(500).json({ error: "Failed to send email", detail: err.message });
+  }
+});
+
+module.exports = router;
