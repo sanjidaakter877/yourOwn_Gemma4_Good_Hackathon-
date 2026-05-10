@@ -42,7 +42,7 @@ function evaluateEscalation({ profile = {}, signals = {}, behaviorAnalysis = nul
     0
   );
 
-  const patientName = profile.userName || signals.patientName || "Mary";
+  const patientName = profile.userName || signals.patientName || "John";
   const task = signals.task || conversationState.task || "resting";
   const room = signals.room || conversationState.room || "the room";
 

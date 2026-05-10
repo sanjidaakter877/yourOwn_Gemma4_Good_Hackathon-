@@ -30,7 +30,7 @@ function buildContext({ profile = {}, signals = {} }) {
   const session = readJson("session.json", {});
   const schedule = readJson("schedule.json", []);
 
-  const userName = safeString(profile.userName, patient.name || "Mary");
+  const userName = safeString(profile.userName, patient.name || "John");
   const mainLanguage = safeString(
     profile.mainLanguage,
     patient.mainLanguage || "English"

@@ -85,4 +85,19 @@ router.post("/email", async (req, res) => {
   }
 });
 
+// POST /api/alert/tts  — convert text to ElevenLabs audio, return base64
+// Used by frontend for reminders and not-visible checks so they use the same voice as the companion
+router.post("/tts", async (req, res) => {
+  const { textToSpeech } = require("../services/elevenlabs");
+  const { text } = req.body;
+  if (!text) return res.status(400).json({ error: "Missing text" });
+  try {
+    const audioBase64 = await textToSpeech(text);
+    if (!audioBase64) return res.status(503).json({ error: "TTS unavailable" });
+    return res.json({ audio_base64: audioBase64, audio_mime_type: "audio/mpeg" });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

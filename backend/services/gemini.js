@@ -21,7 +21,7 @@ async function generateWithGemini({
   const ai = getClient();
   if (!ai) return null;
 
-  const name = context.userName || "Mary";
+  const name = context.userName || "John";
   const speech = (context.speechText || "").trim();
   const isConversation = scored.mode === "conversation" && !context.behaviorAnalysis?.silent_confusion;
 

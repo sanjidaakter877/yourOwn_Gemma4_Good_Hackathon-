@@ -236,7 +236,7 @@ async function generateSupportResponse({
         // All cloud providers failed — fall through to honest message
       }
 
-      const name = context.userName || "Mary";
+      const name = context.userName || "John";
       return {
         response_type: "conversation",
         companion_message: `Sorry ${name}, I had a little trouble just now. Could you say that again? I am here and listening.`,
@@ -256,7 +256,7 @@ async function generateSupportResponse({
 }
 
 async function generateConversationalResponse({ context, environment, scored, relevantMemories, careReasoning, inferenceStart }) {
-  const name = context.userName || "Mary";
+  const name = context.userName || "John";
   const speech = context.speechText || "";
   const isSilentCheck = context.behaviorAnalysis?.silent_confusion;
   if (!speech.trim() && !isSilentCheck) return null;
@@ -511,7 +511,7 @@ Behavior rules:
 
 CRITICAL RULE for companion_message:
 - companion_message is what gets spoken aloud to the patient. It must sound like a real person talking, not a form being filled out.
-- For casual conversation (sports, weather, family, memories, preferences): reply like a warm friend. "That sounds fun! Who is your favourite team?" is perfect. "Mary, I am listening. What would you like to talk about?" is NOT acceptable.
+- For casual conversation (sports, weather, family, memories, preferences): reply like a warm friend. "That sounds fun! Who is your favourite team?" is perfect. "John, I am listening. What would you like to talk about?" is NOT acceptable.
 - Never echo back what the patient just said as the response.
 - Never put raw metadata like times, GPS notes, or care-note text into companion_message. That is backend context, not patient speech.
 - If the patient says anything — even something random or unexpected — respond to it directly and warmly. Keep the conversation going naturally with one follow-up question.
@@ -803,7 +803,7 @@ function applySilentConversationGuard(response, { context, environment }) {
 
 function buildConversationFallback({ context, environment, timeText, scheduleSentence }) {
   const speech = String(context.speechText || "").toLowerCase();
-  const name = context.userName || "Mary";
+  const name = context.userName || "John";
 
   if (/\b(what time is it|what's the time|what is the time)\b/i.test(speech)) {
     return {

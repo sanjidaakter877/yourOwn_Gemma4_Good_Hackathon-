@@ -22,7 +22,7 @@ async function generateWithGemmaApi({
   const ai = getClient();
   if (!ai) return null;
 
-  const name = context.userName || "Mary";
+  const name = context.userName || "John";
   const speech = (context.speechText || "").trim();
   const isSilentCheck = Boolean(context.behaviorAnalysis?.silent_confusion);
   const isConversation = scored.mode === "conversation" && !isSilentCheck;

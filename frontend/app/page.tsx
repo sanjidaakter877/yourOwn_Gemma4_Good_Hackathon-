@@ -519,7 +519,7 @@ export default function Home() {
   const [loginId, setLoginId] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
 
-  const [userName, setUserName] = useState("Mary");
+  const [userName, setUserName] = useState("John");
   const [mainLanguage, setMainLanguage] = useState("English");
   const [spokenLanguage, setSpokenLanguage] = useState("English");
 
@@ -685,20 +685,14 @@ export default function Home() {
     playReminderAlarm();
     if ("speechSynthesis" in window) {
       const kindPhrases: Record<string, string> = {
-        breakfast: `${userName || "Mary"}, it is time for breakfast. Come and have something to eat.`,
-        lunch: `${userName || "Mary"}, it is lunchtime. Your meal is ready.`,
-        dinner: `${userName || "Mary"}, it is time for dinner.`,
-        medication: `${userName || "Mary"}, it is time to take your medication.`,
-        routine: `${userName || "Mary"}, reminder: ${reminder.label}.`
+        breakfast: `${userName || "John"}, it is time for breakfast. Come and have something to eat.`,
+        lunch: `${userName || "John"}, it is lunchtime. Your meal is ready.`,
+        dinner: `${userName || "John"}, it is time for dinner.`,
+        medication: `${userName || "John"}, it is time to take your medication.`,
+        routine: `${userName || "John"}, reminder: ${reminder.label}.`
       };
-      const phrase = kindPhrases[reminder.kind] || `${userName || "Mary"}, reminder: ${reminder.label}.`;
-      assistantSpeakingRef.current = true;
-      window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(phrase);
-      u.rate = 0.85;
-      u.onend = () => { setTimeout(() => { assistantSpeakingRef.current = false; }, 1500); };
-      u.onerror = () => { assistantSpeakingRef.current = false; };
-      window.speechSynthesis.speak(u);
+      const phrase = kindPhrases[reminder.kind] || `${userName || "John"}, reminder: ${reminder.label}.`;
+      speakWithElevenLabs(phrase);
     }
   }, [alarmEnabled, now, careSchedule]);
 
@@ -715,15 +709,7 @@ export default function Home() {
     setActiveReminder({ time: dueMed.time, label, careMoment: true, alarm: true, kind: "medication" });
     addLog(`Medicine reminder: ${label}`);
     playReminderAlarm();
-    if ("speechSynthesis" in window) {
-      assistantSpeakingRef.current = true;
-      window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(`${userName || "Mary"}, it is time to take your ${dueMed.name}. You can show me the medicine bottle to confirm.`);
-      u.rate = 0.85;
-      u.onend = () => { setTimeout(() => { assistantSpeakingRef.current = false; }, 1500); };
-      u.onerror = () => { assistantSpeakingRef.current = false; };
-      window.speechSynthesis.speak(u);
-    }
+    speakWithElevenLabs(`${userName || "John"}, it is time to take your ${dueMed.name}. You can show me the medicine bottle to confirm.`);
   }, [now, medicines]);
 
   useEffect(() => {
@@ -1734,6 +1720,15 @@ export default function Home() {
   };
 
   const grabFrameSilent = async () => {
+    // If camera is streaming video, patient is physically near the device — reset not-visible timer.
+    // Do this before the in-flight guard so it updates even when a previous API call is still pending.
+    if (cameraActiveRef.current && videoRef.current && videoRef.current.videoWidth > 0) {
+      lastMarySeenRef.current = Date.now();
+      if (maryNotVisibleCountRef.current > 0 && maryNotVisibleCountRef.current < 3) {
+        maryNotVisibleCountRef.current = 0;
+      }
+    }
+
     if (continuousVisionInFlightRef.current) return;
     if (captureModeRef.current) return;
     if (!cameraActiveRef.current || !videoRef.current) return;
@@ -2092,16 +2087,39 @@ export default function Home() {
     }
   };
 
-  const speakMaryCheck = (text: string) => {
-    if (!("speechSynthesis" in window)) return;
+  const speakWithElevenLabs = async (text: string) => {
     assistantSpeakingRef.current = true;
     window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.rate = 0.85;
-    u.onend = () => { setTimeout(() => { assistantSpeakingRef.current = false; }, 1500); };
-    u.onerror = () => { assistantSpeakingRef.current = false; };
-    window.speechSynthesis.speak(u);
+    try {
+      const res = await fetch(apiUrl("/api/alert/tts"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.audio_base64) {
+          const audio = new Audio(`data:${data.audio_mime_type};base64,${data.audio_base64}`);
+          audio.onended = () => { setTimeout(() => { assistantSpeakingRef.current = false; }, 1500); };
+          audio.onerror = () => { assistantSpeakingRef.current = false; };
+          audio.play();
+          return;
+        }
+      }
+    } catch { /* fall through to browser TTS */ }
+    // Fallback to browser TTS if ElevenLabs unavailable
+    if ("speechSynthesis" in window) {
+      const u = new SpeechSynthesisUtterance(text);
+      u.rate = 0.85;
+      u.onend = () => { setTimeout(() => { assistantSpeakingRef.current = false; }, 1500); };
+      u.onerror = () => { assistantSpeakingRef.current = false; };
+      window.speechSynthesis.speak(u);
+    } else {
+      assistantSpeakingRef.current = false;
+    }
   };
+
+  const speakMaryCheck = (text: string) => { speakWithElevenLabs(text); };
 
   const sendFamilyEmailAlert = async (reason: string, lastSeen?: string) => {
     if (emailAlertSentRef.current) return;
@@ -2115,7 +2133,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           to: familyEmail,
-          patientName: userName || "Mary",
+          patientName: userName || "John",
           reason,
           checkCount: quietCheckCountRef.current,
           lastSeen: lastSeen || visualDescription || "",
@@ -2352,7 +2370,7 @@ export default function Home() {
         const notSeenMs = Date.now() - lastMarySeenRef.current;
         const familyName = careSettings?.contacts?.[0]?.name ||
                            careSettings?.primaryCaregiver?.name || "your family";
-        const patient = userName || "Mary";
+        const patient = userName || "John";
 
         if (maryNotVisibleCountRef.current === 0 && notSeenMs >= 30_000) {
           maryNotVisibleCountRef.current = 1;
@@ -3067,7 +3085,7 @@ export default function Home() {
                 }
               >
                 {viewMode === "mobile"
-                  ? "Mary pauses while making tea. yourOwn checks in and alerts family if she cannot respond."
+                  ? "John pauses while making tea. yourOwn checks in and alerts family if he cannot respond."
                   : "Powered by Gemma 4. Voice, vision, and care reasoning — with full local Ollama mode for complete privacy."}
               </p>
               <div
