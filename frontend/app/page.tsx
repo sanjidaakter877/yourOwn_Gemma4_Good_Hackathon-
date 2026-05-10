@@ -1740,17 +1740,32 @@ export default function Home() {
         );
       }
 
-      // When something needs attention — trigger full Gemma companion (not simple TTS)
-      // so Gemma sees the live frame, recognizes the emotion, and replies as a real caregiver
+      // Only trigger companion when BOTH silence AND face distress/confusion are detected.
+      // Safety concerns (medicine, fall risk) trigger immediately regardless of silence.
       if (analysis.should_speak && liveMonitoringRef.current && !liveAssistInFlightRef.current) {
-        const visionContext = `Camera detected: ${analysis.expression} expression.${
-          analysis.task_abandoned ? ` Patient stopped mid-task: ${analysis.task_detail}.` : ""
-        } ${analysis.description}`;
-        pendingVisionAlertRef.current = visionContext;
-        sendLiveMonitoringAssist(
-          `Silent check. ${visionContext} Respond to what you see.`,
-          "quiet_check"
-        );
+        const isExpressionConcern = (
+          analysis.expression === "confused" ||
+          analysis.expression === "distressed" ||
+          analysis.expression === "blank"
+        ) && analysis.concern === "none" && !analysis.task_abandoned;
+
+        const silenceAndDistress = isExpressionConcern && quietCheckCountRef.current >= 1;
+        const safetyConcern = !isExpressionConcern; // medicine check, fall risk, task abandoned, etc.
+
+        if (silenceAndDistress || safetyConcern) {
+          const expressionHint = isExpressionConcern
+            ? `The patient looks ${analysis.expression}. Ask them directly why they look ${analysis.expression} and whether they are okay or need help.`
+            : analysis.task_abandoned
+              ? `Patient appears to have stopped mid-task: ${analysis.task_detail}. Check on them.`
+              : `Concern detected: ${analysis.concern}.`;
+
+          const visionContext = `${expressionHint} ${analysis.description}`;
+          pendingVisionAlertRef.current = visionContext;
+          sendLiveMonitoringAssist(
+            `Silent check. ${visionContext}`,
+            "quiet_check"
+          );
+        }
       }
     } catch {
       // silent fail — continuous vision never crashes the app
