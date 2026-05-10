@@ -633,6 +633,9 @@ export default function Home() {
   const patientQuietModeRef = useRef(false);
   const quietCheckCountRef = useRef(0);
   const emailAlertSentRef = useRef(false);
+  const lastMarySeenRef = useRef(Date.now());
+  const maryNotVisibleCountRef = useRef(0); // 0=ok 1=first inquiry 2=second inquiry 3=email sent
+  const maryNotVisibleTimestampRef = useRef(0);
   const rolePanelRef = useRef<HTMLDivElement | null>(null);
   const conversationHistoryRef = useRef<Array<{role: "patient"|"assistant", text: string}>>([]);
 
@@ -643,6 +646,23 @@ export default function Home() {
     const timer = window.setInterval(() => setNow(new Date()), 1000);
     return () => window.clearInterval(timer);
   }, []);
+
+  // Lock dashboards when navigating away — re-login required every visit
+  const prevRoleRef = useRef<RoleName>("patient");
+  useEffect(() => {
+    const prev = prevRoleRef.current;
+    if (prev === "family" && speakerRole !== "family") {
+      setFamilyUnlocked(false);
+      setLoginId("");
+      setLoginPassword("");
+    }
+    if (prev === "doctor" && speakerRole !== "doctor") {
+      setDoctorUnlocked(false);
+      setLoginId("");
+      setLoginPassword("");
+    }
+    prevRoleRef.current = speakerRole;
+  }, [speakerRole]);
 
   useEffect(() => {
     if (!alarmEnabled) return;
@@ -663,6 +683,23 @@ export default function Home() {
     setActiveReminder(reminder);
     addLog(`Reminder: ${reminder.label}`);
     playReminderAlarm();
+    if ("speechSynthesis" in window) {
+      const kindPhrases: Record<string, string> = {
+        breakfast: `${userName || "Mary"}, it is time for breakfast. Come and have something to eat.`,
+        lunch: `${userName || "Mary"}, it is lunchtime. Your meal is ready.`,
+        dinner: `${userName || "Mary"}, it is time for dinner.`,
+        medication: `${userName || "Mary"}, it is time to take your medication.`,
+        routine: `${userName || "Mary"}, reminder: ${reminder.label}.`
+      };
+      const phrase = kindPhrases[reminder.kind] || `${userName || "Mary"}, reminder: ${reminder.label}.`;
+      assistantSpeakingRef.current = true;
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(phrase);
+      u.rate = 0.85;
+      u.onend = () => { setTimeout(() => { assistantSpeakingRef.current = false; }, 1500); };
+      u.onerror = () => { assistantSpeakingRef.current = false; };
+      window.speechSynthesis.speak(u);
+    }
   }, [alarmEnabled, now, careSchedule]);
 
   // Medicine time-based reminders — fires when clock matches a medicine's scheduled time
@@ -679,8 +716,12 @@ export default function Home() {
     addLog(`Medicine reminder: ${label}`);
     playReminderAlarm();
     if ("speechSynthesis" in window) {
+      assistantSpeakingRef.current = true;
+      window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(`${userName || "Mary"}, it is time to take your ${dueMed.name}. You can show me the medicine bottle to confirm.`);
       u.rate = 0.85;
+      u.onend = () => { setTimeout(() => { assistantSpeakingRef.current = false; }, 1500); };
+      u.onerror = () => { assistantSpeakingRef.current = false; };
       window.speechSynthesis.speak(u);
     }
   }, [now, medicines]);
@@ -1609,6 +1650,18 @@ export default function Home() {
     setCaptureMode(false);
   };
 
+  const getVideoFrame = (): string | null => {
+    const video = videoRef.current;
+    if (!video || !cameraActiveRef.current || video.videoWidth === 0) return null;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(video, 0, 0);
+    return canvas.toDataURL("image/jpeg", 0.82);
+  };
+
   const captureCameraFrame = () => {
     setActiveCameraButton("capture");
     captureModeRef.current = true;
@@ -1719,6 +1772,18 @@ export default function Home() {
       setVisualDescription(analysis.description);
       if (analysis.labels?.length) setImageLabels(analysis.labels.join(", "));
       if (analysis.concern && analysis.concern !== "none") setVisualConcern(analysis.concern);
+
+      // Track whether Mary (a person) is visible in frame
+      const personKeywords = ["person", "woman", "man", "human", "face", "patient", "elderly", "girl", "boy"];
+      const maryVisible = analysis.labels?.some((label: string) =>
+        personKeywords.some(kw => label.toLowerCase().includes(kw))
+      );
+      if (maryVisible) {
+        lastMarySeenRef.current = Date.now();
+        if (maryNotVisibleCountRef.current > 0) {
+          maryNotVisibleCountRef.current = 0;
+        }
+      }
 
       // Show detection in camera status
       if (analysis.expression && analysis.expression !== "calm") {
@@ -2027,6 +2092,17 @@ export default function Home() {
     }
   };
 
+  const speakMaryCheck = (text: string) => {
+    if (!("speechSynthesis" in window)) return;
+    assistantSpeakingRef.current = true;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 0.85;
+    u.onend = () => { setTimeout(() => { assistantSpeakingRef.current = false; }, 1500); };
+    u.onerror = () => { assistantSpeakingRef.current = false; };
+    window.speechSynthesis.speak(u);
+  };
+
   const sendFamilyEmailAlert = async (reason: string, lastSeen?: string) => {
     if (emailAlertSentRef.current) return;
     const familyEmail = careSettings?.contacts?.[0]?.email ||
@@ -2077,10 +2153,9 @@ export default function Home() {
     }
 
     try {
-      const liveFrame =
-        source === "quiet_check" && cameraActive
-          ? captureCameraFrame()
-          : capturedImage;
+      // Always attach a live camera frame when camera is on — Gemma sees the face
+      // while hearing the speech, so it can respond to both what it sees and what it hears
+      const liveFrame = cameraActive ? getVideoFrame() : capturedImage;
       const payload = getPayload();
       const realNoMovement = cameraActive && noMovementCountRef.current >= 2;
       const behaviorSignals = source === "quiet_check"
@@ -2265,10 +2340,43 @@ export default function Home() {
     lastQuietAssistAtRef.current = 0;
     quietCheckCountRef.current = 0;
     emailAlertSentRef.current = false;
+    lastMarySeenRef.current = Date.now();
+    maryNotVisibleCountRef.current = 0;
 
     quietCheckIntervalRef.current = window.setInterval(() => {
       if (!liveMonitoringRef.current || liveAssistInFlightRef.current) return;
       if (patientQuietModeRef.current) return;
+
+      // Mary not visible check — only when camera is on
+      if (cameraActiveRef.current && !cameraFailedRef.current) {
+        const notSeenMs = Date.now() - lastMarySeenRef.current;
+        const familyName = careSettings?.contacts?.[0]?.name ||
+                           careSettings?.primaryCaregiver?.name || "your family";
+        const patient = userName || "Mary";
+
+        if (maryNotVisibleCountRef.current === 0 && notSeenMs >= 30_000) {
+          maryNotVisibleCountRef.current = 1;
+          maryNotVisibleTimestampRef.current = Date.now();
+          speakMaryCheck(`${patient}, where are you? I don't see you. Are you okay or nearby? If I don't hear back from you, I will notify ${familyName}.`);
+          setCameraStatus(`${patient} not visible — checking`);
+          addLog(`${patient} not visible 30s — first inquiry sent`);
+        } else if (maryNotVisibleCountRef.current === 1 &&
+                   Date.now() - maryNotVisibleTimestampRef.current >= 15_000) {
+          maryNotVisibleCountRef.current = 2;
+          maryNotVisibleTimestampRef.current = Date.now();
+          speakMaryCheck(`${patient}, are you there? I still cannot see you. Please let me know you are okay.`);
+          addLog(`${patient} not visible — second inquiry sent`);
+        } else if (maryNotVisibleCountRef.current === 2 &&
+                   Date.now() - maryNotVisibleTimestampRef.current >= 10_000) {
+          maryNotVisibleCountRef.current = 3;
+          addLog(`${patient} not visible — notifying family`);
+          sendFamilyEmailAlert(
+            `${patient} has not been visible on camera for over 55 seconds and did not respond to two check-ins`,
+            "Patient left camera view and did not respond"
+          );
+        }
+      }
+
       if (!liveSpeechReadyRef.current) {
         const waitingForMs = Date.now() - liveMonitoringStartedAtRef.current;
         if (waitingForMs < 5000) {
@@ -2411,15 +2519,18 @@ export default function Home() {
           quietCheckCountRef.current = 0;
           emailAlertSentRef.current = false;
           window.speechSynthesis?.cancel?.();
-          setLiveMonitoringStatus("Mary said she is resting. I will stay quiet and keep listening.");
+          setLiveMonitoringStatus(`${userName || "the patient"} said they are resting. I will stay quiet and keep listening.`);
           addLog(`Resting mode: ${transcript}`);
           return;
         }
 
+        lastMarySeenRef.current = Date.now();
+        maryNotVisibleCountRef.current = 0;
+
         if (patientQuietModeRef.current) {
           patientQuietModeRef.current = false;
           lastLiveSpeechAtRef.current = Date.now();
-          setLiveMonitoringStatus(`Mary started talking again: ${transcript}`);
+          setLiveMonitoringStatus(`${userName || "Patient"} started talking again: ${transcript}`);
         }
 
         sendLiveMonitoringAssist(transcript);
@@ -2511,6 +2622,7 @@ export default function Home() {
       speechResumeTimerRef.current = null;
     }
     patientQuietModeRef.current = false;
+    maryNotVisibleCountRef.current = 0;
     if (liveRecognitionRestartRef.current !== null) {
       window.clearTimeout(liveRecognitionRestartRef.current);
       liveRecognitionRestartRef.current = null;

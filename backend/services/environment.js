@@ -1,4 +1,4 @@
-const { getNearestKnownPlace, matchKnownPlace } = require("./location");
+const { getNearestKnownPlace, matchKnownPlace, readPlaces } = require("./location");
 
 function detectEnvironment(context) {
   const hasGps = typeof context.latitude === "number" && typeof context.longitude === "number";
@@ -13,11 +13,14 @@ function detectEnvironment(context) {
       })
     : null;
 
-  // If GPS has coordinates but the nearest saved place is >50km away, the GPS fix
-  // is almost certainly wrong (browser coarse IP-based location). Treat as unavailable.
-  const GPS_SANITY_LIMIT_M = 50000;
+  // Trust GPS if it matches a saved place, or if no saved places exist yet (places.json empty/default)
+  // Only discard if coordinates are clearly nonsensical (0,0) or places exist but all are very far away
+  const places = readPlaces ? readPlaces() : [];
+  const hasRealPlaces = places.some(p => p.lat !== 40.7128); // not the default NYC placeholder
+  const GPS_SANITY_LIMIT_M = hasRealPlaces ? 50000 : Infinity;
   const gpsIsReliable = hasGps && (
     gpsPlace !== null ||
+    !hasRealPlaces || // no real places saved yet — trust GPS as-is
     (nearestKnownPlace && nearestKnownPlace.distance_meters <= GPS_SANITY_LIMIT_M)
   );
 

@@ -129,12 +129,13 @@ RULES:
 8. Never mention GPS, system data, or that you retrieved this from a database.`;
   }
 
+  const visualObs = (context.visualDescription || "").trim();
   const situationHint = context.behaviorAnalysis?.silent_confusion
     ? silentChecks >= 4
-      ? `${name} has not responded after ${silentChecks} check-ins. This is serious.`
-      : `${name} has been silent (check-in ${silentChecks}).`
+      ? `${name} has not responded after ${silentChecks} check-ins. This is serious.${visualObs ? ` Camera also shows: ${visualObs}` : ""}`
+      : `${name} has been silent (check-in ${silentChecks}).${visualObs ? ` Camera also shows: ${visualObs}` : ""}`
     : context.speechText
-    ? `${name} said: "${context.speechText}"`
+    ? `${name} said: "${context.speechText}"${visualObs ? ` Camera shows: ${visualObs}` : ""}`
     : "Routine check-in.";
 
   const riskLevel = careReasoning?.risk?.level || "low";
@@ -155,10 +156,11 @@ ${visionHint}
 ${escalationHint}
 
 Respond as a calm caregiver in 2-3 sentences:
+- If ${name} is BOTH silent AND the camera shows confusion or distress: acknowledge what you SEE first ("I can see you look a little worried/tense/confused") then ask them directly about it
 - If ${name} seems confused: gently orient them (time, place, what they were doing)
 - If ${name} can't find something: help them think through where it might be
-- If this is a silent check-in: ask one gentle question to make sure they are okay
-- If a camera image is attached, use what you see to give more specific, grounded help
+- If this is a silent check-in with no visual concern: ask one gentle question to make sure they are okay
+- If a camera image is attached, always reference what you see — never ignore visible distress
 - Use simple warm words. Never mention GPS, timestamps, or raw system data.`;
 }
 

@@ -92,6 +92,7 @@ function getNearestKnownPlace({ latitude, longitude }) {
 }
 
 module.exports = {
+  readPlaces,
   matchKnownPlace,
   getNearestKnownPlace
 };
