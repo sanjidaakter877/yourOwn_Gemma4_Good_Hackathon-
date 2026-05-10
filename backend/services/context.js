@@ -30,7 +30,8 @@ function buildContext({ profile = {}, signals = {} }) {
   const session = readJson("session.json", {});
   const schedule = readJson("schedule.json", []);
 
-  const userName = safeString(profile.userName, patient.name || "John");
+  // Always trust patient.json name — ignore stale "Mary" cached in browser localStorage
+  const userName = patient.name || safeString(profile.userName, "John");
   const mainLanguage = safeString(
     profile.mainLanguage,
     patient.mainLanguage || "English"

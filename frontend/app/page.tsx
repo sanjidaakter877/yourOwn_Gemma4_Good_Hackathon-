@@ -486,17 +486,13 @@ const protectedLogin = {
   doctor: { id: "doctor", password: "1234" }
 };
 
-const SILENT_CHECK_COOLDOWN_MS = 45000;
+const SILENT_CHECK_COOLDOWN_MS = 12000; // demo: 12s cooldown between checks
 
-// Activity-aware silence thresholds
-// frozen   = was moving, suddenly stopped    → check after 60s  (urgent — something may have happened)
-// settled  = slowed down after activity      → check after 2 min
-// resting  = calm/still since monitor started → check after 2 min (was 6 min — too slow for care)
-// active   = currently moving               → no check
+// Activity-aware silence thresholds (set low for demo — change back to 60/120s for production)
 const SILENT_CHECK_MS: Record<string, number> = {
-  frozen:  60_000,
-  settled: 120_000,
-  resting: 120_000,
+  frozen:  15_000,
+  settled: 15_000,
+  resting: 15_000,
   active:  999_999
 };
 
@@ -1780,13 +1776,15 @@ export default function Home() {
         }
       }
 
-      // Show detection in camera status
+      // Show detection in camera status — persist expression even when calm returns
+      const isSilent = quietCheckCountRef.current >= 1;
       if (analysis.expression && analysis.expression !== "calm") {
-        setCameraStatus(`Detected: ${analysis.expression} expression`);
+        const combinedNote = isSilent ? " + patient is quiet — combining for response" : "";
+        setCameraStatus(`Actively monitoring — ${analysis.expression} expression detected${combinedNote}`);
       } else if (analysis.task_abandoned) {
-        setCameraStatus(`Detected: unfinished task — ${analysis.task_detail}`);
+        setCameraStatus(`Actively monitoring — unfinished task: ${analysis.task_detail}`);
       } else {
-        setCameraStatus("Camera active — monitoring");
+        setCameraStatus("Actively monitoring — no concerns");
       }
 
       // If camera sees confusion/distress AND patient has already been silent for 1+ check-in, alert family
@@ -2415,7 +2413,7 @@ export default function Home() {
       const cameraUsable = cameraActiveRef.current && !cameraFailedRef.current;
       const threshold = cameraUsable
         ? (SILENT_CHECK_MS[activityStateRef.current] ?? 120_000)
-        : 60_000; // camera off or failed → mic+GPS only, check after 1 min
+        : 15_000; // camera off or failed → mic+GPS only, check after 15s (demo)
       if (
         quietForMs < threshold ||
         quietCooldownMs < SILENT_CHECK_COOLDOWN_MS
