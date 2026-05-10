@@ -535,6 +535,7 @@ export default function Home() {
   const [cameraStatus, setCameraStatus] = useState("Camera not started");
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [captureMode, setCaptureMode] = useState(false);
+  const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
   const [careNote, setCareNote] = useState("Anna visits most afternoons.");
   const [doctorNote, setDoctorNote] = useState(
     "Take the blue pill after dinner."
@@ -1559,9 +1560,7 @@ export default function Home() {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "environment"
-        },
+        video: { facingMode },
         audio: false
       });
 
@@ -1726,6 +1725,27 @@ export default function Home() {
       // silent fail — continuous vision never crashes the app
     } finally {
       continuousVisionInFlightRef.current = false;
+    }
+  };
+
+  const flipCamera = async () => {
+    const newFacing = facingMode === "environment" ? "user" : "environment";
+    setFacingMode(newFacing);
+    if (!cameraActive) return;
+    cameraStreamRef.current?.getTracks().forEach(t => t.stop());
+    cameraStreamRef.current = null;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: newFacing },
+        audio: false
+      });
+      cameraStreamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+    } catch {
+      setCameraStatus("Could not switch camera.");
     }
   };
 
@@ -3161,7 +3181,18 @@ export default function Home() {
                     </button>
                   </div>
 
-                  <p className={currentTheme.miniText}>{cameraStatus}</p>
+                  <div className="mt-2 flex items-center justify-between">
+                    <p className={currentTheme.miniText}>{cameraStatus}</p>
+                    <button
+                      type="button"
+                      onClick={flipCamera}
+                      disabled={!cameraActive}
+                      className={`${currentTheme.softButton} px-3 py-1 text-xs`}
+                      title="Flip camera"
+                    >
+                      {facingMode === "environment" ? "Front" : "Back"}
+                    </button>
+                  </div>
                 </div>
 
                 <Field label="Visual description" theme={currentTheme}>
