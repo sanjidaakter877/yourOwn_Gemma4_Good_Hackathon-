@@ -110,19 +110,32 @@ function buildSystemPrompt({ name, isConversation, context, environment, relevan
     ? `Person info: ${personResult.name}${personResult.relationship ? ` is ${name}'s ${personResult.relationship}` : ""}${personResult.notes ? `. ${personResult.notes}` : ""}.`
     : "";
 
+  const doctorNoteHint = context.doctorNote ? `Doctor's instruction for ${name}: ${context.doctorNote}` : "";
+  const medicineHint = context.medicationPlan
+    ? `Prescribed medicines: ${context.medicationPlan}`
+    : context.medicines?.length
+      ? `Prescribed medicines: ${context.medicines.map(m => `${m.name}${m.dosage ? ` ${m.dosage}` : ""}${m.time ? ` at ${m.time}` : ""}${m.schedule ? `, ${m.schedule}` : ""}`).join("; ")}`
+      : "";
+  const routineHint = context.patient?.routines?.[context.timeOfDay]
+    ? `${name}'s ${context.timeOfDay} routine: ${context.patient.routines[context.timeOfDay]}`
+    : "";
+
   if (isConversation) {
     return `You are yourOwn, a cheerful friendly companion chatting with ${name}.
 ${timeHint} ${placeHint}
 ${personHint}
 ${careNote}
+${doctorNoteHint}
+${medicineHint}
+${routineHint}
 ${historyHint ? `Recent conversation:\n${historyHint}` : ""}
 ${visionHint}
 
 RULES:
 0. Output ONLY your spoken response — no options, no planning, no bullet points, no labels.
 1. Answer what ${name} said IMMEDIATELY and directly. If they ask the time, say the time. If they ask the date, say the date. If they ask for a joke, TELL THE JOKE. Never skip the direct answer.
-2. If person info is provided above, use it to answer questions about that person naturally and warmly.
-3. If asked "who is [name]?" and you have person info, introduce them clearly: "[Name] is your [relationship]."
+2. If ${name} asks about their medicine, refer to the prescribed medicines listed above — do NOT say you don't know or that you're not a doctor. Just tell them what the doctor left.
+3. If person info is provided above, use it to answer questions about that person naturally and warmly.
 4. Do NOT ask if they are okay, safe, or comfortable — this is casual friendly chat.
 5. Keep it to 1-2 sentences, warm and fun.
 6. If a camera image is attached, you can reference what you see naturally (e.g. "I can see you're in the kitchen").
@@ -151,6 +164,9 @@ Output ONLY your spoken response — no planning, no options, no bullet points, 
 Situation: ${situationHint}
 ${timeHint} ${placeHint}
 ${careNote}
+${doctorNoteHint}
+${medicineHint}
+${routineHint}
 ${personHint}
 ${memoryHint ? `Context:\n${memoryHint}` : ""}
 ${historyHint ? `Recent conversation:\n${historyHint}` : ""}

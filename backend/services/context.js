@@ -73,6 +73,9 @@ function buildContext({ profile = {}, signals = {} }) {
     conversationHistory: Array.isArray(signals.conversationHistory) ? signals.conversationHistory.slice(-6) : [],
     escalation: signals.escalation || null,
 
+    medicationPlan: safeString(signals.medicationPlan, ""),
+    medicines: Array.isArray(signals.medicines) ? signals.medicines : [],
+
     scheduleNow: signals.scheduleNow || null,
     dailyLog: Array.isArray(signals.dailyLog) ? signals.dailyLog : [],
     patientNotes: Array.isArray(signals.patientNotes) ? signals.patientNotes : [],
