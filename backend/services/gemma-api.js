@@ -119,6 +119,7 @@ ${historyHint ? `Recent conversation:\n${historyHint}` : ""}
 ${visionHint}
 
 RULES:
+0. Output ONLY your spoken response — no options, no planning, no bullet points, no labels.
 1. Answer what ${name} said IMMEDIATELY and directly. If they ask for a joke, TELL THE JOKE first.
 2. If person info is provided above, use it to answer questions about that person naturally and warmly.
 3. If asked "who is [name]?" and you have person info, introduce them clearly: "[Name] is your [relationship]."
@@ -145,6 +146,7 @@ RULES:
       : "";
 
   return `You are yourOwn, a calm caring AI companion for ${name}, who has Alzheimer's.
+Output ONLY your spoken response — no planning, no options, no bullet points, no labels.
 
 Situation: ${situationHint}
 ${timeHint} ${placeHint}
@@ -181,7 +183,18 @@ function extractFinalAnswer(text) {
     .map(l => l.trim())
     .filter(t => t && !t.startsWith('*') && !t.startsWith('-') && !/^\d+\./.test(t));
 
-  if (!contentLines.length) return text.trim();
+  // Model produced planning-style output (e.g. "* Option 1: ... * Response: "answer"").
+  // All lines start with * so contentLines is empty — extract the chosen answer directly.
+  if (!contentLines.length) {
+    // Look for explicit "Response: "answer"" marker first
+    const responseMatch = source.match(/[Rr]esponse\s*:\s*["""'](.+?)["""']/s);
+    if (responseMatch) return responseMatch[1].trim();
+    // Fallback: last quoted string long enough to be a sentence
+    const allQuoted = [...source.matchAll(/["""']([^"""']{20,})["""']/gs)];
+    if (allQuoted.length) return allQuoted[allQuoted.length - 1][1].trim();
+    // Last resort: return as-is
+    return source.trim();
+  }
 
   // Join lines — preserves multi-sentence answers that span newlines
   let lastLine = contentLines.join(' ').trim();

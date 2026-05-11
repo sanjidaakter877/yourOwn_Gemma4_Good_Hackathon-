@@ -632,6 +632,7 @@ export default function Home() {
   const lastMarySeenRef = useRef(Date.now());
   const maryNotVisibleCountRef = useRef(0); // 0=ok 1=first inquiry 2=second inquiry 3=email sent
   const maryNotVisibleTimestampRef = useRef(0);
+  const alarmInProgressRef = useRef(false);
   const rolePanelRef = useRef<HTMLDivElement | null>(null);
   const conversationHistoryRef = useRef<Array<{role: "patient"|"assistant", text: string}>>([]);
 
@@ -678,18 +679,15 @@ export default function Home() {
     lastAlarmKeyRef.current = alarmKey;
     setActiveReminder(reminder);
     addLog(`Reminder: ${reminder.label}`);
-    playReminderAlarm();
-    if ("speechSynthesis" in window) {
-      const kindPhrases: Record<string, string> = {
-        breakfast: `${userName || "John"}, it is time for breakfast. Come and have something to eat.`,
-        lunch: `${userName || "John"}, it is lunchtime. Your meal is ready.`,
-        dinner: `${userName || "John"}, it is time for dinner.`,
-        medication: `${userName || "John"}, it is time to take your medication.`,
-        routine: `${userName || "John"}, reminder: ${reminder.label}.`
-      };
-      const phrase = kindPhrases[reminder.kind] || `${userName || "John"}, reminder: ${reminder.label}.`;
-      speakWithElevenLabs(phrase);
-    }
+    const kindPhrases: Record<string, string> = {
+      breakfast: `${userName || "John"}, it is time for breakfast. Come and have something to eat.`,
+      lunch: `${userName || "John"}, it is lunchtime. Your meal is ready.`,
+      dinner: `${userName || "John"}, it is time for dinner.`,
+      medication: `${userName || "John"}, it is time to take your medication.`,
+      routine: `${userName || "John"}, reminder: ${reminder.label}.`
+    };
+    const phrase = kindPhrases[reminder.kind] || `${userName || "John"}, reminder: ${reminder.label}.`;
+    speakAlarmAndListen(phrase);
   }, [alarmEnabled, now, careSchedule]);
 
   // Medicine time-based reminders — fires when clock matches a medicine's scheduled time
@@ -704,8 +702,7 @@ export default function Home() {
     const label = `Time to take ${dueMed.name}${dueMed.dosage ? ` (${dueMed.dosage})` : ""}${dueMed.schedule ? ` — ${dueMed.schedule}` : ""}`;
     setActiveReminder({ time: dueMed.time, label, careMoment: true, alarm: true, kind: "medication" });
     addLog(`Medicine reminder: ${label}`);
-    playReminderAlarm();
-    speakWithElevenLabs(`${userName || "John"}, it is time to take your ${dueMed.name}. You can show me the medicine bottle to confirm.`);
+    speakAlarmAndListen(`${userName || "John"}, it is time to take your ${dueMed.name}. Please confirm when you have taken it.`);
   }, [now, medicines]);
 
   useEffect(() => {
@@ -1364,7 +1361,6 @@ export default function Home() {
 
   const enableCareAlarms = () => {
     setAlarmEnabled(true);
-    playReminderAlarm();
   };
 
   const playAudio = async (data: AssistResponse) => {
@@ -1716,8 +1712,11 @@ export default function Home() {
   };
 
   const grabFrameSilent = async () => {
+    // Only analyse frames automatically when live monitor is active.
+    // When off, camera just shows video — patient interacts manually.
+    if (!liveMonitoringRef.current) return;
+
     // If camera is streaming video, patient is physically near the device — reset not-visible timer.
-    // Do this before the in-flight guard so it updates even when a previous API call is still pending.
     if (cameraActiveRef.current && videoRef.current && videoRef.current.videoWidth > 0) {
       lastMarySeenRef.current = Date.now();
       if (maryNotVisibleCountRef.current > 0 && maryNotVisibleCountRef.current < 3) {
@@ -2118,6 +2117,86 @@ export default function Home() {
   };
 
   const speakMaryCheck = (text: string) => { speakWithElevenLabs(text); };
+
+  // Awaitable TTS — resolves when audio finishes playing
+  const speakAndWait = (text: string): Promise<void> => {
+    assistantSpeakingRef.current = true;
+    window.speechSynthesis.cancel();
+    return new Promise<void>((resolve) => {
+      fetch(apiUrl("/api/alert/tts"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text })
+      }).then(res => {
+        if (!res.ok) throw new Error("tts-error");
+        return res.json();
+      }).then(data => {
+        if (!data.audio_base64) throw new Error("no-audio");
+        const audio = new Audio(`data:${data.audio_mime_type};base64,${data.audio_base64}`);
+        audio.onended = () => { setTimeout(() => { assistantSpeakingRef.current = false; resolve(); }, 800); };
+        audio.onerror = () => { assistantSpeakingRef.current = false; resolve(); };
+        audio.play().catch(() => { assistantSpeakingRef.current = false; resolve(); });
+      }).catch(() => {
+        if ("speechSynthesis" in window) {
+          const u = new SpeechSynthesisUtterance(text);
+          u.rate = 0.85;
+          u.onend = () => { setTimeout(() => { assistantSpeakingRef.current = false; resolve(); }, 800); };
+          u.onerror = () => { assistantSpeakingRef.current = false; resolve(); };
+          window.speechSynthesis.speak(u);
+        } else {
+          assistantSpeakingRef.current = false;
+          resolve();
+        }
+      });
+    });
+  };
+
+  // Opens a temporary mic listener; resolves true if speech heard within timeoutMs
+  const listenForConfirmation = (timeoutMs: number): Promise<boolean> => {
+    return new Promise<boolean>((resolve) => {
+      const SpeechRecognitionClass =
+        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SpeechRecognitionClass) { resolve(false); return; }
+
+      let settled = false;
+      const done = (heard: boolean) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        try { rec.abort(); } catch {}
+        resolve(heard);
+      };
+
+      const timer = window.setTimeout(() => done(false), timeoutMs);
+      const rec = new SpeechRecognitionClass();
+      rec.continuous = false;
+      rec.interimResults = false;
+      rec.lang = "en-US";
+      rec.onresult = () => done(true);
+      rec.onerror = () => done(false);
+      rec.onend = () => done(false);
+      try { rec.start(); } catch { done(false); }
+    });
+  };
+
+  // Speaks a reminder, waits for confirmation (up to 2 attempts × 15s each)
+  const speakAlarmAndListen = async (text: string) => {
+    if (alarmInProgressRef.current) return;
+    alarmInProgressRef.current = true;
+    const name = userName || "John";
+    const confirmReply = `Very good, ${name}! Thank you for confirming. I am glad you are doing well.`;
+    try {
+      await speakAndWait(text);
+      const heard = await listenForConfirmation(15000);
+      if (heard) { await speakAndWait(confirmReply); return; }
+      // Second attempt
+      await speakAndWait(text);
+      const heard2 = await listenForConfirmation(15000);
+      if (heard2) { await speakAndWait(confirmReply); }
+    } finally {
+      alarmInProgressRef.current = false;
+    }
+  };
 
   const sendFamilyEmailAlert = async (reason: string, lastSeen?: string) => {
     if (emailAlertSentRef.current) return;
@@ -3524,14 +3603,14 @@ export default function Home() {
 
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <button
-                  onClick={enableCareAlarms}
+                  onClick={alarmEnabled ? () => setAlarmEnabled(false) : enableCareAlarms}
                   className={
                     alarmEnabled
                       ? currentTheme.selectedButton
                       : currentTheme.softButton
                   }
                 >
-                  {alarmEnabled ? "Alarms enabled" : "Enable alarms"}
+                  {alarmEnabled ? "Disable alarms" : "Enable alarms"}
                 </button>
                 <div className={currentTheme.statusBox}>
                   Next alarm: {nextAlarmReminder.time} - {nextAlarmReminder.label}
