@@ -221,16 +221,40 @@ function extractFinalAnswer(text) {
     .map(l => l.trim())
     .filter(t => t && !t.startsWith('*') && !t.startsWith('-') && !/^\d+\./.test(t));
 
-  // Model produced planning-style output (e.g. "* Option 1: ... * Response: "answer"").
-  // All lines start with * so contentLines is empty — extract the chosen answer directly.
+  // Model produced planning-style output (all lines start with * or -).
+  // Strategy: scan backward from the END — the final answer is almost always appended last.
   if (!contentLines.length) {
-    // Look for explicit "Response: "answer"" marker first
+    // 1. Scan lines from the bottom — collect trailing non-bullet lines
+    const allLines = source.split('\n').map(l => l.trim()).filter(Boolean);
+    const trailingClean = [];
+    for (let i = allLines.length - 1; i >= 0; i--) {
+      const l = allLines[i];
+      if (l.startsWith('*') || l.startsWith('-') || l.startsWith('>') || /^\d+\./.test(l)) break;
+      trailingClean.unshift(l);
+    }
+    if (trailingClean.length) return trailingClean.join(' ').replace(/^["'"']|["'"']$/g, '').trim();
+
+    // 2. The answer might be glued to the last bullet without a newline — grab text after last *
+    const lastStar = source.lastIndexOf('*');
+    if (lastStar !== -1) {
+      const after = source.slice(lastStar + 1).replace(/^[^a-zA-Z"'"']+/, '').trim();
+      // Strip inline bold markers like **Word:** at the start
+      const cleaned = after.replace(/^\*\*?[^*]+\*\*?\s*/, '').trim();
+      if (cleaned.length > 15) return cleaned.replace(/^["'"']|["'"']$/g, '').trim();
+    }
+
+    // 3. Look for explicit Response: "answer" marker
     const responseMatch = source.match(/[Rr]esponse\s*:\s*["""'](.+?)["""']/s);
     if (responseMatch) return responseMatch[1].trim();
-    // Fallback: last quoted string long enough to be a sentence
-    const allQuoted = [...source.matchAll(/["""']([^"""']{20,})["""']/gs)];
-    if (allQuoted.length) return allQuoted[allQuoted.length - 1][1].trim();
-    // Last resort: return as-is
+
+    // 4. Last quoted string that looks like a real sentence (not a meta instruction)
+    const allQuoted = [...source.matchAll(/["""']([^"""']{20,300})["""']/gs)];
+    for (let i = allQuoted.length - 1; i >= 0; i--) {
+      const candidate = allQuoted[i][1].trim();
+      if (/^(Output|Respond|Rule|Constraint|Prompt|Persona|Context|User:|Input:|Option \d)/i.test(candidate)) continue;
+      return candidate;
+    }
+
     return source.trim();
   }
 

@@ -419,16 +419,6 @@ type FamilyAlert = {
   };
 };
 
-type CareContact = {
-  name: string;
-  relationship: string;
-  phone: string;
-  email: string;
-  language?: string;
-  notes?: string;
-  notify?: boolean;
-};
-
 type CareSettings = {
   home: {
     lat: number;
@@ -437,8 +427,6 @@ type CareSettings = {
     address?: string;
     meaning?: string;
   };
-  primaryCaregiver: CareContact | null;
-  contacts: CareContact[];
 };
 
 type GemmaStatus = {
@@ -572,6 +560,7 @@ export default function Home() {
     "Live monitor is off"
   );
   const [result, setResult] = useState<AssistResponse | null>(null);
+  const [familyGalleryVisible, setFamilyGalleryVisible] = useState(false);
   const [error, setError] = useState("");
   const [gemmaStatus, setGemmaStatus] = useState<GemmaStatus | null>(null);
   const [severityTrend, setSeverityTrend] = useState<SeverityTrend | null>(null);
@@ -628,9 +617,9 @@ export default function Home() {
   const liveRecognitionRestartRef = useRef<number | null>(null);
   const patientQuietModeRef = useRef(false);
   const quietCheckCountRef = useRef(0);
-  const emailAlertSentRef = useRef(false);
+  const telegramAlertSentRef = useRef(false);
   const lastMarySeenRef = useRef(Date.now());
-  const maryNotVisibleCountRef = useRef(0); // 0=ok 1=first inquiry 2=second inquiry 3=email sent
+  const maryNotVisibleCountRef = useRef(0);
   const maryNotVisibleTimestampRef = useRef(0);
   const alarmInProgressRef = useRef(false);
   const rolePanelRef = useRef<HTMLDivElement | null>(null);
@@ -1137,12 +1126,7 @@ export default function Home() {
     value: string
   ) => {
     setCareSettings((settings) => {
-      const current = settings || {
-        home: { lat: 0, lng: 0, radiusMeters: 120, address: "" },
-        primaryCaregiver: null,
-        contacts: [blankCareContact()]
-      };
-
+      const current = settings || { home: { lat: 0, lng: 0, radiusMeters: 120, address: "" } };
       return {
         ...current,
         home: {
@@ -1158,84 +1142,6 @@ export default function Home() {
     });
   };
 
-  const updateCaregiverSetting = (
-    index: number,
-    field: "name" | "relationship" | "phone" | "email" | "notes",
-    value: string
-  ) => {
-    setCareSettings((settings) => {
-      const current = settings || {
-        home: { lat: 0, lng: 0, radiusMeters: 120, address: "" },
-        primaryCaregiver: null,
-        contacts: []
-      };
-      const contacts = [...(current.contacts?.length ? current.contacts : [blankCareContact()])];
-      contacts[index] = {
-        ...(contacts[index] || blankCareContact()),
-        [field]: value
-      };
-
-      return {
-        ...current,
-        primaryCaregiver: contacts[0] || null,
-        contacts
-      };
-    });
-  };
-
-  const updateCaregiverNotify = (index: number, notify: boolean) => {
-    setCareSettings((settings) => {
-      const current = settings || {
-        home: { lat: 0, lng: 0, radiusMeters: 120, address: "" },
-        primaryCaregiver: null,
-        contacts: []
-      };
-      const contacts = [...(current.contacts?.length ? current.contacts : [blankCareContact()])];
-      contacts[index] = {
-        ...(contacts[index] || blankCareContact()),
-        notify
-      };
-
-      return {
-        ...current,
-        primaryCaregiver: contacts[0] || null,
-        contacts
-      };
-    });
-  };
-
-  const addCaregiverContact = () => {
-    setCareSettings((settings) => {
-      const current = settings || {
-        home: { lat: 0, lng: 0, radiusMeters: 120, address: "" },
-        primaryCaregiver: null,
-        contacts: []
-      };
-      const contacts = [...(current.contacts || []), blankCareContact()];
-      return {
-        ...current,
-        primaryCaregiver: contacts[0] || null,
-        contacts
-      };
-    });
-  };
-
-  const removeCaregiverContact = (index: number) => {
-    setCareSettings((settings) => {
-      const current = settings || {
-        home: { lat: 0, lng: 0, radiusMeters: 120, address: "" },
-        primaryCaregiver: null,
-        contacts: []
-      };
-      const contacts = (current.contacts || []).filter((_, itemIndex) => itemIndex !== index);
-      return {
-        ...current,
-        primaryCaregiver: contacts[0] || null,
-        contacts
-      };
-    });
-  };
-
   const useCurrentGpsAsHome = () => {
     if (typeof latitude !== "number" || typeof longitude !== "number") {
       setSettingsStatus("Get live GPS first, then save it as home.");
@@ -1243,12 +1149,7 @@ export default function Home() {
     }
 
     setCareSettings((settings) => {
-      const current = settings || {
-        home: { lat: latitude, lng: longitude, radiusMeters: 120, address: "" },
-        primaryCaregiver: null,
-        contacts: [blankCareContact()]
-      };
-
+      const current = settings || { home: { lat: latitude, lng: longitude, radiusMeters: 120, address: "" } };
       return {
         ...current,
         home: {
@@ -1961,7 +1862,7 @@ export default function Home() {
                            analysis.expression === "distressed" ||
                            analysis.expression === "blank";
       if (isDistressed && quietCheckCountRef.current >= 1) {
-        sendFamilyEmailAlert(
+        sendTelegramAlert(
           `Camera detected ${analysis.expression} expression${analysis.task_abandoned ? ` and unfinished task: ${analysis.task_detail}` : ""}`,
           analysis.description
         );
@@ -2234,6 +2135,8 @@ export default function Home() {
       if (!res.ok) throw new Error(data?.error || "Request failed");
 
       setResult(data);
+      if (isEmergencyPhrase(speechText)) sendEmergencyAlert(speechText);
+      setFamilyGalleryVisible(isIdentityConfusion(speechText));
       if (speechText.trim()) {
         const aiText = data.companion_message || (data as any).response?.reassurance || "";
         conversationHistoryRef.current = [
@@ -2368,21 +2271,14 @@ export default function Home() {
     }
   };
 
-  const sendFamilyEmailAlert = async (reason: string, lastSeen?: string) => {
-    if (emailAlertSentRef.current) return;
-    const familyEmail = careSettings?.contacts?.[0]?.email ||
-                        careSettings?.primaryCaregiver?.email || "";
-    if (!familyEmail) {
-      addLog("Email alert skipped — no family email address saved in contacts");
-      return;
-    }
-    emailAlertSentRef.current = true;
+  const sendTelegramAlert = async (reason: string, lastSeen?: string) => {
+    if (telegramAlertSentRef.current) return;
+    telegramAlertSentRef.current = true;
     try {
-      const res = await fetch(apiUrl("/api/alert/email"), {
+      const res = await fetch(apiUrl("/api/alert/notify"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          to: familyEmail,
           patientName: userName || "John",
           reason,
           checkCount: quietCheckCountRef.current,
@@ -2392,17 +2288,41 @@ export default function Home() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        emailAlertSentRef.current = false;
-        const detail = (data as any).detail || (data as any).error || `HTTP ${res.status}`;
-        addLog(`Email alert FAILED: ${detail}`);
-        setLiveMonitoringStatus(`Email failed: ${detail}`);
+        telegramAlertSentRef.current = false;
+        addLog(`Alert FAILED: ${(data as any).detail || (data as any).error || `HTTP ${res.status}`}`);
         return;
       }
-      addLog(`Family email alert sent to ${familyEmail}`);
-      setLiveMonitoringStatus("Family has been notified by email.");
+      addLog("Family notified via Telegram.");
+      setLiveMonitoringStatus("Family has been notified.");
     } catch (err: any) {
-      emailAlertSentRef.current = false;
-      addLog(`Email alert error: ${err.message}`);
+      telegramAlertSentRef.current = false;
+      addLog(`Alert error: ${err.message}`);
+    }
+  };
+
+  const sendEmergencyAlert = async (speechText: string) => {
+    try {
+      const res = await fetch(apiUrl("/api/alert/notify"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          patientName: userName || "John",
+          reason: `Patient said: "${speechText}"`,
+          checkCount: 0,
+          lastSeen: visualDescription || "",
+          detectedAt: new Date().toLocaleString(),
+          urgent: true
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        addLog(`Emergency alert FAILED: ${(data as any).detail || (data as any).error || `HTTP ${res.status}`}`);
+        return;
+      }
+      addLog("EMERGENCY — family notified via Telegram.");
+      setLiveMonitoringStatus("EMERGENCY — family has been notified immediately.");
+    } catch (err: any) {
+      addLog(`Emergency alert error: ${err.message}`);
     }
   };
 
@@ -2524,6 +2444,7 @@ export default function Home() {
       if (!res.ok) throw new Error(data?.error || "Live monitor request failed");
 
       setResult(data);
+      if (source === "speech") setFamilyGalleryVisible(isIdentityConfusion(transcript));
       if (source === "speech" && transcript) {
         const aiText = data.companion_message || (data as any).response?.reassurance || "";
         conversationHistoryRef.current = [
@@ -2637,7 +2558,7 @@ export default function Home() {
     lastLiveSpeechAtRef.current = Date.now();
     lastQuietAssistAtRef.current = 0;
     quietCheckCountRef.current = 0;
-    emailAlertSentRef.current = false;
+    telegramAlertSentRef.current = false;
     lastMarySeenRef.current = Date.now();
     maryNotVisibleCountRef.current = 0;
 
@@ -2650,14 +2571,12 @@ export default function Home() {
       // Mary not visible check — only when camera is on
       if (cameraActiveRef.current && !cameraFailedRef.current) {
         const notSeenMs = Date.now() - lastMarySeenRef.current;
-        const familyName = careSettings?.contacts?.[0]?.name ||
-                           careSettings?.primaryCaregiver?.name || "your family";
         const patient = userName || "John";
 
         if (maryNotVisibleCountRef.current === 0 && notSeenMs >= 30_000) {
           maryNotVisibleCountRef.current = 1;
           maryNotVisibleTimestampRef.current = Date.now();
-          speakMaryCheck(`${patient}, where are you? I don't see you. Are you okay or nearby? If I don't hear back from you, I will notify ${familyName}.`);
+          speakMaryCheck(`${patient}, where are you? I don't see you. Are you okay or nearby? If I don't hear back from you, I will notify your family.`);
           setCameraStatus(`${patient} not visible — checking`);
           addLog(`${patient} not visible 30s — first inquiry sent`);
         } else if (maryNotVisibleCountRef.current === 1 &&
@@ -2670,7 +2589,7 @@ export default function Home() {
                    Date.now() - maryNotVisibleTimestampRef.current >= 10_000) {
           maryNotVisibleCountRef.current = 3;
           addLog(`${patient} not visible — notifying family`);
-          sendFamilyEmailAlert(
+          sendTelegramAlert(
             `${patient} has not been visible on camera for over 55 seconds and did not respond to two check-ins`,
             "Patient left camera view and did not respond"
           );
@@ -2715,7 +2634,7 @@ export default function Home() {
       quietCheckCountRef.current += 1;
 
       if (quietCheckCountRef.current >= 2) {
-        sendFamilyEmailAlert(
+        sendTelegramAlert(
           `Patient has not responded to ${quietCheckCountRef.current} check-ins`
         );
       }
@@ -2816,7 +2735,7 @@ export default function Home() {
         if (isRestOrStopSpeech(transcript)) {
           patientQuietModeRef.current = true;
           quietCheckCountRef.current = 0;
-          emailAlertSentRef.current = false;
+          telegramAlertSentRef.current = false;
           window.speechSynthesis?.cancel?.();
           setLiveMonitoringStatus(`${userName || "the patient"} said they are resting. I will stay quiet and keep listening.`);
           addLog(`Resting mode: ${transcript}`);
@@ -2841,6 +2760,7 @@ export default function Home() {
             taskInquiryTimerRef.current = null;
           }
         }
+        if (isEmergencyPhrase(transcript)) sendEmergencyAlert(transcript);
         sendLiveMonitoringAssist(transcript);
       };
 
@@ -2963,6 +2883,12 @@ export default function Home() {
       startLiveMonitoring();
     }
   };
+
+  const isEmergencyPhrase = (text: string) =>
+    /\b(i fell|i fall|i have fallen|fell down|fall down|i'm falling|i am falling|help me|please help|somebody help|i need help|i got hurt|i am hurt|i'm hurt|i am in pain|i'm in pain|it hurts|something hurts|i can't get up|i cannot get up|can't stand|cannot stand|i hit my head|i'm bleeding|i am bleeding|i think i broke|i broke my|chest pain|i can't breathe|i cannot breathe|i'm dizzy|i am dizzy|i feel faint|i'm going to faint|ow ow|aaaah|ahhhh|ouch)\b/i.test(text);
+
+  const isIdentityConfusion = (text: string) =>
+    /\b(who am i|i don'?t know anyone|i don'?t recognize|who are these people|i don'?t know my family|who is my family|i don'?t remember anyone|i forgot everyone|who are you all|i don'?t know who|these people|i don'?t know them)\b/i.test(text);
 
   const isConfusionOrSafetySpeech = (text: string) =>
     /\b(where am i|who am i|who are you|lost|scared|afraid|confused|unsure|don't know|dont know|what was i|what do i|help|hurt|fall|fell|pain|medicine|pill|dose|home)\b/i.test(
@@ -3986,7 +3912,15 @@ export default function Home() {
               )}
 
               {error && <div className={currentTheme.errorBox}>{error}</div>}
-              {result && <ResultPanel result={result} theme={currentTheme} />}
+              {result && (
+                <ResultPanel
+                  result={result}
+                  theme={currentTheme}
+                  people={people}
+                  photoMemories={photoMemories}
+                  familyGalleryVisible={familyGalleryVisible}
+                />
+              )}
             </Card>
             )}
 
@@ -4037,11 +3971,7 @@ export default function Home() {
                 gpsStatus={gpsStatus}
                 onGetGps={getCurrentLocation}
                 onSave={saveCareSettings}
-                onAddCaregiver={addCaregiverContact}
-                onRemoveCaregiver={removeCaregiverContact}
                 onUseCurrentGps={useCurrentGpsAsHome}
-                onUpdateCaregiver={updateCaregiverSetting}
-                onUpdateCaregiverNotify={updateCaregiverNotify}
                 onUpdateHome={updateHomeSetting}
                 saveButtonLabel={
                   settingsButtonState === "saving"
@@ -4165,17 +4095,6 @@ function getRoleEmoji(role: RoleName) {
   return "💛";
 }
 
-function blankCareContact(): CareContact {
-  return {
-    name: "",
-    relationship: "caregiver",
-    phone: "",
-    email: "",
-    language: "English",
-    notes: "",
-    notify: true
-  };
-}
 
 function FamilyInfoPanel({
   currentTheme,
@@ -4253,40 +4172,39 @@ function FamilyInfoPanel({
         </div>
       </div>
 
-      {/* ── Saved people (Supabase) ── */}
-      <div className="mt-5 space-y-2">
+      {/* ── Saved people — photo card style ── */}
+      <div className="mt-5">
         {loading && <p className={currentTheme.miniText}>Loading...</p>}
         {!loading && people.length === 0 && <p className={currentTheme.miniText}>No people saved yet.</p>}
-        {people.map((person) => (
-          <div key={person.id} className={`${currentTheme.photoMemoryCard} flex items-center gap-3`}>
-            {person.photo_url
-              ? <img src={person.photo_url} alt={person.name} className="h-12 w-12 rounded-full object-cover border-2 border-[#4ECDC4] flex-shrink-0" />
-              : <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-[#4ECDC4] text-xl">👤</div>
-            }
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-sm">{person.name}{person.relationship && <span className="font-normal opacity-60 ml-1">· {person.relationship}</span>}</p>
-              {person.notes && <p className="text-xs opacity-50 truncate">{person.notes}</p>}
+        <div className="grid grid-cols-2 gap-3">
+          {people.map((person) => (
+            <div key={person.id} className={`${currentTheme.photoMemoryCard} flex flex-col items-center text-center gap-2 p-4 relative`}>
+              <button type="button" onClick={() => onDeletePerson(person.id)} className="absolute top-2 right-2 text-base opacity-30 hover:opacity-80 hover:text-red-500 transition-opacity" title="Remove">🗑️</button>
+              {person.photo_url
+                ? <img src={person.photo_url} alt={person.name} className="h-20 w-20 rounded-full object-cover border-3 border-[#4ECDC4]" style={{ border: "3px solid #4ECDC4" }} />
+                : <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-full bg-[#4ECDC4] text-3xl">👤</div>
+              }
+              <div>
+                <p className="font-bold text-sm leading-tight">{person.name}</p>
+                {person.relationship && <p className="text-xs font-semibold" style={{ color: "#4ECDC4" }}>{person.relationship}</p>}
+                {person.notes && <p className="text-xs opacity-50 mt-1 leading-snug">{person.notes}</p>}
+              </div>
             </div>
-            <button type="button" onClick={() => onDeletePerson(person.id)} className="text-lg opacity-40 hover:opacity-80 hover:text-red-500 transition-opacity px-1" title="Remove">🗑️</button>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
-      {/* ── Photo memories (localStorage) ── */}
+      {/* ── Photo memories ── */}
       {photoMemories.length > 0 && (
         <div className="mt-6">
-          <p className="mb-3 text-xs font-black uppercase tracking-widest opacity-50">📷 Photo memories</p>
+          <p className="mb-3 text-xs font-black uppercase tracking-widest opacity-50">📷 Photo memories — shown when patient says "I don't know anyone"</p>
           <div className="space-y-3">
             {photoMemories.map((photo) => (
               <div key={photo.id} className={currentTheme.photoMemoryCard}>
-                <div className="flex items-start gap-3">
-                  <img src={photo.imageDataUrl} alt={photo.name || "Memory"} className="h-16 w-16 rounded-xl object-cover flex-shrink-0" />
-                  <div className="flex-1 min-w-0 grid gap-2">
-                    <div className="grid grid-cols-2 gap-2">
-                      <input value={photo.name} onChange={(e) => onUpdatePhoto(photo.id, "name", e.target.value)} placeholder="Name" className={currentTheme.input} />
-                      <input value={photo.relationship} onChange={(e) => onUpdatePhoto(photo.id, "relationship", e.target.value)} placeholder="Relationship" className={currentTheme.input} />
-                    </div>
-                    <input value={photo.description} onChange={(e) => onUpdatePhoto(photo.id, "description", e.target.value)} placeholder="Description" className={currentTheme.input} />
+                <div className="flex items-center gap-3">
+                  <img src={photo.imageDataUrl} alt={photo.description || "Memory"} className="h-16 w-16 rounded-full object-cover flex-shrink-0 border-2 border-amber-300" />
+                  <div className="flex-1 min-w-0">
+                    <input value={photo.description} onChange={(e) => onUpdatePhoto(photo.id, "description", e.target.value)} placeholder="Who is this or what is this memory?" className={currentTheme.input} />
                   </div>
                   <button type="button" onClick={() => onRemovePhoto(photo.id)} className="text-lg opacity-40 hover:opacity-80 hover:text-red-500 transition-opacity px-1 flex-shrink-0" title="Remove">🗑️</button>
                 </div>
@@ -4520,11 +4438,7 @@ function FamilyAlertSetup({
   gpsStatus,
   onGetGps,
   onSave,
-  onAddCaregiver,
-  onRemoveCaregiver,
   onUseCurrentGps,
-  onUpdateCaregiver,
-  onUpdateCaregiverNotify,
   onUpdateHome,
   saveButtonLabel,
   settingsStatus
@@ -4535,172 +4449,49 @@ function FamilyAlertSetup({
   gpsStatus: string;
   onGetGps: () => void;
   onSave: () => void;
-  onAddCaregiver: () => void;
-  onRemoveCaregiver: (index: number) => void;
   onUseCurrentGps: () => void;
-  onUpdateCaregiver: (
-    index: number,
-    field: "name" | "relationship" | "phone" | "email" | "notes",
-    value: string
-  ) => void;
-  onUpdateCaregiverNotify: (index: number, notify: boolean) => void;
-  onUpdateHome: (
-    field: "lat" | "lng" | "radiusMeters" | "address",
-    value: string
-  ) => void;
+  onUpdateHome: (field: "lat" | "lng" | "radiusMeters" | "address", value: string) => void;
   saveButtonLabel: string;
   settingsStatus: string;
 }) {
-  const home = careSettings?.home || {
-    lat: 0,
-    lng: 0,
-    radiusMeters: 120,
-    address: ""
-  };
-  const contacts = careSettings?.contacts?.length
-    ? careSettings.contacts
-    : [blankCareContact()];
+  const home = careSettings?.home || { lat: 0, lng: 0, radiusMeters: 120, address: "" };
 
   return (
     <Card theme={currentTheme}>
       <SectionTitle
-        emoji="!"
-        title="Family alerts"
-        description="Family can set home GPS, safe distance, and who receives away-from-home distress alerts."
+        emoji="📍"
+        title="Home location"
+        description="Set the patient's home GPS so the app can detect if they leave a safe area."
         theme={currentTheme}
       />
 
       <div className="mt-5 grid gap-4 md:grid-cols-2">
         <Field label="Home latitude" theme={currentTheme}>
-          <input
-            value={home.lat}
-            onChange={(event) => onUpdateHome("lat", event.target.value)}
-            className={currentTheme.input}
-          />
+          <input value={home.lat} onChange={(e) => onUpdateHome("lat", e.target.value)} className={currentTheme.input} />
         </Field>
         <Field label="Home longitude" theme={currentTheme}>
-          <input
-            value={home.lng}
-            onChange={(event) => onUpdateHome("lng", event.target.value)}
-            className={currentTheme.input}
-          />
+          <input value={home.lng} onChange={(e) => onUpdateHome("lng", e.target.value)} className={currentTheme.input} />
         </Field>
-        <Field label="Home radius meters" theme={currentTheme}>
-          <input
-            value={home.radiusMeters}
-            onChange={(event) =>
-              onUpdateHome("radiusMeters", event.target.value)
-            }
-            className={currentTheme.input}
-          />
+        <Field label="Safe radius (meters)" theme={currentTheme}>
+          <input value={home.radiusMeters} onChange={(e) => onUpdateHome("radiusMeters", e.target.value)} className={currentTheme.input} />
         </Field>
-        <Field label="Home address note" theme={currentTheme}>
-          <input
-            value={home.address || ""}
-            onChange={(event) => onUpdateHome("address", event.target.value)}
-            className={currentTheme.input}
-          />
+        <Field label="Address note" theme={currentTheme}>
+          <input value={home.address || ""} onChange={(e) => onUpdateHome("address", e.target.value)} className={currentTheme.input} />
         </Field>
-      </div>
-
-      <div className="mt-5 grid gap-4">
-        <div className="flex items-center justify-between gap-3">
-          <p className={currentTheme.label}>Notification contacts</p>
-          <button onClick={onAddCaregiver} className={currentTheme.softButton}>
-            Add contact
-          </button>
-        </div>
-
-        {contacts.map((contact, index) => (
-          <div key={index} className={currentTheme.photoMemoryCard}>
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-black">Contact {index + 1}</p>
-              <label className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.12em]">
-                <input
-                  type="checkbox"
-                  checked={contact.notify !== false}
-                  onChange={(event) =>
-                    onUpdateCaregiverNotify(index, event.target.checked)
-                  }
-                />
-                Notify
-              </label>
-            </div>
-
-            <div className="mt-3 grid gap-3 md:grid-cols-2">
-              <input
-                value={contact.name}
-                onChange={(event) =>
-                  onUpdateCaregiver(index, "name", event.target.value)
-                }
-                placeholder="Name"
-                className={currentTheme.input}
-              />
-              <input
-                value={contact.relationship}
-                onChange={(event) =>
-                  onUpdateCaregiver(index, "relationship", event.target.value)
-                }
-                placeholder="Relationship"
-                className={currentTheme.input}
-              />
-              <input
-                value={contact.phone}
-                onChange={(event) =>
-                  onUpdateCaregiver(index, "phone", event.target.value)
-                }
-                placeholder="+15551234567"
-                className={currentTheme.input}
-              />
-              <input
-                value={contact.email}
-                onChange={(event) =>
-                  onUpdateCaregiver(index, "email", event.target.value)
-                }
-                placeholder="Email"
-                className={currentTheme.input}
-              />
-            </div>
-            <textarea
-              value={contact.notes || ""}
-              onChange={(event) =>
-                onUpdateCaregiver(index, "notes", event.target.value)
-              }
-              placeholder="Availability or care note"
-              className={`${currentTheme.input} mt-3 min-h-[70px] resize-none`}
-            />
-            {contacts.length > 1 && (
-              <button
-                onClick={() => onRemoveCaregiver(index)}
-                className={currentTheme.softButton}
-              >
-                Remove contact
-              </button>
-            )}
-          </div>
-        ))}
       </div>
 
       <div className="mt-5 grid gap-3 md:grid-cols-3">
-        <button onClick={onGetGps} className={currentTheme.primaryButton}>
-          Get GPS
-        </button>
-        <button onClick={onUseCurrentGps} className={currentTheme.primaryButton}>
-          Use GPS as home
-        </button>
-        <button onClick={onSave} className={currentTheme.saveButton}>
-          {saveButtonLabel}
-        </button>
+        <button onClick={onGetGps} className={currentTheme.primaryButton}>Get GPS</button>
+        <button onClick={onUseCurrentGps} className={currentTheme.primaryButton}>Use as home</button>
+        <button onClick={onSave} className={currentTheme.saveButton}>{saveButtonLabel}</button>
       </div>
       <p className={currentTheme.statusBox}>{gpsStatus}</p>
       {settingsStatus && <p className={currentTheme.miniText}>{settingsStatus}</p>}
 
-      <InfoCard title="Recent family alerts" theme={currentTheme}>
-        {alerts.length === 0 && <Bullet>No family alerts yet.</Bullet>}
+      <InfoCard title="Recent alerts" theme={currentTheme}>
+        {alerts.length === 0 && <Bullet>No alerts yet.</Bullet>}
         {alerts.slice(0, 5).map((alert) => (
-          <Bullet key={alert.id}>
-            {new Date(alert.timestamp).toLocaleString()}: {alert.message}
-          </Bullet>
+          <Bullet key={alert.id}>{new Date(alert.timestamp).toLocaleString()}: {alert.message}</Bullet>
         ))}
       </InfoCard>
     </Card>
@@ -4998,11 +4789,17 @@ function EmptyState({
 function ResultPanel({
   result,
   theme,
-  hideTranscript = false
+  hideTranscript = false,
+  people = [],
+  photoMemories = [],
+  familyGalleryVisible = false
 }: {
   result: AssistResponse;
   theme: typeof lightTheme;
   hideTranscript?: boolean;
+  people?: PersonRecord[];
+  photoMemories?: PhotoMemory[];
+  familyGalleryVisible?: boolean;
 }) {
   return (
     <div className="mt-5 space-y-4">
@@ -5047,6 +4844,33 @@ function ResultPanel({
             {result.person_result.notes && (
               <p style={{ margin: "4px 0 0 0", fontSize: 13, color: "#666" }}>{result.person_result.notes}</p>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Family gallery — shown when patient says "who am I" / "I don't know anyone" */}
+      {familyGalleryVisible && (people.length > 0 || photoMemories.length > 0) && (
+        <div style={{ marginTop: 12, borderRadius: 16, background: "linear-gradient(135deg,#f0f9ff,#e8f5e9)", padding: 16, boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}>
+          <p style={{ margin: "0 0 12px 0", fontWeight: 700, fontSize: 14, color: "#374151", letterSpacing: 1 }}>
+            YOUR FAMILY &amp; PEOPLE WHO CARE FOR YOU
+          </p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+            {people.map(p => (
+              <div key={p.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 90, textAlign: "center" }}>
+                {p.photo_url
+                  ? <img src={p.photo_url} alt={p.name} style={{ width: 72, height: 72, borderRadius: "50%", objectFit: "cover", border: "3px solid #4ECDC4", marginBottom: 6 }} />
+                  : <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#4ECDC4", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, marginBottom: 6 }}>👤</div>
+                }
+                <p style={{ margin: 0, fontWeight: 700, fontSize: 13, color: "#111" }}>{p.name}</p>
+                {p.relationship && <p style={{ margin: "2px 0 0 0", fontSize: 11, color: "#4ECDC4", fontWeight: 600 }}>{p.relationship}</p>}
+              </div>
+            ))}
+            {photoMemories.map(m => (
+              <div key={m.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 90, textAlign: "center" }}>
+                <img src={m.imageDataUrl} alt={m.description || "Memory"} style={{ width: 72, height: 72, borderRadius: "50%", objectFit: "cover", border: "3px solid #f59e0b", marginBottom: 6 }} />
+                {m.description && <p style={{ margin: 0, fontSize: 11, color: "#555", lineHeight: 1.3 }}>{m.description.slice(0, 40)}</p>}
+              </div>
+            ))}
           </div>
         </div>
       )}

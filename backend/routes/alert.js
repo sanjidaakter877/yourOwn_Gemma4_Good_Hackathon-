@@ -1,29 +1,37 @@
 const express = require("express");
 const router = express.Router();
-const nodemailer = require("nodemailer");
+const https = require("https");
 
-const EMAIL_USER = (process.env.EMAIL_USER || "").trim();
-const EMAIL_PASS = (process.env.EMAIL_PASS || "").trim();
+const TELEGRAM_BOT_TOKEN = (process.env.TELEGRAM_BOT_TOKEN || "").trim();
+const TELEGRAM_CHAT_ID = (process.env.TELEGRAM_CHAT_ID || "").trim();
 
-function getTransporter() {
-  if (!EMAIL_USER || !EMAIL_PASS) return null;
-  return nodemailer.createTransport({
-    service: "gmail",
-    auth: { user: EMAIL_USER, pass: EMAIL_PASS }
+function sendTelegram(text) {
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return Promise.resolve(null);
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text, parse_mode: "HTML" });
+    const req = https.request({
+      hostname: "api.telegram.org",
+      path: `/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) }
+    }, (res) => {
+      let data = "";
+      res.on("data", (chunk) => data += chunk);
+      res.on("end", () => resolve(JSON.parse(data)));
+    });
+    req.on("error", reject);
+    req.write(body);
+    req.end();
   });
 }
 
-// POST /api/alert/email
-// Body: { to, patientName, reason, checkCount, lastSeen, detectedAt }
-router.post("/email", async (req, res) => {
-  const { to, patientName, reason, checkCount, lastSeen, detectedAt } = req.body;
+// POST /api/alert/notify
+// Body: { patientName, reason, checkCount, lastSeen, detectedAt, urgent }
+router.post("/notify", async (req, res) => {
+  const { patientName, reason, checkCount, lastSeen, detectedAt, urgent } = req.body;
 
-  if (!to) return res.status(400).json({ error: "Missing recipient email" });
-
-  const transporter = getTransporter();
-  if (!transporter) {
-    console.warn("[Alert] Email not configured — set EMAIL_USER and EMAIL_PASS in .env");
-    return res.status(503).json({ error: "Email not configured on server" });
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+    return res.status(503).json({ error: "Telegram not configured — set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID" });
   }
 
   const name = patientName || "Your patient";
@@ -31,85 +39,36 @@ router.post("/email", async (req, res) => {
   const count = checkCount || 2;
   const seen = lastSeen || "No recent visual information";
   const reasonText = reason || "Patient has not responded to multiple check-ins";
+  const isUrgent = Boolean(urgent);
 
-  const subject = `[yourOwn Alert] ${name} may need attention`;
-
-  const html = `
-<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-  <div style="background: #dc2626; color: white; padding: 16px 24px; border-radius: 8px 8px 0 0;">
-    <h2 style="margin: 0;">⚠️ yourOwn Care Alert</h2>
-  </div>
-  <div style="background: #fef2f2; border: 1px solid #fecaca; padding: 24px; border-radius: 0 0 8px 8px;">
-    <p style="font-size: 16px; color: #7f1d1d; margin-top: 0;">
-      <strong>${name}</strong> may need your attention.
-    </p>
-    <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
-      <tr style="border-bottom: 1px solid #fecaca;">
-        <td style="padding: 8px 0; color: #6b7280; width: 40%;">Detected at</td>
-        <td style="padding: 8px 0; font-weight: 600;">${time}</td>
-      </tr>
-      <tr style="border-bottom: 1px solid #fecaca;">
-        <td style="padding: 8px 0; color: #6b7280;">Reason</td>
-        <td style="padding: 8px 0; font-weight: 600;">${reasonText}</td>
-      </tr>
-      <tr style="border-bottom: 1px solid #fecaca;">
-        <td style="padding: 8px 0; color: #6b7280;">Unanswered check-ins</td>
-        <td style="padding: 8px 0; font-weight: 600;">${count}</td>
-      </tr>
-      <tr>
-        <td style="padding: 8px 0; color: #6b7280;">Last camera observation</td>
-        <td style="padding: 8px 0;">${seen}</td>
-      </tr>
-    </table>
-    <p style="color: #374151; margin: 0; font-size: 14px;">
-      Please check on ${name} as soon as possible or call them directly.
-    </p>
-  </div>
-  <p style="color: #9ca3af; font-size: 12px; text-align: center; margin-top: 12px;">
-    Sent automatically by yourOwn Alzheimer's care companion
-  </p>
-</div>`;
+  const text = isUrgent
+    ? `🚨 <b>EMERGENCY ALERT</b>\n\n<b>${name}</b> may be in danger!\n\n<b>What was said:</b> ${reasonText}\n<b>Time:</b> ${time}\n\n⚠️ Please call or visit immediately.`
+    : `⚠️ <b>yourOwn Care Alert</b>\n\n<b>${name}</b> may need your attention.\n\n<b>Unanswered check-ins:</b> ${count}\n<b>Last seen:</b> ${seen}\n<b>Time:</b> ${time}\n\nPlease check on ${name} as soon as possible.`;
 
   try {
-    await transporter.sendMail({
-      from: `"yourOwn Care" <${EMAIL_USER}>`,
-      to,
-      subject,
-      html
-    });
-    console.log(`[Alert] Email sent to ${to} for patient ${name}`);
-    return res.json({ ok: true, to, subject });
+    const result = await sendTelegram(text);
+    console.log(`[Alert] Telegram sent for patient ${name} (urgent=${isUrgent})`);
+    return res.json({ ok: true, result });
   } catch (err) {
-    console.error("[Alert] Email send failed:", err.message);
-    return res.status(500).json({ error: "Failed to send email", detail: err.message });
+    console.error("[Alert] Telegram send failed:", err.message);
+    return res.status(500).json({ error: "Failed to send notification", detail: err.message });
   }
 });
 
-// GET /api/alert/email-test — verify Gmail credentials are working
-router.get("/email-test", async (req, res) => {
-  const transporter = getTransporter();
-  if (!transporter) {
-    return res.status(503).json({
-      ok: false,
-      error: "Email not configured",
-      hint: "Set EMAIL_USER and EMAIL_PASS in your .env / Vercel environment variables"
-    });
+// GET /api/alert/telegram-test
+router.get("/telegram-test", async (req, res) => {
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+    return res.status(503).json({ ok: false, error: "Telegram not configured — set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID" });
   }
   try {
-    await transporter.verify();
-    return res.json({ ok: true, user: EMAIL_USER, message: "Gmail credentials verified — ready to send" });
+    const result = await sendTelegram("✅ <b>yourOwn test</b>\n\nTelegram notifications are working!");
+    return res.json({ ok: true, result });
   } catch (err) {
-    return res.status(500).json({
-      ok: false,
-      user: EMAIL_USER,
-      error: err.message,
-      hint: "Use a Gmail App Password (not your regular password). Enable 2FA, then generate an App Password at myaccount.google.com/apppasswords"
-    });
+    return res.status(500).json({ ok: false, error: err.message });
   }
 });
 
 // POST /api/alert/tts  — convert text to ElevenLabs audio, return base64
-// Used by frontend for reminders and not-visible checks so they use the same voice as the companion
 router.post("/tts", async (req, res) => {
   const { textToSpeech } = require("../services/elevenlabs");
   const { text } = req.body;
