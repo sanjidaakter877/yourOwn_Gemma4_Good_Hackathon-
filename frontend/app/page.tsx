@@ -1833,6 +1833,7 @@ export default function Home() {
 
     // Stall check — only idle frames increment this
     if (
+      activeTaskRef.current &&
       activeTaskRef.current.stallFrameCount >= STALL_FRAMES &&
       !activeTaskRef.current.stallResponseSent
     ) {
