@@ -645,6 +645,9 @@ export default function Home() {
     absentResponseSent: boolean;
   } | null>(null);
   const taskPatientAbsentSinceRef = useRef<number | null>(null);
+  const taskInquiryPendingRef = useRef(false);
+  const taskInquiryTimerRef = useRef<number | null>(null);
+  const visionSkipCountRef = useRef(0);
 
   const currentTheme = theme === "light" ? lightTheme : darkTheme;
 
@@ -1835,28 +1838,33 @@ export default function Home() {
     if (
       activeTaskRef.current &&
       activeTaskRef.current.stallFrameCount >= STALL_FRAMES &&
-      !activeTaskRef.current.stallResponseSent
+      !activeTaskRef.current.stallResponseSent &&
+      !taskInquiryPendingRef.current
     ) {
       activeTaskRef.current.stallResponseSent = true;
-      const idleSec = activeTaskRef.current.stallFrameCount * 2;
+      taskInquiryPendingRef.current = true;
+      const taskName = activeTaskRef.current.name;
       const expr = analysis.expression || "calm";
-      const micSignal = quietCheckCountRef.current > 0
-        ? `patient has been silent for ${quietCheckCountRef.current} check-in(s)`
-        : "no prolonged silence flagged";
-      const motionSignal = noMovementCountRef.current >= 2
-        ? "no physical movement detected by camera"
-        : noMovementCountRef.current === 1
-          ? "minimal movement detected"
-          : "movement was detected recently";
-      const activitySignal = activityStateRef.current;
-      const gpsSignal = latitude !== null && longitude !== null
-        ? `GPS active, patient is at a known location`
-        : "GPS unavailable";
+
       sendLiveMonitoringAssist(
-        `Combined stall check. TASK: patient was ${activeTaskRef.current.name} and stopped ${idleSec}s ago. CAMERA/EXPRESSION: ${expr} — ${analysis.description || "no description"}. MIC: ${micSignal}. MOTION: ${motionSignal} (activity state: ${activitySignal}). LOCATION: ${gpsSignal}. Use all of these signals together to gently check in. Ask if they need help or want to continue.`,
+        `Task stopped. Camera sees patient was ${taskName} and has now stopped. Expression: ${expr}. Scene: ${analysis.description || ""}. Ask warmly if they finished ${taskName} or need help continuing.`,
         "task_stall"
       );
-      addLog(`Task stalled: ${activeTaskRef.current.name} (${idleSec}s idle)`);
+      addLog(`Task stall inquiry sent: ${taskName}`);
+
+      // If patient doesn't reply in 15s, escalate as a quiet check
+      if (taskInquiryTimerRef.current !== null) window.clearTimeout(taskInquiryTimerRef.current);
+      taskInquiryTimerRef.current = window.setTimeout(() => {
+        taskInquiryPendingRef.current = false;
+        activeTaskRef.current = null;
+        taskInquiryTimerRef.current = null;
+        if (liveMonitoringRef.current) {
+          sendLiveMonitoringAssist(
+            `Task follow-up. Patient was asked if they finished ${taskName} but did not respond. Check if they are okay.`,
+            "quiet_check"
+          );
+        }
+      }, 15000);
     }
   };
 
@@ -1876,6 +1884,16 @@ export default function Home() {
     if (continuousVisionInFlightRef.current) return;
     if (captureModeRef.current) return;
     if (!cameraActiveRef.current || !videoRef.current) return;
+    // Skip Gemma calls while waiting for patient to reply to a task inquiry
+    if (taskInquiryPendingRef.current) return;
+    // While task is actively tracked, only call Gemma every 3rd frame (~6s) to reduce API load
+    if (activeTaskRef.current && !activeTaskRef.current.stallResponseSent) {
+      visionSkipCountRef.current += 1;
+      if (visionSkipCountRef.current < 3) return;
+      visionSkipCountRef.current = 0;
+    } else {
+      visionSkipCountRef.current = 0;
+    }
     const video = videoRef.current;
     if (video.videoWidth === 0) return;
 
@@ -2453,7 +2471,7 @@ export default function Home() {
             stage: "task_check",
             monitorInstruction: transcript,
             goal:
-              "Camera detected the patient stopped a task mid-way. Ask them naturally whether they finished or need help. Be warm, not alarming. Mention what they were doing."
+              "IMPORTANT: This is a task check-in, NOT a safety emergency. Do NOT mention family or caregivers. Do NOT say 'reach out to Anna'. Simply ask the patient in one warm sentence whether they finished what they were doing or would like to continue. You MUST mention the specific task name from monitorInstruction."
           }
         : {
             turnType: "patient_speech",
@@ -2614,6 +2632,8 @@ export default function Home() {
     quietCheckIntervalRef.current = window.setInterval(() => {
       if (!liveMonitoringRef.current || liveAssistInFlightRef.current) return;
       if (patientQuietModeRef.current) return;
+      // Suppress silent pause checks while patient is actively doing a task or we're waiting for their reply
+      if (activeTaskRef.current || taskInquiryPendingRef.current) return;
 
       // Mary not visible check — only when camera is on
       if (cameraActiveRef.current && !cameraFailedRef.current) {
@@ -2800,6 +2820,15 @@ export default function Home() {
           setLiveMonitoringStatus(`${userName || "Patient"} started talking again: ${transcript}`);
         }
 
+        // Patient replied — clear any pending task inquiry
+        if (taskInquiryPendingRef.current) {
+          taskInquiryPendingRef.current = false;
+          activeTaskRef.current = null;
+          if (taskInquiryTimerRef.current !== null) {
+            window.clearTimeout(taskInquiryTimerRef.current);
+            taskInquiryTimerRef.current = null;
+          }
+        }
         sendLiveMonitoringAssist(transcript);
       };
 
@@ -2892,6 +2921,11 @@ export default function Home() {
     maryNotVisibleCountRef.current = 0;
     activeTaskRef.current = null;
     taskPatientAbsentSinceRef.current = null;
+    taskInquiryPendingRef.current = false;
+    if (taskInquiryTimerRef.current !== null) {
+      window.clearTimeout(taskInquiryTimerRef.current);
+      taskInquiryTimerRef.current = null;
+    }
     if (liveRecognitionRestartRef.current !== null) {
       window.clearTimeout(liveRecognitionRestartRef.current);
       liveRecognitionRestartRef.current = null;
