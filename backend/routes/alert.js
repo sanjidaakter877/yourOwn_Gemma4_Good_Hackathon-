@@ -85,6 +85,29 @@ router.post("/email", async (req, res) => {
   }
 });
 
+// GET /api/alert/email-test — verify Gmail credentials are working
+router.get("/email-test", async (req, res) => {
+  const transporter = getTransporter();
+  if (!transporter) {
+    return res.status(503).json({
+      ok: false,
+      error: "Email not configured",
+      hint: "Set EMAIL_USER and EMAIL_PASS in your .env / Vercel environment variables"
+    });
+  }
+  try {
+    await transporter.verify();
+    return res.json({ ok: true, user: EMAIL_USER, message: "Gmail credentials verified — ready to send" });
+  } catch (err) {
+    return res.status(500).json({
+      ok: false,
+      user: EMAIL_USER,
+      error: err.message,
+      hint: "Use a Gmail App Password (not your regular password). Enable 2FA, then generate an App Password at myaccount.google.com/apppasswords"
+    });
+  }
+});
+
 // POST /api/alert/tts  — convert text to ElevenLabs audio, return base64
 // Used by frontend for reminders and not-visible checks so they use the same voice as the companion
 router.post("/tts", async (req, res) => {

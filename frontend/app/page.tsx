@@ -2372,10 +2372,13 @@ export default function Home() {
     if (emailAlertSentRef.current) return;
     const familyEmail = careSettings?.contacts?.[0]?.email ||
                         careSettings?.primaryCaregiver?.email || "";
-    if (!familyEmail) return;
+    if (!familyEmail) {
+      addLog("Email alert skipped — no family email address saved in contacts");
+      return;
+    }
     emailAlertSentRef.current = true;
     try {
-      await fetch(apiUrl("/api/alert/email"), {
+      const res = await fetch(apiUrl("/api/alert/email"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -2387,10 +2390,19 @@ export default function Home() {
           detectedAt: new Date().toLocaleString()
         })
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        emailAlertSentRef.current = false;
+        const detail = (data as any).detail || (data as any).error || `HTTP ${res.status}`;
+        addLog(`Email alert FAILED: ${detail}`);
+        setLiveMonitoringStatus(`Email failed: ${detail}`);
+        return;
+      }
       addLog(`Family email alert sent to ${familyEmail}`);
       setLiveMonitoringStatus("Family has been notified by email.");
-    } catch {
+    } catch (err: any) {
       emailAlertSentRef.current = false;
+      addLog(`Email alert error: ${err.message}`);
     }
   };
 
