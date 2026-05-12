@@ -1748,8 +1748,8 @@ export default function Home() {
 
     const now = Date.now();
     // 8 frames × 2s = 16s of same task with no completion → stall
-    const STALL_FRAMES = 8;
-    const ABSENT_SPEAK_MS = 20000;
+    const STALL_FRAMES = 4;
+    const ABSENT_SPEAK_MS = 8000;
     const patientName = userName || "John";
 
     const patientPresent = analysis.patient_present !== false;
@@ -1775,17 +1775,22 @@ export default function Home() {
 
     if (patientPresent) taskPatientAbsentSinceRef.current = null;
 
-    // Task finished or nothing happening
-    if (isIdle || analysis.task_completed) {
-      if (activeTaskRef.current && analysis.task_completed) {
-        addLog(`Task completed: ${activeTaskRef.current.name}`);
-      }
+    // Task explicitly completed — clear and done
+    if (analysis.task_completed) {
+      if (activeTaskRef.current) addLog(`Task completed: ${activeTaskRef.current.name}`);
       activeTaskRef.current = null;
       return;
     }
 
-    // New task or task switched — reset counter
-    if (!activeTaskRef.current || activeTaskRef.current.name !== rawTask) {
+    // No active task and nothing happening — nothing to track
+    if (isIdle && !activeTaskRef.current) return;
+
+    // Active task exists but scene is now idle → patient stopped mid-task, count as stall frames
+    if (isIdle && activeTaskRef.current) {
+      activeTaskRef.current.stallFrameCount += 1;
+    }
+    // New non-idle task detected while no task was active → start tracking
+    else if (!activeTaskRef.current) {
       activeTaskRef.current = {
         name: rawTask,
         startedAt: now,
@@ -1796,13 +1801,21 @@ export default function Home() {
       addLog(`Task started: ${rawTask}`);
       return;
     }
-
-    // Same task — increment frame counter
-    if (!analysis.task_completed) {
+    // Different task started while previous was active → reset to new task
+    else if (activeTaskRef.current.name !== rawTask) {
+      activeTaskRef.current = {
+        name: rawTask,
+        startedAt: now,
+        stallFrameCount: 0,
+        stallResponseSent: false,
+        absentResponseSent: false
+      };
+      addLog(`Task switched: ${rawTask}`);
+      return;
+    }
+    // Same task continuing — increment stall counter
+    else {
       activeTaskRef.current.stallFrameCount += 1;
-    } else {
-      activeTaskRef.current.stallFrameCount = 0;
-      activeTaskRef.current.stallResponseSent = false;
     }
 
     // Enough consecutive same-task frames = stalled
@@ -2843,6 +2856,14 @@ export default function Home() {
     stopAudioActivityMonitor();
     stopMotionDetection();
     speechRecognitionRef.current?.stop?.();
+    if (continuousVisionIntervalRef.current) {
+      clearInterval(continuousVisionIntervalRef.current);
+      continuousVisionIntervalRef.current = null;
+    }
+    cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
+    cameraStreamRef.current = null;
+    cameraActiveRef.current = false;
+    setCameraActive(false);
   };
 
   const toggleLiveMonitoring = () => {
