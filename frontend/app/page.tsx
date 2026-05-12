@@ -1776,7 +1776,7 @@ export default function Home() {
         const absentGps = latitude !== null ? "GPS active, last known location available" : "GPS unavailable";
         sendLiveMonitoringAssist(
           `Patient absent check. TASK: patient was ${taskName} and has left the camera view for ${absentSec}s without finishing. MIC: ${absentMicSignal}. LOCATION: ${absentGps}. MOTION: no movement visible. Ask warmly where they are and if they are okay.`,
-          "quiet_check"
+          "task_stall"
         );
         addLog(`Task absent: ${taskName}`);
       }
@@ -1854,7 +1854,7 @@ export default function Home() {
         : "GPS unavailable";
       sendLiveMonitoringAssist(
         `Combined stall check. TASK: patient was ${activeTaskRef.current.name} and stopped ${idleSec}s ago. CAMERA/EXPRESSION: ${expr} — ${analysis.description || "no description"}. MIC: ${micSignal}. MOTION: ${motionSignal} (activity state: ${activitySignal}). LOCATION: ${gpsSignal}. Use all of these signals together to gently check in. Ask if they need help or want to continue.`,
-        "quiet_check"
+        "task_stall"
       );
       addLog(`Task stalled: ${activeTaskRef.current.name} (${idleSec}s idle)`);
     }
@@ -2378,11 +2378,11 @@ export default function Home() {
 
   const sendLiveMonitoringAssist = async (
     transcript: string,
-    source: "speech" | "quiet_check" = "speech"
+    source: "speech" | "quiet_check" | "task_stall" = "speech"
   ) => {
     if (liveAssistInFlightRef.current) {
-      // Patient spoke while a silent check was in-flight — cancel the check and respond to speech instead
-      if (source === "speech" && liveAssistAbortRef.current) {
+      // Speech and task_stall both cancel an in-flight quiet check
+      if ((source === "speech" || source === "task_stall") && liveAssistAbortRef.current) {
         liveAssistAbortRef.current.abort();
         liveAssistInFlightRef.current = false;
       } else {
@@ -2422,6 +2422,19 @@ export default function Home() {
             microphoneStatus: liveMicErrorCountRef.current > 0 ? "unstable_or_blocked" : "available",
             source: cameraActiveRef.current && !cameraFailedRef.current ? "movement_detector" : "mic_gps"
           }
+        : source === "task_stall"
+        ? {
+            noProgress: true,
+            taskStall: true,
+            taskContext: transcript,
+            cameraAvailable: cameraActive && !cameraFailedRef.current,
+            movementDetected: false,
+            noMovementCount: noMovementCountRef.current,
+            activityState: activityStateRef.current,
+            gpsAvailable: latitude !== null && longitude !== null,
+            microphoneStatus: liveMicErrorCountRef.current > 0 ? "unstable_or_blocked" : "available",
+            source: "task_stall"
+          }
         : { hesitation: hasHesitationPattern(transcript), source: "speech" };
       const conversationState = source === "quiet_check"
         ? {
@@ -2433,6 +2446,14 @@ export default function Home() {
               "Code controls the safety stage. Gemma controls natural wording for this stage. Talk like a real caregiver, use saved context naturally, ask one fresh question, and do not repeat prior wording.",
             patientMayBeResting: patientQuietModeRef.current,
             shouldEscalateCaregiver: quietCheckCountRef.current >= 4
+          }
+        : source === "task_stall"
+        ? {
+            turnType: "task_stall",
+            stage: "task_check",
+            monitorInstruction: transcript,
+            goal:
+              "Camera detected the patient stopped a task mid-way. Ask them naturally whether they finished or need help. Be warm, not alarming. Mention what they were doing."
           }
         : {
             turnType: "patient_speech",
@@ -2452,7 +2473,7 @@ export default function Home() {
           signals: {
             ...payload.signals,
             speakerRole: "patient",
-            speechText: source === "quiet_check" ? "" : transcript,
+            speechText: (source === "quiet_check" || source === "task_stall") ? "" : transcript,
             capturedImage: liveFrame || payload.signals.capturedImage,
             visualDescription: (() => {
               const visionAlert = pendingVisionAlertRef.current;
