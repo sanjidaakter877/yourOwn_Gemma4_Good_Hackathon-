@@ -1,285 +1,224 @@
-# 🧠 yourOwn — AI Companion for Alzheimer's Patients
+# yourOwn — AI Companion for Alzheimer's Patients
 
-> *"It is 2 PM. Mary is making tea. She pauses, looks around, and goes quiet. yourOwn is already there."*
+> *"It is 2 PM. John is making tea. He pauses, looks around, and goes quiet. yourOwn is already there."*
 
-**yourOwn** is a voice-first AI companion powered entirely by **Gemma 4** that watches, listens, and responds — not just when something goes wrong, but continuously, like a calm presence in the room.
+**yourOwn** is a voice-first, camera-aware AI companion powered by **Gemma 4** that watches, listens, and responds — not just when something goes wrong, but continuously, like a calm presence in the room.
 
-Built for the **[Gemma 4 Good Hackathon](https://www.kaggle.com/competitions/gemma-4-good-hackathon)** 🏆
+Built for the **[Gemma 4 Good Hackathon 2026](https://www.kaggle.com/competitions/gemma-4-good-hackathon)**
 
-🌐 **Live Demo**: https://your-own-gemma4-good-hackathon.vercel.app
-
----
-
-## 💡 The Problem
-
-55 million people worldwide live with Alzheimer's and related dementia. **yourOwn targets the middle stage** — the most common and most underserved phase of the disease.
-
-In the middle stage, patients are still at home, still able to speak, still able to drink tea and watch television. But confusion strikes without warning, often when no one is watching. They forget familiar faces. They go quiet mid-activity with no idea why. They need help — but cannot ask for it.
-
-This is the gap yourOwn fills:
-
-- Get confused mid-activity and not know where they are
-- Forget a family member's face — "Who is Anna?"
-- Go silent for dangerous amounts of time after a fall or episode
-- Need gentle orientation — not an alarm, not a hospital
-
-Existing solutions are **passive alarms**. They detect crisis after it starts. yourOwn is different: it is always present, always listening, always ready.
-
-### 👨‍👩‍👧 Designed for Families, Not Just Patients
-
-A patient with middle-stage Alzheimer's cannot be expected to manage technology. **yourOwn is set up once by a caregiver.** Before leaving for work, a family member opens the app, starts the live monitor, and the companion takes over. The patient only ever sees a warm voice that speaks their name — never a settings screen, never a toggle.
+**Live demo:** https://your-own-gemma4-good-hackathon.vercel.app
 
 ---
 
-## ✨ What yourOwn Does
+## The Problem
 
-| Feature | Description |
+55 million people worldwide live with Alzheimer's. yourOwn targets the **middle stage** — the most common and most underserved phase, where patients are still at home, still able to speak, but confusion strikes without warning. They forget familiar faces, stop mid-task with no idea why, go silent after a fall. They need help but cannot ask for it.
+
+Existing solutions are passive alarms — they detect crisis *after* it starts. yourOwn runs silently in the background, detects those moments using Gemma 4's multimodal reasoning, and bridges the gap between patient safety and family peace of mind.
+
+---
+
+## Features
+
+### AI Voice Companion (Patient)
+- **Natural voice conversation** — Patient speaks freely. The app transcribes via Web Speech API, reasons with Gemma 4, and replies in a warm spoken voice via ElevenLabs TTS
+- **Care reasoning on every response** — Each reply goes through a full pipeline: risk score (0–100%), grounding status, safe-place check, and a three-way action plan (patient / family / doctor)
+- **Two response modes** — *Conversation mode* (patient is engaged, warm and casual) vs *Care mode* (confusion detected, calm and grounding). The patient experiences it as one consistent voice
+- **Context-aware responses** — Every response is grounded in current time, GPS-inferred location, daily schedule, doctor notes, and recent episodic memory
+- **Quick prompts** — One-tap buttons for common patient needs: "Where am I?", "What time is it?", "What should I do now?"
+- **Photo explanation** — Patient uploads any image (medicine bottle, unfamiliar object, room) and Gemma 4 describes and explains it
+
+### Live Monitoring — Silent Pause Detection
+- **Continuous microphone listening** — Detects when the patient has gone quiet
+- **Two check-ins before alerting** — First check-in: gentle spoken question. Second check-in: follow-up if still no reply
+- **5-second reply window** — After the second check-in, waits 5 seconds for the patient to respond before sending a Telegram alert
+- **Reset on speech** — Any patient speech immediately cancels the pending alert and resets the check-in counter
+- **Telegram notification** — If no reply after both check-ins + 5 seconds, family receives an instant Telegram message with patient name, check-in count, last camera observation, and timestamp
+
+### Live Monitoring — Task Detection
+- **Camera-based task recognition** — Gemma 4 vision identifies what the patient is doing: writing, eating, drinking tea, reading, brushing teeth, folding clothes, watching TV, doing puzzle, and more
+- **Task stall detection** — If the patient stops doing the task (first idle camera frame), the app immediately asks if they finished or need help — without waiting for the silent pause timer
+- **Task inquiry flow** — Sends a warm spoken question naming the specific task. Starts a 15-second timer waiting for a reply. If no reply, escalates as a silent pause
+- **Suppresses silent pause during tasks** — While a task is active or a task inquiry is pending, the regular silent pause timer is paused so the patient isn't bombarded
+- **Reduced API calls** — Gemma vision runs every 6 seconds during active tasks (every 2 seconds otherwise) and is skipped entirely while waiting for a task reply
+
+### Live Monitoring — Camera Presence
+- **Not-visible detection** — If the patient disappears from camera view, a spoken check-in fires after 8 seconds
+- **Extended absence escalation** — After 30 seconds not visible: first spoken inquiry. After 55 seconds with no camera presence and no speech reply: Telegram alert sent to family
+- **Camera stream cleanup** — Camera is fully released (stream tracks stopped) when live monitoring is stopped
+
+### Emergency Detection
+- **Real-time emergency phrase recognition** — Detects phrases like:
+  - "I fell", "I fall", "I've fallen", "fell down"
+  - "help me", "please help", "somebody help", "I need help"
+  - "I'm hurt", "I am in pain", "it hurts"
+  - "I can't get up", "I can't stand"
+  - "chest pain", "I can't breathe"
+  - "I'm dizzy", "I feel faint"
+  - "I'm bleeding", "I think I broke my..."
+- **Immediate Telegram alert** — Emergency bypasses all cooldowns. Alert is sent instantly with the exact phrase the patient said, marked as urgent
+- **Urgent formatting** — Emergency Telegram messages use a distinct format: "🚨 EMERGENCY ALERT — please call or visit immediately"
+
+### Identity Confusion — Family Photo Recall
+- **Identity confusion detection** — Detects phrases like "who am I", "I don't know anyone", "I don't recognize these people", "I forgot everyone"
+- **Family gallery shown in response** — When confusion is detected, the AI response card includes the full family photo gallery directly on screen
+- **Gemma narrates the faces** — Gemma 4 responds by naming and describing the family members from context
+- **Photo memories** — Separate memory photos with custom descriptions can be uploaded by family, shown when patient says they don't know anyone
+
+### Telegram Notifications
+- **All alerts go to Telegram** — No email required. Notifications arrive instantly on the family member's phone via Telegram bot
+- **Two alert types:**
+  - Standard: patient name, unanswered check-in count, last camera observation, timestamp
+  - Emergency: patient name, exact phrase said, timestamp, call-immediately instruction
+- **Single bot setup** — Family sets up once with a bot token and chat ID. No per-user configuration needed
+
+### Family Dashboard
+- **Family members panel** — Add people the patient knows: name, relationship, notes, and optional photo. Displayed as a photo card grid
+- **Photo memories** — Upload photos with a description. Shown to the patient when they express identity confusion ("I don't know anyone")
+- **Home GPS setup** — Set home coordinates, safe radius, and address note. Used to detect if the patient leaves a known safe area
+- **Recent alerts log** — Shows the last 5 GPS-related alerts with timestamp and message
+
+### Doctor Dashboard
+- **MMSE cognitive score** — Doctor sets current severity and trend: collecting baseline / improving / stable / worsening
+- **Clinical assessment** — Free-text notes that are injected into every Gemma 4 reasoning context
+- **Medicine list** — Per-medicine: name, dosage, time to take, schedule notes, and appearance description
+- **Medication reminders** — Spoken alarm at the scheduled time based on the doctor's medicine list. Uses patient name and medicine details
+- **Medication plan** — Auto-generated from the medicine list, or manually overridden
+- **Follow-up plan** — Doctor instruction text visible to Gemma 4 during patient interactions
+- **Patient-facing instruction** — A note written by the doctor, read by Gemma 4 as direct guidance
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
 |---|---|
-| 🎙️ **Voice companion** | Patient speaks naturally, Gemma 4 responds in warm plain language |
-| 👁️ **Live camera + vision** | Gemma 4 sees what the patient sees and references it in responses |
-| 🔇 **Silent detection** | 5-tier escalation when patient goes quiet or stops moving |
-| 📸 **Movement detection** | Pixel-diff analysis on 80×60 canvas, flags stillness in real time |
-| 🧬 **Episodic memory** | Every interaction auto-saved; patient can ask "what was I doing?" |
-| 👨‍👩‍👧 **People recall** | "Who is Anna?" → shows Anna's photo + description from family |
-| 📷 **Photo upload** | Patient uploads any image; Gemma 4 describes and explains it |
-| 🏠 **Local/offline mode** | Full Ollama fallback — nothing leaves the device |
-| 📋 **Caregiver dashboard** | Family adds people, reviews memory log, exports FHIR data |
-| 🤖 **Fine-tuned model** | Unsloth QLoRA adapter on 14 clinically grounded care scenarios |
+| Frontend | Next.js 15, React, TypeScript, Tailwind CSS |
+| Backend | Node.js, Express |
+| AI — primary | Gemma 4 via Google Gemini API |
+| AI — local/private | Ollama (any local model) |
+| Vision | Gemma 4 multimodal — camera frame analysis |
+| Voice output | ElevenLabs TTS (base64 audio stream) |
+| Voice input | Web Speech API (SpeechRecognition) |
+| Memory | Supabase (episodic memory, people records, care data) |
+| Notifications | Telegram Bot API |
+| Deployment | Vercel (frontend + backend as multi-service) |
 
 ---
 
-## 🔮 How Gemma 4 Powers Everything
-
-The **entire AI stack is Gemma 4**. No other model is used.
+## Architecture
 
 ```
-1. Primary   →  gemma-4-26b-a4b-it  (Google AI Studio API)
-2. Fallback  →  gemma4:e2b          (Ollama — fully local, 100% private)
-3. Failsafe  →  Gemini API          (same Gemma 4 model family)
-```
+Browser (Next.js)
+├── Web Speech API         — continuous mic, transcription
+├── MediaDevices           — camera stream, frame capture
+├── ElevenLabs TTS         — spoken voice output
+└── page.tsx               — patient + family + doctor UI
 
-### 🎯 Two-Mode Prompting
+Backend (Express)
+├── /api/assist            — main Gemma 4 conversation endpoint
+├── /api/vision            — camera frame analysis (Gemma 4 multimodal)
+├── /api/alert/notify      — Telegram notification (silent pause + emergency)
+├── /api/alert/tts         — ElevenLabs TTS proxy
+├── /api/people            — family member CRUD + photo upload
+├── /api/doctor            — doctor dashboard data
+├── /api/notes             — episodic memory log
+├── /api/care-settings     — GPS + alert settings
+└── /api/app-data          — patient profile, medicine list, schedule
 
-Before every Gemma 4 call, a scorer classifies the interaction:
-
-**Conversation mode** `(temp 0.85)` — Patient is engaged. Gemma 4 acts like a cheerful companion: tells jokes, chats about the family, asks about their day. No clinical language. No mention of Alzheimer's.
-
-**Care mode** `(temp 0.6)` — Something is wrong. Gemma 4 becomes a calm caregiver: gently orients the patient with time, place, and familiar context. Uses the patient's name. Grounds every statement in real facts.
-
-The patient experiences it as **one consistent warm voice**. The mode shift is invisible.
-
-### 🧩 Care Reasoning Pipeline
-
-Every care interaction passes through four stages before Gemma 4 generates a response:
-
-```
-Scorer → Risk Classifier → Evidence Builder → Action Planner → Gemma 4
-```
-
-Gemma 4 receives structured grounding context — current time, GPS-inferred location, episodic memories, family care notes — and generates responses anchored in facts about the patient's actual situation.
-
-### 🔇 5-Tier Silent Escalation
-
-| Check | What yourOwn Says |
-|---|---|
-| 1 | "Mary, are you there?" |
-| 2 | "Mary, I just want to make sure you're okay." |
-| 3 | "Mary, I'm a little worried. Can you say something?" |
-| 4 | "I haven't heard from you. I may need to let your family know." |
-| 5+ | 🚨 Caregiver alert triggered |
-
-Real movement is tracked via **pixel-diff on an 80×60 canvas** sampled every 2.5 seconds. If the camera fails, audio silence detection takes over — the escalation ladder runs either way.
-
----
-
-## 🧬 Episodic Memory
-
-### 👨‍👩‍👧 "Who Is Anna?"
-
-1. Family opens the caregiver dashboard
-2. Adds: "Anna — your daughter. Visits every Sunday. Loves bringing flowers."
-3. Uploads Anna's photo → stored in **Supabase Storage**
-
-When the patient says "Who is Anna?":
-- yourOwn retrieves Anna's record + photo from Supabase
-- **Displays her face on screen**
-- Gemma 4 says: *"That's Anna, your daughter. She visits you every Sunday and loves bringing you flowers."*
-
-The patient sees the face and hears the name at the same time. Grounded, specific, real.
-
-### 📖 Interaction Memory
-
-Every interaction is auto-saved:
-- What the patient said
-- What yourOwn replied
-- Time + inferred location
-- Care or conversation mode
-
-Patient: *"What was I doing last night?"*
-yourOwn: *"Last night around 10 PM you were in the living room. We had a lovely chat about your garden."*
-
----
-
-## 🏗️ Architecture
-
-```
-Browser
-├── Next.js 14 (App Router)
-├── Web Speech API (mic input)
-├── MediaDevices (camera + pixel-diff movement detection)
-├── ElevenLabs / Web Speech (voice output)
-└── Hume (optional emotion detection)
-
-Backend (Node.js / Express)
-├── /api/assist       ← main AI endpoint
-├── /api/people       ← people memory CRUD + photo upload
-├── care-reasoner     ← scorer + risk + evidence + action plan
-├── gemma-api.js      ← Google AI Studio (primary)
-├── ollama.js         ← Ollama local fallback
-└── gemini.js         ← Gemini API failsafe
+AI Services
+├── gemma-api.js           — Gemma 4 API calls + vision + extractFinalAnswer
+├── ollama.js              — full conversation pipeline + care reasoning
+├── scorer.js              — risk score, grounding, safe-place classification
+├── escalation-manager.js  — decides response stage (check-in / caregiver warning)
+├── context.js             — builds prompt context from time/GPS/schedule/memory
+├── people-memory.js       — Supabase people retrieval + episodic memory write
+└── environment.js         — time of day, schedule inference, location context
 
 Memory (Supabase)
-├── episodic_memories ← auto-saved interaction log
-├── people            ← family-added people + notes
-└── Storage bucket    ← people photos (public CDN)
+├── people                 — family-added members + photo URLs
+├── episodic_memories      — auto-saved interaction log per patient
+└── Storage bucket         — people photos (public CDN)
 ```
 
 ---
 
-## 🔒 Privacy by Design
+## How the AI Pipeline Works
 
-- 📵 Camera + microphone data **never streams** — only a single JPEG frame per API call
-- 🏠 **Ollama mode**: nothing leaves the device, full local Gemma 4 inference
-- 🗄️ Supabase stores **only text summaries** and family-uploaded photos — no raw audio, no video
-- 👁️ Visible on/off controls for mic and camera — patient is always in control
-
----
-
-## 🤖 Fine-Tuning with Unsloth
-
-Fine-tuned `gemma-4-26b-a4b-it` using **Unsloth QLoRA** (4-bit, LoRA rank 16) on 14 clinically grounded care scenarios:
-
-- 🌙 Waking up confused (night orientation)
-- 💊 Medication safety refusal
-- 🔇 Silent escalation — all 5 tiers
-- 💙 Emotional support during distress ("I want to go home")
-- 📍 GPS mismatch (patient believes they're somewhere else)
-- 💬 Natural conversation (keeping engagement high)
-- 👤 Person recall ("Who is that in the photo?")
-- 📅 Activity recall ("What was I doing just now?")
-
-Full training notebook with loss curves and example completions is included in this repo.
+1. **Context builder** — Combines patient name, time of day, GPS location, current schedule item, doctor notes, medication list, recent episodic memories, and camera observation into a structured prompt
+2. **Scorer** — Classifies the interaction: risk level (0–100%), grounding status (verified/unverified), safe-place status, whether this is distress or conversation
+3. **Gemma 4 function calling** — First pass: Gemma 4 selects care tools and reasons about the situation
+4. **Conversational response** — Second pass: tool results injected, Gemma 4 generates a warm patient-facing reply
+5. **`extractFinalAnswer`** — Strips Gemma's planning/reasoning text from the output so only the clean response reaches the patient
+6. **Escalation manager** — Tracks check-in stage and decides whether to escalate to caregiver
 
 ---
 
-## 🚀 Run Locally
+## Privacy
 
-### Requirements
+- Camera and microphone data is never streamed — only a single JPEG frame per Gemma 4 call
+- **Ollama mode**: full local inference, nothing leaves the device
+- Supabase stores only text summaries and family-uploaded photos — no raw audio or video
 
-- Node.js 20+
-- npm
-- Ollama (optional, for local mode)
+---
 
-### 1. Clone & install
-
-```bash
-git clone https://github.com/YOUR_USERNAME/yourOwn.git
-cd yourOwn
-
-cd backend && npm install
-cd ../frontend && npm install
-```
-
-### 2. Set up environment
-
-```bash
-cp backend/.env.example backend/.env
-```
-
-Edit `backend/.env`:
+## Environment Variables
 
 ```env
-# Gemma 4 — Primary AI (required)
-# Get a free key at https://aistudio.google.com/apikey
-GEMINI_API_KEY=your_key_here
-GEMINI_MODEL=gemma-4-26b-a4b-it
-GEMMA_API_MODEL=gemma-4-26b-a4b-it
+# Gemma 4 (required)
+GEMINI_API_KEY=
+GEMMA_API_MODEL=gemma-2.0-flash
 
-# Ollama — Local fallback (optional)
+# Ollama local mode (optional)
 OLLAMA_URL=http://localhost:11434
-OLLAMA_MODEL=gemma4:e2b
+OLLAMA_MODEL=gemma3
 
-# Supabase — Memory + photos (required for memory features)
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your_anon_key_here
+# Supabase (required for memory + people)
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
 
-# ElevenLabs — Voice output (optional)
-ELEVENLABS_API_KEY=your_key_here
-ELEVENLABS_VOICE_ID=your_voice_id_here
+# ElevenLabs voice (optional — browser TTS used as fallback)
+ELEVENLABS_API_KEY=
+ELEVENLABS_VOICE_ID=
 
-# Hume — Emotion detection (optional)
-HUME_API_KEY=your_key_here
+# Telegram notifications (required for alerts)
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
 ```
 
-### 3. Set up Supabase (for memory features)
+---
 
-Run the SQL in `backend/scripts/setup-supabase.sql` in your Supabase SQL editor. Creates:
-- `people` table — family-added people + photos
-- `episodic_memories` table — auto-saved interaction log
-
-Create a Storage bucket named `people-photos` (public: true).
-
-### 4. Start the app
+## Run Locally
 
 ```bash
-# Terminal 1
-cd backend && npm start
+# Backend (port 5000)
+cd backend
+npm install
+node index.js
 
-# Terminal 2
-cd frontend && npm run dev
+# Frontend (port 3000)
+cd frontend
+npm install
+npm run dev
 ```
 
-Open: `http://localhost:3000`
-
-### 5. (Optional) Local Ollama mode
-
-```bash
-ollama serve
-ollama pull gemma4:e2b
-```
-
-yourOwn will automatically fall back to Ollama when the API is unavailable.
+Open `http://localhost:3000`
 
 ---
 
-## 📋 Caregiver Dashboard
+## Dashboard Access
 
-The dashboard at `/dashboard` gives families:
-
-- 👨‍👩‍👧 **People directory** — add names, relationships, notes, photos
-- 📖 **Memory log** — timestamped record of every patient interaction
-- 📊 **Live status** — last heard, last movement, current risk level
-- 📤 **FHIR export** — structured data for EHR system integration
-
----
-
-## 🎬 Demo Video
-
-> 3-minute walkthrough: voice companion → silent confusion → 5-tier escalation → caregiver alert → "Who is Anna?" memory recall → photo upload + Gemma 4 vision
-
-[YouTube link coming soon]
+| Role | What they can do | Password |
+|---|---|---|
+| Patient | Speak with companion, live monitoring, photo upload | — (open) |
+| Family | Add family members, photo memories, GPS home setup | `1234` |
+| Doctor | Clinical notes, medicine list, MMSE score, care plan | `1234` |
 
 ---
 
-## ⚠️ Safety Note
+## Safety Notice
 
-yourOwn is a research prototype and hackathon submission. It is not a medical device, diagnostic tool, or emergency service. It is not a replacement for professional clinical judgment. Alerts and care instructions should be reviewed and configured by qualified caregivers or clinicians.
-
----
-
-## 📄 License
-
-Licensed under **Creative Commons Attribution 4.0 International (CC-BY 4.0)** except for third-party dependencies, models, and APIs which remain under their respective licenses.
+yourOwn is a research prototype and hackathon submission. It is not a medical device, diagnostic tool, or emergency service. Alerts and care instructions should be reviewed and configured by qualified caregivers or clinicians.
 
 ---
 

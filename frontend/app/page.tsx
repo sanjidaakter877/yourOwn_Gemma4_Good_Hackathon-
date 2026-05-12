@@ -448,16 +448,6 @@ const roleOptions: { value: RoleName; label: string; emoji: string }[] = [
   { value: "doctor", label: "Doctor", emoji: "🩺" }
 ];
 
-const languageOptions = [
-  "English",
-  "Spanish",
-  "French",
-  "Hindi",
-  "Bengali",
-  "Arabic",
-  "Urdu",
-  "Chinese"
-];
 
 const demoSchedule: CareScheduleItem[] = [
   { time: "08:00", label: "Breakfast", careMoment: true, alarm: true, kind: "breakfast" },
@@ -504,8 +494,8 @@ export default function Home() {
   const [loginPassword, setLoginPassword] = useState("");
 
   const [userName, setUserName] = useState("John");
-  const [mainLanguage, setMainLanguage] = useState("English");
-  const [spokenLanguage, setSpokenLanguage] = useState("English");
+  const mainLanguage = "English";
+  const spokenLanguage = "en-US";
 
   const [speechText, setSpeechText] = useState("");
   const [nearbyPerson, setNearbyPerson] = useState("");
@@ -618,6 +608,7 @@ export default function Home() {
   const patientQuietModeRef = useRef(false);
   const quietCheckCountRef = useRef(0);
   const telegramAlertSentRef = useRef(false);
+  const telegramAlertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastMarySeenRef = useRef(Date.now());
   const maryNotVisibleCountRef = useRef(0);
   const maryNotVisibleTimestampRef = useRef(0);
@@ -717,8 +708,6 @@ export default function Home() {
   useEffect(() => {
     const applyData = (data: Record<string, unknown>) => {
       if (typeof data.userName === "string") setUserName(data.userName);
-      if (typeof data.mainLanguage === "string") setMainLanguage(data.mainLanguage);
-      if (typeof data.spokenLanguage === "string") setSpokenLanguage(data.spokenLanguage);
       if (typeof data.nearbyPerson === "string") setNearbyPerson(data.nearbyPerson);
       if (typeof data.lastEvent === "string") setLastEvent(data.lastEvent);
       if (typeof data.careNote === "string") setCareNote(data.careNote);
@@ -1653,7 +1642,7 @@ export default function Home() {
     const now = Date.now();
     // 1 idle frame = fire immediately the moment task → idle transition is detected
     const STALL_FRAMES = 1;
-    const ABSENT_SPEAK_MS = 8000;
+    const ABSENT_SPEAK_MS = 3000;
     const patientName = userName || "John";
 
     const patientPresent = analysis.patient_present !== false;
@@ -1765,7 +1754,7 @@ export default function Home() {
             "quiet_check"
           );
         }
-      }, 15000);
+      }, 10000);
     }
   };
 
@@ -2559,6 +2548,7 @@ export default function Home() {
     lastQuietAssistAtRef.current = 0;
     quietCheckCountRef.current = 0;
     telegramAlertSentRef.current = false;
+    if (telegramAlertTimerRef.current) { clearTimeout(telegramAlertTimerRef.current); telegramAlertTimerRef.current = null; }
     lastMarySeenRef.current = Date.now();
     maryNotVisibleCountRef.current = 0;
 
@@ -2634,9 +2624,14 @@ export default function Home() {
       quietCheckCountRef.current += 1;
 
       if (quietCheckCountRef.current >= 2) {
-        sendTelegramAlert(
-          `Patient has not responded to ${quietCheckCountRef.current} check-ins`
-        );
+        if (telegramAlertTimerRef.current) clearTimeout(telegramAlertTimerRef.current);
+        telegramAlertTimerRef.current = setTimeout(() => {
+          if (quietCheckCountRef.current >= 2) {
+            sendTelegramAlert(
+              `Patient has not responded to ${quietCheckCountRef.current} check-ins`
+            );
+          }
+        }, 5000);
       }
 
       setLiveMonitoringStatus("Quiet pause noticed. Checking context gently...");
@@ -2699,7 +2694,7 @@ export default function Home() {
     // causes aborted errors. Skip it; the quiet timer uses speech recognition's onresult instead.
     startQuietCheckTimer();
 
-    const langTag = spokenLanguage && spokenLanguage !== "English" ? spokenLanguage : "en-US";
+    const langTag = "en-US";
 
     const createRecognition = () => {
       if (!liveMonitoringRef.current) return;
@@ -3006,7 +3001,7 @@ export default function Home() {
       const rec = new SpeechRecognitionClass();
       rec.continuous = false;
       rec.interimResults = true;
-      rec.lang = spokenLanguage && spokenLanguage !== "English" ? spokenLanguage : "en-US";
+      rec.lang = "en-US";
 
       let capturedTranscript = "";
 
@@ -4007,29 +4002,6 @@ export default function Home() {
                   />
                 </Field>
 
-                <Field label="Main language" theme={currentTheme}>
-                  <select
-                    value={mainLanguage}
-                    onChange={(e) => setMainLanguage(e.target.value)}
-                    className={currentTheme.input}
-                  >
-                    {languageOptions.map((lang) => (
-                      <option key={lang}>{lang}</option>
-                    ))}
-                  </select>
-                </Field>
-
-                <Field label="Spoken language" theme={currentTheme}>
-                  <select
-                    value={spokenLanguage}
-                    onChange={(e) => setSpokenLanguage(e.target.value)}
-                    className={currentTheme.input}
-                  >
-                    {languageOptions.map((lang) => (
-                      <option key={lang}>{lang}</option>
-                    ))}
-                  </select>
-                </Field>
 
                 <Field label="Nearby person" theme={currentTheme}>
                   <input
