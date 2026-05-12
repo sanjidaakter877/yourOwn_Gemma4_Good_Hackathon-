@@ -640,8 +640,7 @@ export default function Home() {
   const activeTaskRef = useRef<{
     name: string;
     startedAt: number;
-    lastProgressAt: number;
-    lastDescription: string;
+    stallFrameCount: number;  // consecutive frames with same task_name and no completion
     stallResponseSent: boolean;
     absentResponseSent: boolean;
   } | null>(null);
@@ -1748,8 +1747,9 @@ export default function Home() {
     if (liveAssistInFlightRef.current) return;
 
     const now = Date.now();
-    const STALL_SPEAK_MS = 20000;
-    const ABSENT_SPEAK_MS = 25000;
+    // 8 frames × 2s = 16s of same task with no completion → stall
+    const STALL_FRAMES = 8;
+    const ABSENT_SPEAK_MS = 20000;
     const patientName = userName || "John";
 
     const patientPresent = analysis.patient_present !== false;
@@ -1779,20 +1779,17 @@ export default function Home() {
     if (isIdle || analysis.task_completed) {
       if (activeTaskRef.current && analysis.task_completed) {
         addLog(`Task completed: ${activeTaskRef.current.name}`);
-        activeTaskRef.current = null;
-      } else if (isIdle) {
-        activeTaskRef.current = null;
       }
+      activeTaskRef.current = null;
       return;
     }
 
-    // New task or task switched
+    // New task or task switched — reset counter
     if (!activeTaskRef.current || activeTaskRef.current.name !== rawTask) {
       activeTaskRef.current = {
         name: rawTask,
         startedAt: now,
-        lastProgressAt: now,
-        lastDescription: analysis.description || "",
+        stallFrameCount: 0,
         stallResponseSent: false,
         absentResponseSent: false
       };
@@ -1800,20 +1797,19 @@ export default function Home() {
       return;
     }
 
-    // Same task — check if scene changed (= progress happening)
-    const currentDesc = (analysis.description || "").slice(0, 80);
-    const prevDesc = activeTaskRef.current.lastDescription.slice(0, 80);
-    if (currentDesc !== prevDesc) {
-      activeTaskRef.current.lastProgressAt = now;
-      activeTaskRef.current.lastDescription = analysis.description || "";
+    // Same task — increment frame counter
+    if (!analysis.task_completed) {
+      activeTaskRef.current.stallFrameCount += 1;
+    } else {
+      activeTaskRef.current.stallFrameCount = 0;
       activeTaskRef.current.stallResponseSent = false;
-      activeTaskRef.current.absentResponseSent = false;
-      return;
     }
 
-    // Scene unchanged — check how long stalled
-    const stalledMs = now - activeTaskRef.current.lastProgressAt;
-    if (stalledMs >= STALL_SPEAK_MS && !activeTaskRef.current.stallResponseSent) {
+    // Enough consecutive same-task frames = stalled
+    if (
+      activeTaskRef.current.stallFrameCount >= STALL_FRAMES &&
+      !activeTaskRef.current.stallResponseSent
+    ) {
       activeTaskRef.current.stallResponseSent = true;
       const isConfused = analysis.expression === "confused" ||
                          analysis.expression === "blank" ||
@@ -1824,7 +1820,7 @@ export default function Home() {
       speakWithElevenLabs(
         `${patientName}, ${note} You were ${rawTask}. Would you like to continue?`
       );
-      addLog(`Task stalled: ${rawTask} (${Math.round(stalledMs / 1000)}s)`);
+      addLog(`Task stalled: ${rawTask} (${activeTaskRef.current.stallFrameCount * 2}s)`);
     }
   };
 
@@ -2685,8 +2681,7 @@ export default function Home() {
         : "Microphone unavailable. Silent pause timer is watching quietly."
     );
 
-    // Start phone motion sensor — supplements camera pixel-diff on mobile devices
-    startMotionDetection();
+    // Phone motion sensor disabled — laptop has no accelerometer
 
     if (!microphone.ok) {
       return;
