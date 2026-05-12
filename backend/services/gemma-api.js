@@ -292,7 +292,10 @@ Look carefully at the image and return ONLY valid JSON — no markdown, no expla
   "concern": "none",
   "medicine_info": "",
   "expression": "calm",
+  "task_name": "idle",
+  "patient_present": true,
   "task_abandoned": false,
+  "task_completed": false,
   "task_detail": "",
   "should_speak": false,
   "speak_message": ""
@@ -303,8 +306,11 @@ Rules:
 - "labels": List every object, person, or activity you can see.
 - "concern": Use one of — none, medicine_check, unsafe_scene, fall_risk, confusion_sign
 - "expression": Describe the patient's visible facial expression — calm, confused, distressed, blank, sad, or other. Use "calm" if no face is visible.
-- "task_abandoned": Set true if previous observations show the patient was doing something they have now stopped mid-way (e.g. was cooking, now sitting elsewhere).
-- "task_detail": If task_abandoned is true, briefly describe what was left unfinished.
+- "task_name": Name the current activity in 2-4 words (e.g. "eating lunch", "reading book", "making tea", "writing notes", "taking medicine", "getting dressed"). Use "idle" if no clear activity.
+- "patient_present": Set true if a person is visible anywhere in the frame.
+- "task_abandoned": Set true if previous observations show the patient was doing something they have now stopped mid-way.
+- "task_completed": Set true ONLY if you can clearly see the task is finished (empty plate, closed book, cup made and set down, medicine taken).
+- "task_detail": If task_abandoned is true, briefly describe what was left unfinished (e.g. "kettle on stove, cup empty, patient left kitchen").
 - "should_speak": Set true if expression is confused/distressed/blank, OR task_abandoned is true, OR concern is not none.
 - "speak_message": If should_speak is true, write one warm gentle sentence to say directly to the patient. Otherwise leave empty.
 ${medicineInstruction}` }
@@ -328,7 +334,10 @@ ${medicineInstruction}` }
       concern: String(parsed.concern || "none"),
       medicine_info: String(parsed.medicine_info || ""),
       expression: String(parsed.expression || "calm"),
+      task_name: String(parsed.task_name || "idle"),
+      patient_present: parsed.patient_present !== false,
       task_abandoned: Boolean(parsed.task_abandoned),
+      task_completed: Boolean(parsed.task_completed),
       task_detail: String(parsed.task_detail || ""),
       should_speak: Boolean(parsed.should_speak),
       speak_message: String(parsed.speak_message || "")

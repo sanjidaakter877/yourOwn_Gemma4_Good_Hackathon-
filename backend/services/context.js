@@ -1,17 +1,4 @@
-const fs = require("fs");
-const path = require("path");
-
-const dataDir = path.join(__dirname, "..", "data");
-
-function readJson(fileName, fallback = {}) {
-  try {
-    const fullPath = path.join(dataDir, fileName);
-    const raw = fs.readFileSync(fullPath, "utf8");
-    return JSON.parse(raw);
-  } catch {
-    return fallback;
-  }
-}
+const { readData } = require("./storage");
 
 function safeString(value, fallback = "") {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
@@ -22,15 +9,17 @@ function safeNumber(value) {
   return Number.isFinite(number) ? number : null;
 }
 
-function buildContext({ profile = {}, signals = {} }) {
-  const patient = readJson("patient.json", {});
-  const family = readJson("family.json", []);
-  const doctor = readJson("doctor.json", []);
-  const reminders = readJson("reminders.json", []);
-  const session = readJson("session.json", {});
-  const schedule = readJson("schedule.json", []);
+async function buildContext({ profile = {}, signals = {} }) {
+  const [patient, family, doctor, reminders, session, schedule] = await Promise.all([
+    readData("patient.json", {}),
+    readData("family.json", []),
+    readData("doctor.json", []),
+    readData("reminders.json", []),
+    readData("session.json", {}),
+    readData("schedule.json", [])
+  ]);
 
-  // Always trust patient.json name — ignore stale "Mary" cached in browser localStorage
+  // Always trust patient.json name — ignore stale value cached in browser localStorage
   const userName = patient.name || safeString(profile.userName, "John");
   const mainLanguage = safeString(
     profile.mainLanguage,
@@ -91,6 +80,4 @@ function buildContext({ profile = {}, signals = {} }) {
   };
 }
 
-module.exports = {
-  buildContext
-};
+module.exports = { buildContext };

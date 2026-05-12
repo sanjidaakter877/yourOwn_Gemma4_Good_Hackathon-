@@ -1,46 +1,14 @@
 const express = require("express");
-const fs = require("fs");
-const path = require("path");
+const { readData, writeData } = require("../services/storage");
 const { readRecentAlerts } = require("../services/caregiver-alerts");
 
 const router = express.Router();
-const placesPath = path.join(__dirname, "..", "data", "places.json");
-const familyPath = path.join(__dirname, "..", "data", "family.json");
-let runtimePlaces = null;
-let runtimeFamily = null;
-
-function readJson(filePath, fallback) {
-  if (filePath === placesPath && runtimePlaces) return runtimePlaces;
-  if (filePath === familyPath && runtimeFamily) return runtimeFamily;
-
-  try {
-    return JSON.parse(fs.readFileSync(filePath, "utf8"));
-  } catch {
-    return fallback;
-  }
-}
-
-function writeJson(filePath, value) {
-  if (filePath === placesPath) runtimePlaces = value;
-  if (filePath === familyPath) runtimeFamily = value;
-
-  try {
-    fs.writeFileSync(filePath, JSON.stringify(value, null, 2));
-  } catch (error) {
-    console.warn("Care settings file write unavailable; using runtime settings only:", error.message);
-  }
-}
 
 function normalizeFamily(data) {
   if (Array.isArray(data)) return { contacts: data };
-  if (Array.isArray(data.contacts)) return data;
-  if (data.primaryCaregiver) return { contacts: [data.primaryCaregiver] };
+  if (Array.isArray(data?.contacts)) return data;
+  if (data?.primaryCaregiver) return { contacts: [data.primaryCaregiver] };
   return { contacts: [] };
-}
-
-function getHomePlace() {
-  const places = readJson(placesPath, []);
-  return places.find((place) => place.id === "home") || null;
 }
 
 function normalizeContact(contact, fallback = {}) {
@@ -55,20 +23,25 @@ function normalizeContact(contact, fallback = {}) {
   };
 }
 
-router.get("/", (req, res) => {
-  const family = normalizeFamily(readJson(familyPath, []));
+router.get("/", async (req, res) => {
+  const [familyRaw, places] = await Promise.all([
+    readData("family.json", []),
+    readData("places.json", [])
+  ]);
+  const family = normalizeFamily(familyRaw);
+  const home = Array.isArray(places) ? places.find(p => p.id === "home") || null : null;
   return res.json({
-    home: getHomePlace(),
+    home,
     primaryCaregiver: family.contacts[0] || null,
     contacts: family.contacts
   });
 });
 
-router.post("/", (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const body = req.body || {};
-    const places = readJson(placesPath, []);
-    const homeIndex = places.findIndex((place) => place.id === "home");
+    const places = await readData("places.json", []);
+    const homeIndex = Array.isArray(places) ? places.findIndex(p => p.id === "home") : -1;
     const previousHome = homeIndex >= 0 ? places[homeIndex] : {};
 
     const home = {
@@ -78,47 +51,34 @@ router.post("/", (req, res) => {
       lng: Number(body.home?.lng ?? previousHome.lng),
       radiusMeters: Number(body.home?.radiusMeters ?? previousHome.radiusMeters ?? 120),
       address: String(body.home?.address ?? previousHome.address ?? ""),
-      meaning:
-        String(body.home?.meaning ?? previousHome.meaning ?? "") ||
-        "This is your home. You are safe here."
+      meaning: String(body.home?.meaning ?? previousHome.meaning ?? "") || "This is your home. You are safe here."
     };
 
     if (!Number.isFinite(home.lat) || !Number.isFinite(home.lng)) {
       return res.status(400).json({ error: "Home latitude and longitude are required." });
     }
 
-    if (homeIndex >= 0) places[homeIndex] = home;
-    else places.unshift(home);
-    writeJson(placesPath, places);
+    const updatedPlaces = Array.isArray(places) ? [...places] : [];
+    if (homeIndex >= 0) updatedPlaces[homeIndex] = home;
+    else updatedPlaces.unshift(home);
+    await writeData("places.json", updatedPlaces);
 
-    const previousFamily = normalizeFamily(readJson(familyPath, []));
+    const previousFamily = normalizeFamily(await readData("family.json", []));
     const incomingContacts = Array.isArray(body.contacts)
       ? body.contacts
       : [body.primaryCaregiver || previousFamily.contacts[0] || {}];
-    const contacts = incomingContacts
-      .map((contact, index) =>
-        normalizeContact(contact, previousFamily.contacts[index] || {})
-      )
-      .filter((contact) => contact.name || contact.phone || contact.email);
+    let contacts = incomingContacts
+      .map((contact, i) => normalizeContact(contact, previousFamily.contacts[i] || {}))
+      .filter(c => c.name || c.phone || c.email);
 
     if (contacts.length === 0) {
-      contacts.push(
-        normalizeContact(body.primaryCaregiver, {
-          name: "Family",
-          relationship: "caregiver",
-          notify: true
-        })
-      );
+      contacts.push(normalizeContact(body.primaryCaregiver, { name: "Family", relationship: "caregiver", notify: true }));
     }
 
     const family = { contacts };
-    writeJson(familyPath, family);
+    await writeData("family.json", family);
 
-    return res.json({
-      home,
-      primaryCaregiver: family.contacts[0] || null,
-      contacts: family.contacts
-    });
+    return res.json({ home, primaryCaregiver: family.contacts[0] || null, contacts: family.contacts });
   } catch (error) {
     console.error("Care settings save error:", error.message);
     return res.status(500).json({ error: "Failed to save care settings." });

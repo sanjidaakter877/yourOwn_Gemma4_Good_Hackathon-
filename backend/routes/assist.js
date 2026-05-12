@@ -134,7 +134,7 @@ async function runAssistFlow(body, app) {
     behaviorAnalysis
   });
 
-  const context = buildContext({
+  const context = await buildContext({
     profile,
     signals: {
       ...signals,
@@ -193,6 +193,21 @@ async function runAssistFlow(body, app) {
     const personName = detectPersonQuery(context.speechText);
     if (personName) {
       personResult = await findPerson(context.userName, personName).catch(() => null);
+
+      // Override with family contact data if it exists — family.json is always more up-to-date
+      const familyContacts = Array.isArray(context.family?.contacts) ? context.family.contacts : context.family;
+      if (Array.isArray(familyContacts)) {
+        const clean = personName.trim().toLowerCase();
+        const match = familyContacts.find(c => c.name && c.name.toLowerCase().includes(clean));
+        if (match) {
+          personResult = {
+            name: match.name,
+            relationship: match.relationship || "",
+            notes: match.notes || (personResult?.notes || ""),
+            patient_name: context.userName
+          };
+        }
+      }
     }
 
     if (detectActivityQuery(context.speechText)) {

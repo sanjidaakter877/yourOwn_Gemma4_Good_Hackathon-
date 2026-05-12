@@ -636,6 +636,17 @@ export default function Home() {
   const rolePanelRef = useRef<HTMLDivElement | null>(null);
   const conversationHistoryRef = useRef<Array<{role: "patient"|"assistant", text: string}>>([]);
 
+  // Task State Engine — tracks what patient is doing across frames
+  const activeTaskRef = useRef<{
+    name: string;
+    startedAt: number;
+    lastProgressAt: number;
+    lastDescription: string;
+    stallResponseSent: boolean;
+    absentResponseSent: boolean;
+  } | null>(null);
+  const taskPatientAbsentSinceRef = useRef<number | null>(null);
+
   const currentTheme = theme === "light" ? lightTheme : darkTheme;
 
   useEffect(() => {
@@ -713,11 +724,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem("yourown-care-info");
-      if (!saved) return;
-
-      const data = JSON.parse(saved);
+    const applyData = (data: Record<string, unknown>) => {
       if (typeof data.userName === "string") setUserName(data.userName);
       if (typeof data.mainLanguage === "string") setMainLanguage(data.mainLanguage);
       if (typeof data.spokenLanguage === "string") setSpokenLanguage(data.spokenLanguage);
@@ -725,18 +732,26 @@ export default function Home() {
       if (typeof data.lastEvent === "string") setLastEvent(data.lastEvent);
       if (typeof data.careNote === "string") setCareNote(data.careNote);
       if (typeof data.doctorNote === "string") setDoctorNote(data.doctorNote);
-      if (typeof data.clinicalAssessment === "string") {
-        setClinicalAssessment(data.clinicalAssessment);
-      }
+      if (typeof data.clinicalAssessment === "string") setClinicalAssessment(data.clinicalAssessment);
       if (typeof data.medicationPlan === "string") setMedicationPlan(data.medicationPlan);
       if (typeof data.followUpPlan === "string") setFollowUpPlan(data.followUpPlan);
       if (Array.isArray(data.careSchedule)) setCareSchedule(data.careSchedule);
       if (Array.isArray(data.photoMemories)) setPhotoMemories(data.photoMemories);
       if (Array.isArray(data.patientNotes)) setPatientNotes(data.patientNotes);
       if (Array.isArray(data.medicines)) setMedicines(data.medicines);
-    } catch {
-      setSaveStatus("");
-    }
+    };
+
+    // Load from localStorage immediately (fast)
+    try {
+      const saved = window.localStorage.getItem("yourown-care-info");
+      if (saved) applyData(JSON.parse(saved));
+    } catch { /* ignore */ }
+
+    // Then fetch from backend (Supabase) — overrides localStorage with latest saved data
+    fetch(apiUrl("/api/app-data/profile"))
+      .then(r => r.ok ? r.json() : null)
+      .then(res => { if (res?.value) applyData(res.value); })
+      .catch(() => { /* backend unavailable, localStorage already loaded */ });
   }, []);
 
   const fetchSeverityTrend = async () => {
@@ -990,7 +1005,7 @@ export default function Home() {
     );
   };
 
-  const saveCareInfo = () => {
+  const saveCareInfo = async () => {
     const data = {
       userName,
       mainLanguage,
@@ -1011,7 +1026,18 @@ export default function Home() {
       medicines
     };
 
+    // Save to localStorage as fast local cache
     window.localStorage.setItem("yourown-care-info", JSON.stringify(data));
+
+    // Save to backend (Supabase) so data persists across devices and deployments
+    try {
+      await fetch(apiUrl("/api/app-data/profile"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ value: data })
+      });
+    } catch { /* silent — localStorage already has it */ }
+
     setSaveButtonState("saved");
     setSaveStatus("Saved");
     addLog("Care information saved");
@@ -1038,24 +1064,17 @@ export default function Home() {
     setPatientNoteSaveState("saved");
     addLog("Patient note saved");
 
-    // Save to localStorage
-    let existing = {};
+    // Persist locally and to backend
     try {
       const saved = window.localStorage.getItem("yourown-care-info");
-      existing = saved ? JSON.parse(saved) : {};
-    } catch {
-      existing = {};
-    }
-    window.localStorage.setItem(
-      "yourown-care-info",
-      JSON.stringify({ ...existing, patientNotes: updatedNotes })
-    );
+      const existing = saved ? JSON.parse(saved) : {};
+      window.localStorage.setItem("yourown-care-info", JSON.stringify({ ...existing, patientNotes: updatedNotes }));
+    } catch { /* ignore */ }
 
-    // Also save to Supabase so note is retrievable across devices
-    fetch(apiUrl("/api/notes"), {
+    fetch(apiUrl("/api/app-data/patient-notes"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ patientName: userName, text, timestamp: note.timestamp })
+      body: JSON.stringify({ value: updatedNotes })
     }).catch(() => {});
 
     window.setTimeout(() => setPatientNoteSaveState("idle"), 1800);
@@ -1064,12 +1083,16 @@ export default function Home() {
   const deleteNote = (id: string) => {
     const updatedNotes = patientNotes.filter(n => n.id !== id);
     setPatientNotes(updatedNotes);
-    let existing: Record<string, unknown> = {};
     try {
       const saved = window.localStorage.getItem("yourown-care-info");
-      existing = saved ? JSON.parse(saved) : {};
-    } catch { existing = {}; }
-    window.localStorage.setItem("yourown-care-info", JSON.stringify({ ...existing, patientNotes: updatedNotes }));
+      const existing = saved ? JSON.parse(saved) : {};
+      window.localStorage.setItem("yourown-care-info", JSON.stringify({ ...existing, patientNotes: updatedNotes }));
+    } catch { /* ignore */ }
+    fetch(apiUrl("/api/app-data/patient-notes"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ value: updatedNotes })
+    }).catch(() => {});
   };
 
   const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1599,7 +1622,7 @@ export default function Home() {
       startMovementDetection();
       sceneHistoryRef.current = [];
       if (continuousVisionIntervalRef.current) clearInterval(continuousVisionIntervalRef.current);
-      continuousVisionIntervalRef.current = setInterval(() => { grabFrameSilent(); }, 4000);
+      continuousVisionIntervalRef.current = setInterval(() => { grabFrameSilent(); }, 2000);
     } catch {
       cameraFailedRef.current = true;
       setCameraStatus("Camera unavailable — voice-only monitoring active.");
@@ -1711,6 +1734,100 @@ export default function Home() {
     return imageData;
   };
 
+  const updateTaskState = (analysis: {
+    task_name?: string;
+    patient_present?: boolean;
+    task_completed?: boolean;
+    task_abandoned?: boolean;
+    task_detail?: string;
+    expression?: string;
+    description?: string;
+  }) => {
+    if (!liveMonitoringRef.current) return;
+    if (assistantSpeakingRef.current) return;
+    if (liveAssistInFlightRef.current) return;
+
+    const now = Date.now();
+    const STALL_SPEAK_MS = 20000;
+    const ABSENT_SPEAK_MS = 25000;
+    const patientName = userName || "John";
+
+    const patientPresent = analysis.patient_present !== false;
+    const rawTask = (analysis.task_name || "").trim().toLowerCase();
+    const isIdle = !rawTask || rawTask === "idle" || rawTask === "none";
+
+    // Patient left the scene while a task was active
+    if (!patientPresent && activeTaskRef.current) {
+      if (taskPatientAbsentSinceRef.current === null) {
+        taskPatientAbsentSinceRef.current = now;
+      }
+      const absentMs = now - taskPatientAbsentSinceRef.current;
+      if (absentMs >= ABSENT_SPEAK_MS && !activeTaskRef.current.absentResponseSent) {
+        activeTaskRef.current.absentResponseSent = true;
+        const taskName = activeTaskRef.current.name;
+        speakWithElevenLabs(
+          `${patientName}, where are you? I haven't seen you for a while. You were ${taskName} and didn't finish. Please let me know you are okay.`
+        );
+        addLog(`Task absent: ${taskName}`);
+      }
+      return;
+    }
+
+    if (patientPresent) taskPatientAbsentSinceRef.current = null;
+
+    // Task finished or nothing happening
+    if (isIdle || analysis.task_completed) {
+      if (activeTaskRef.current && analysis.task_completed) {
+        addLog(`Task completed: ${activeTaskRef.current.name}`);
+        activeTaskRef.current = null;
+      } else if (isIdle) {
+        activeTaskRef.current = null;
+      }
+      return;
+    }
+
+    // New task or task switched
+    if (!activeTaskRef.current || activeTaskRef.current.name !== rawTask) {
+      activeTaskRef.current = {
+        name: rawTask,
+        startedAt: now,
+        lastProgressAt: now,
+        lastDescription: analysis.description || "",
+        stallResponseSent: false,
+        absentResponseSent: false
+      };
+      addLog(`Task started: ${rawTask}`);
+      return;
+    }
+
+    // Same task — check if scene changed (= progress happening)
+    const currentDesc = (analysis.description || "").slice(0, 80);
+    const prevDesc = activeTaskRef.current.lastDescription.slice(0, 80);
+    if (currentDesc !== prevDesc) {
+      activeTaskRef.current.lastProgressAt = now;
+      activeTaskRef.current.lastDescription = analysis.description || "";
+      activeTaskRef.current.stallResponseSent = false;
+      activeTaskRef.current.absentResponseSent = false;
+      return;
+    }
+
+    // Scene unchanged — check how long stalled
+    const stalledMs = now - activeTaskRef.current.lastProgressAt;
+    if (stalledMs >= STALL_SPEAK_MS && !activeTaskRef.current.stallResponseSent) {
+      activeTaskRef.current.stallResponseSent = true;
+      const isConfused = analysis.expression === "confused" ||
+                         analysis.expression === "blank" ||
+                         analysis.expression === "distressed";
+      const note = isConfused
+        ? `You look a little ${analysis.expression}.`
+        : `You haven't moved in a while.`;
+      speakWithElevenLabs(
+        `${patientName}, ${note} You were ${rawTask}. Would you like to continue?`
+      );
+      addLog(`Task stalled: ${rawTask} (${Math.round(stalledMs / 1000)}s)`);
+    }
+  };
+
   const grabFrameSilent = async () => {
     // Only analyse frames automatically when live monitor is active.
     // When off, camera just shows video — patient interacts manually.
@@ -1757,6 +1874,9 @@ export default function Home() {
       if (!analysis || analysis.error || !analysis.description) return;
 
       sceneHistoryRef.current = [analysis.description, ...sceneHistoryRef.current].slice(0, 3);
+
+      // Task State Engine — track what patient is doing across frames
+      updateTaskState(analysis);
 
       // Always update description box so caregiver can see what camera detected
       setVisualDescription(analysis.description);
@@ -2718,6 +2838,8 @@ export default function Home() {
     }
     patientQuietModeRef.current = false;
     maryNotVisibleCountRef.current = 0;
+    activeTaskRef.current = null;
+    taskPatientAbsentSinceRef.current = null;
     if (liveRecognitionRestartRef.current !== null) {
       window.clearTimeout(liveRecognitionRestartRef.current);
       liveRecognitionRestartRef.current = null;

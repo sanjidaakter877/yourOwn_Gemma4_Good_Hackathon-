@@ -309,6 +309,7 @@ app.use("/api/vision", visionRoute);
 app.use("/api/notes", notesRoute);
 app.use("/api/people", require("./routes/people"));
 app.use("/api/alert", require("./routes/alert"));
+app.use("/api/app-data", require("./routes/app-data"));
 
 // Service initialization
 async function initializeServices() {
