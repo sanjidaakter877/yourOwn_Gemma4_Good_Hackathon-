@@ -306,7 +306,7 @@ Rules:
 - "labels": List every object, person, or activity you can see.
 - "concern": Use one of — none, medicine_check, unsafe_scene, fall_risk, confusion_sign
 - "expression": Describe the patient's visible facial expression — calm, confused, distressed, blank, sad, or other. Use "calm" if no face is visible.
-- "task_name": Name the current activity in 2-4 words (e.g. "eating lunch", "reading book", "making tea", "writing notes", "taking medicine", "getting dressed"). Use "idle" if no clear activity.
+- "task_name": Name the current activity in 2-4 words. Examples: "eating lunch", "drinking tea", "reading book", "writing notes", "taking medicine", "getting dressed", "washing hands", "brushing teeth", "folding clothes", "watching tv", "using phone", "cooking meal", "watering plants", "doing puzzle", "knitting", "looking at photos". Use "idle" if the patient is just sitting/standing still with no clear activity.
 - "patient_present": Set true if a person is visible anywhere in the frame.
 - "task_abandoned": Set true if previous observations show the patient was doing something they have now stopped mid-way.
 - "task_completed": Set true ONLY if you can clearly see the task is finished (empty plate, closed book, cup made and set down, medicine taken).

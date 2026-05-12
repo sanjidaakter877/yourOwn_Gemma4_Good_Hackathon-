@@ -1747,14 +1747,18 @@ export default function Home() {
     if (liveAssistInFlightRef.current) return;
 
     const now = Date.now();
-    // 8 frames × 2s = 16s of same task with no completion → stall
-    const STALL_FRAMES = 4;
+    // 1 idle frame = fire immediately the moment task → idle transition is detected
+    const STALL_FRAMES = 1;
     const ABSENT_SPEAK_MS = 8000;
     const patientName = userName || "John";
 
     const patientPresent = analysis.patient_present !== false;
     const rawTask = (analysis.task_name || "").trim().toLowerCase();
     const isIdle = !rawTask || rawTask === "idle" || rawTask === "none";
+
+    // Normalize: "writing notes" / "writing on paper" / "writing something" → "writing"
+    // Take the first meaningful verb word so minor phrasing changes don't reset tracking
+    const taskCategory = rawTask.split(/\s+/)[0] || "idle";
 
     // Patient left the scene while a task was active
     if (!patientPresent && activeTaskRef.current) {
@@ -1765,8 +1769,14 @@ export default function Home() {
       if (absentMs >= ABSENT_SPEAK_MS && !activeTaskRef.current.absentResponseSent) {
         activeTaskRef.current.absentResponseSent = true;
         const taskName = activeTaskRef.current.name;
-        speakWithElevenLabs(
-          `${patientName}, where are you? I haven't seen you for a while. You were ${taskName} and didn't finish. Please let me know you are okay.`
+        const absentSec = Math.round(absentMs / 1000);
+        const absentMicSignal = quietCheckCountRef.current > 0
+          ? `patient has also been silent for ${quietCheckCountRef.current} check-in(s)`
+          : "no speech detected recently";
+        const absentGps = latitude !== null ? "GPS active, last known location available" : "GPS unavailable";
+        sendLiveMonitoringAssist(
+          `Patient absent check. TASK: patient was ${taskName} and has left the camera view for ${absentSec}s without finishing. MIC: ${absentMicSignal}. LOCATION: ${absentGps}. MOTION: no movement visible. Ask warmly where they are and if they are okay.`,
+          "quiet_check"
         );
         addLog(`Task absent: ${taskName}`);
       }
@@ -1785,55 +1795,67 @@ export default function Home() {
     // No active task and nothing happening — nothing to track
     if (isIdle && !activeTaskRef.current) return;
 
-    // Active task exists but scene is now idle → patient stopped mid-task, count as stall frames
     if (isIdle && activeTaskRef.current) {
+      // Patient stopped doing their task → count idle frames toward stall
       activeTaskRef.current.stallFrameCount += 1;
-    }
-    // New non-idle task detected while no task was active → start tracking
-    else if (!activeTaskRef.current) {
-      activeTaskRef.current = {
-        name: rawTask,
-        startedAt: now,
-        stallFrameCount: 0,
-        stallResponseSent: false,
-        absentResponseSent: false
-      };
-      addLog(`Task started: ${rawTask}`);
-      return;
-    }
-    // Different task started while previous was active → reset to new task
-    else if (activeTaskRef.current.name !== rawTask) {
-      activeTaskRef.current = {
-        name: rawTask,
-        startedAt: now,
-        stallFrameCount: 0,
-        stallResponseSent: false,
-        absentResponseSent: false
-      };
-      addLog(`Task switched: ${rawTask}`);
-      return;
-    }
-    // Same task continuing — increment stall counter
-    else {
-      activeTaskRef.current.stallFrameCount += 1;
+    } else if (!isIdle) {
+      const currentCategory = activeTaskRef.current?.name.split(/\s+/)[0] || "";
+      if (!activeTaskRef.current) {
+        // New task started — begin tracking
+        activeTaskRef.current = {
+          name: rawTask,
+          startedAt: now,
+          stallFrameCount: 0,
+          stallResponseSent: false,
+          absentResponseSent: false
+        };
+        addLog(`Task started: ${rawTask}`);
+        return;
+      } else if (taskCategory !== currentCategory) {
+        // Genuinely different activity (writing → eating) — reset
+        activeTaskRef.current = {
+          name: rawTask,
+          startedAt: now,
+          stallFrameCount: 0,
+          stallResponseSent: false,
+          absentResponseSent: false
+        };
+        addLog(`Task switched: ${rawTask}`);
+        return;
+      } else {
+        // Same activity still ongoing (e.g. "writing notes" → "writing on paper")
+        // Update name but reset stall counter — patient is still active, not stalled
+        activeTaskRef.current.name = rawTask;
+        activeTaskRef.current.stallFrameCount = 0;
+        return;
+      }
     }
 
-    // Enough consecutive same-task frames = stalled
+    // Stall check — only idle frames increment this
     if (
       activeTaskRef.current.stallFrameCount >= STALL_FRAMES &&
       !activeTaskRef.current.stallResponseSent
     ) {
       activeTaskRef.current.stallResponseSent = true;
-      const isConfused = analysis.expression === "confused" ||
-                         analysis.expression === "blank" ||
-                         analysis.expression === "distressed";
-      const note = isConfused
-        ? `You look a little ${analysis.expression}.`
-        : `You haven't moved in a while.`;
-      speakWithElevenLabs(
-        `${patientName}, ${note} You were ${rawTask}. Would you like to continue?`
+      const idleSec = activeTaskRef.current.stallFrameCount * 2;
+      const expr = analysis.expression || "calm";
+      const micSignal = quietCheckCountRef.current > 0
+        ? `patient has been silent for ${quietCheckCountRef.current} check-in(s)`
+        : "no prolonged silence flagged";
+      const motionSignal = noMovementCountRef.current >= 2
+        ? "no physical movement detected by camera"
+        : noMovementCountRef.current === 1
+          ? "minimal movement detected"
+          : "movement was detected recently";
+      const activitySignal = activityStateRef.current;
+      const gpsSignal = latitude !== null && longitude !== null
+        ? `GPS active, patient is at a known location`
+        : "GPS unavailable";
+      sendLiveMonitoringAssist(
+        `Combined stall check. TASK: patient was ${activeTaskRef.current.name} and stopped ${idleSec}s ago. CAMERA/EXPRESSION: ${expr} — ${analysis.description || "no description"}. MIC: ${micSignal}. MOTION: ${motionSignal} (activity state: ${activitySignal}). LOCATION: ${gpsSignal}. Use all of these signals together to gently check in. Ask if they need help or want to continue.`,
+        "quiet_check"
       );
-      addLog(`Task stalled: ${rawTask} (${activeTaskRef.current.stallFrameCount * 2}s)`);
+      addLog(`Task stalled: ${activeTaskRef.current.name} (${idleSec}s idle)`);
     }
   };
 
