@@ -727,7 +727,7 @@ export default function Home() {
 
   const fetchSeverityTrend = async () => {
     try {
-      const res = await fetch(apiUrl("/doctor/mary/severity-trend"));
+      const res = await fetch(apiUrl(`/doctor/${encodeURIComponent(userName || "John")}/severity-trend`));
       if (!res.ok) return;
       const data: SeverityTrend = await res.json();
       setSeverityTrend(data);
