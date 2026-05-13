@@ -1,5 +1,23 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
+// Fix Gemma's tendency to use the patient name or wrong pronouns instead of "you"
+function fixPerspective(text, name) {
+  if (!text || !name) return text;
+  // Replace patient name with "you" / "your" depending on context
+  let out = text
+    .replace(new RegExp(`\\bmy (daughter|son|wife|husband|sister|brother|friend|mother|father)\\b`, "gi"),
+      "your $1")
+    .replace(new RegExp(`\\btakes care of me\\b`, "gi"), "takes care of you")
+    .replace(new RegExp(`\\bhelps? (take care of|look after) (me|us)\\b`, "gi"), "helps $1 you")
+    .replace(new RegExp(`\\bhere with us\\b`, "gi"), "there with you")
+    .replace(new RegExp(`\\bshall we\\b`, "gi"), "would you like to")
+    .replace(new RegExp(`\\bwe can\\b`, "gi"), "you can")
+    .replace(new RegExp(`\\b${name}\\b`, "gi"), "you");
+  // Fix capitalisation after name-replacement at sentence start
+  out = out.replace(/\. you\b/g, ". You");
+  return out;
+}
+
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
 
@@ -45,8 +63,9 @@ async function generateWithGemini({
     const parts = imagePart ? [imagePart, { text: prompt }] : [{ text: prompt }];
 
     const result = await model.generateContent(parts);
-    const reply = result.response.text().trim();
-    if (!reply) return null;
+    const raw = result.response.text().trim();
+    if (!raw) return null;
+    const reply = fixPerspective(raw, name);
 
     const response = { reassurance: reply, context: "", next_step: "" };
 
