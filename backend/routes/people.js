@@ -6,6 +6,7 @@ const {
   listPeople,
   findPerson,
   deletePerson,
+  updatePersonPhoto,
   getRecentMemories
 } = require("../services/people-memory");
 
@@ -50,6 +51,23 @@ router.get("/find", async (req, res) => {
     if (!name) return res.status(400).json({ error: "name is required" });
     const person = await findPerson(patient || "Mary", name);
     res.json({ person: person || null });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update a person's photo
+router.patch("/:id/photo", upload.single("photo"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "No photo provided" });
+    const { patientName } = req.body;
+    const person = await updatePersonPhoto(
+      req.params.id,
+      patientName || "Mary",
+      req.file.buffer,
+      req.file.mimetype
+    );
+    res.json({ ok: true, person });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -86,6 +86,31 @@ async function findPerson(patientName, nameQuery) {
   return partial?.[0] || null;
 }
 
+async function updatePersonPhoto(id, patientName, photoBuffer, mimeType) {
+  const db = getClient();
+  if (!db) throw new Error("Supabase not configured");
+
+  const fileName = `${patientName}/${Date.now()}_${id}.jpg`;
+  const { error: uploadError } = await db.storage
+    .from("people-photos")
+    .upload(fileName, photoBuffer, { contentType: mimeType || "image/jpeg", upsert: true });
+
+  if (uploadError) throw new Error(uploadError.message);
+
+  const { data } = db.storage.from("people-photos").getPublicUrl(fileName);
+  const photoUrl = data.publicUrl;
+
+  const { data: updated, error } = await db
+    .from("people")
+    .update({ photo_url: photoUrl })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return updated;
+}
+
 async function deletePerson(id) {
   const db = getClient();
   if (!db) throw new Error("Supabase not configured");
@@ -182,6 +207,7 @@ module.exports = {
   listPeople,
   findPerson,
   deletePerson,
+  updatePersonPhoto,
   saveEpisodicMemory,
   findEpisodicMemories,
   getRecentMemories,

@@ -301,13 +301,6 @@ type SeverityTrend = {
   }[];
 };
 
-type PhotoMemory = {
-  id: string;
-  imageDataUrl: string;
-  name: string;
-  relationship: string;
-  description: string;
-};
 
 type PatientNote = {
   id: string;
@@ -464,13 +457,13 @@ const protectedLogin = {
   doctor: { id: "doctor", password: "1234" }
 };
 
-const SILENT_CHECK_COOLDOWN_MS = 12000; // demo: 12s cooldown between checks
+const SILENT_CHECK_COOLDOWN_MS = 7000; // demo: 7s cooldown between checks
 
-// Activity-aware silence thresholds (set low for demo — change back to 60/120s for production)
+// Activity-aware silence thresholds (demo — change back to 60/120s for production)
 const SILENT_CHECK_MS: Record<string, number> = {
-  frozen:  15_000,
-  settled: 15_000,
-  resting: 15_000,
+  frozen:  8_000,
+  settled: 8_000,
+  resting: 8_000,
   active:  999_999
 };
 
@@ -523,7 +516,6 @@ export default function Home() {
   const [followUpPlan, setFollowUpPlan] = useState(
     "Review repeated disorientation episodes at next visit."
   );
-  const [photoMemories, setPhotoMemories] = useState<PhotoMemory[]>([]);
   const [patientNoteDraft, setPatientNoteDraft] = useState("");
   const [patientNotes, setPatientNotes] = useState<PatientNote[]>([]);
   const [patientNoteSaveState, setPatientNoteSaveState] =
@@ -716,7 +708,6 @@ export default function Home() {
       if (typeof data.medicationPlan === "string") setMedicationPlan(data.medicationPlan);
       if (typeof data.followUpPlan === "string") setFollowUpPlan(data.followUpPlan);
       if (Array.isArray(data.careSchedule)) setCareSchedule(data.careSchedule);
-      if (Array.isArray(data.photoMemories)) setPhotoMemories(data.photoMemories);
       if (Array.isArray(data.patientNotes)) setPatientNotes(data.patientNotes);
       if (Array.isArray(data.medicines)) setMedicines(data.medicines);
     };
@@ -867,16 +858,6 @@ export default function Home() {
           ? "Camera is active, but no frame has been captured yet."
           : "",
       visualDescription ? `Caregiver-entered visual context: ${visualDescription}.` : "",
-      photoMemories.length
-        ? `Face memory library: ${photoMemories
-            .map((photo) =>
-              [photo.name, photo.relationship, photo.description]
-                .filter(Boolean)
-                .join(" - ")
-            )
-            .filter(Boolean)
-            .join("; ")}.`
-        : "",
       nearbyPerson ? `Nearby known person: ${nearbyPerson}.` : "",
       lastEvent ? `Recent event: ${lastEvent}.` : "",
       speakerRole === "family" && careNote ? `Family note: ${careNote}.` : "",
@@ -906,7 +887,6 @@ export default function Home() {
     capturedImage,
     cameraActive,
     visualDescription,
-    photoMemories,
     nearbyPerson,
     lastEvent,
     speakerRole,
@@ -1001,7 +981,6 @@ export default function Home() {
       medicationPlan,
       followUpPlan,
       careSchedule,
-      photoMemories,
       patientNotes,
       medicines
     };
@@ -1075,39 +1054,19 @@ export default function Home() {
     }).catch(() => {});
   };
 
-  const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        setPhotoMemories((items) => [
-          ...items,
-          {
-            id: `${Date.now()}-${file.name}`,
-            imageDataUrl: String(reader.result || ""),
-            name: "",
-            relationship: "",
-            description: ""
-          }
-        ]);
-      };
-      reader.readAsDataURL(file);
-    });
-    event.target.value = "";
-  };
-
-  const updatePhotoMemory = (
-    id: string,
-    field: "name" | "relationship" | "description",
-    value: string
-  ) => {
-    setPhotoMemories((items) =>
-      items.map((item) => (item.id === id ? { ...item, [field]: value } : item))
-    );
-  };
-
-  const removePhotoMemory = (id: string) => {
-    setPhotoMemories((items) => items.filter((item) => item.id !== id));
+  const handleUpdatePersonPhoto = async (id: string, file: File) => {
+    const fd = new FormData();
+    fd.append("patientName", userName);
+    fd.append("photo", file);
+    try {
+      const res = await fetch(apiUrl(`/api/people/${id}/photo`), { method: "PATCH", body: fd });
+      const data = await res.json();
+      if (data.ok && data.person) {
+        setPeople((prev) => prev.map((p) => p.id === id ? { ...p, photo_url: data.person.photo_url } : p));
+      }
+    } catch (err) {
+      console.error("Photo update failed:", err);
+    }
   };
 
   const updateHomeSetting = (
@@ -1230,7 +1189,6 @@ export default function Home() {
       clinicalAssessment,
       medicationPlan,
       followUpPlan,
-      photoMemories: photoMemories.map(({ imageDataUrl, ...photo }) => photo),
       patientNotes: patientNotes.slice(0, 5).map(({ id, timestamp, text }) => ({
         id,
         timestamp,
@@ -1742,7 +1700,7 @@ export default function Home() {
       );
       addLog(`Task stall inquiry sent: ${taskName}`);
 
-      // If patient doesn't reply in 15s, escalate as a quiet check
+      // If patient doesn't reply in 3s, ask once more about the task (not a generic silent pause)
       if (taskInquiryTimerRef.current !== null) window.clearTimeout(taskInquiryTimerRef.current);
       taskInquiryTimerRef.current = window.setTimeout(() => {
         taskInquiryPendingRef.current = false;
@@ -1750,11 +1708,11 @@ export default function Home() {
         taskInquiryTimerRef.current = null;
         if (liveMonitoringRef.current) {
           sendLiveMonitoringAssist(
-            `Task follow-up. Patient was asked if they finished ${taskName} but did not respond. Check if they are okay.`,
-            "quiet_check"
+            `Patient was asked if they finished ${taskName} and has not responded. Gently ask again if they are done with ${taskName} or if they need help.`,
+            "task_stall"
           );
         }
-      }, 10000);
+      }, 3000);
     }
   };
 
@@ -2464,6 +2422,12 @@ export default function Home() {
       liveAssistInFlightRef.current = false;
       liveAssistAbortRef.current = null;
       setLoading(false);
+      // After task stall response, reset quiet check timers so the next quiet check
+      // doesn't fire immediately and sound like a silent pause repeat.
+      if (source === "task_stall") {
+        lastLiveSpeechAtRef.current = Date.now();
+        lastQuietAssistAtRef.current = Date.now();
+      }
     }
   };
 
@@ -2606,7 +2570,7 @@ export default function Home() {
       const cameraUsable = cameraActiveRef.current && !cameraFailedRef.current;
       const threshold = cameraUsable
         ? (SILENT_CHECK_MS[activityStateRef.current] ?? 120_000)
-        : 15_000; // camera off or failed → mic+GPS only, check after 15s (demo)
+        : 8_000; // camera off or failed → mic+GPS only, check after 8s (demo)
       if (
         quietForMs < threshold ||
         quietCooldownMs < SILENT_CHECK_COOLDOWN_MS
@@ -2631,7 +2595,7 @@ export default function Home() {
               `Patient has not responded to ${quietCheckCountRef.current} check-ins`
             );
           }
-        }, 5000);
+        }, 3000);
       }
 
       setLiveMonitoringStatus("Quiet pause noticed. Checking context gently...");
@@ -2720,7 +2684,7 @@ export default function Home() {
 
         const isFinal = results.some((result) => Boolean(result?.isFinal));
         setLiveMonitoringStatus(
-          isFinal ? `Heard: ${transcript}` : `Listening: ${transcript}`
+          isFinal ? `${userName || "Patient"} said: "${transcript}"` : `Listening...`
         );
 
         if (!isFinal) return;
@@ -3912,7 +3876,6 @@ export default function Home() {
                   result={result}
                   theme={currentTheme}
                   people={people}
-                  photoMemories={photoMemories}
                   familyGalleryVisible={familyGalleryVisible}
                 />
               )}
@@ -3948,13 +3911,7 @@ export default function Home() {
                 userName={userName}
                 onAddPerson={handleAddPersonToSupabase}
                 onDeletePerson={handleDeletePerson}
-                photoMemories={photoMemories}
-                onPhotoUpload={handlePhotoUpload}
-                onRemovePhoto={removePhotoMemory}
-                onUpdatePhoto={updatePhotoMemory}
-                onSave={saveCareInfo}
-                saveButtonState={saveButtonState}
-                saveStatus={saveStatus}
+                onUpdatePhoto={handleUpdatePersonPhoto}
               />
             )}
 
@@ -4075,13 +4032,7 @@ function FamilyInfoPanel({
   userName,
   onAddPerson,
   onDeletePerson,
-  photoMemories,
-  onPhotoUpload,
-  onRemovePhoto,
-  onUpdatePhoto,
-  onSave,
-  saveButtonState,
-  saveStatus
+  onUpdatePhoto
 }: {
   currentTheme: typeof lightTheme;
   people: PersonRecord[];
@@ -4089,13 +4040,7 @@ function FamilyInfoPanel({
   userName: string;
   onAddPerson: (formData: FormData) => Promise<void>;
   onDeletePerson: (id: string) => Promise<void>;
-  photoMemories: PhotoMemory[];
-  onPhotoUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  onRemovePhoto: (id: string) => void;
-  onUpdatePhoto: (id: string, field: "name" | "relationship" | "description", value: string) => void;
-  onSave: () => void;
-  saveButtonState: "idle" | "saved";
-  saveStatus: string;
+  onUpdatePhoto: (id: string, file: File) => Promise<void>;
 }) {
   const [name, setName] = useState("");
   const [relationship, setRelationship] = useState("");
@@ -4122,11 +4067,10 @@ function FamilyInfoPanel({
       <SectionTitle
         emoji="👨‍👩‍👧"
         title="Family information"
-        description="Add people the patient knows. They can ask 'Who is Anna?' and see the answer."
+        description="Add family members with a photo. Shown when patient says 'I don't know anyone'."
         theme={currentTheme}
       />
 
-      {/* ── Add person form ── */}
       <div className="mt-4 grid gap-3">
         <div className="grid grid-cols-2 gap-3">
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name, e.g. Anna" className={currentTheme.input} />
@@ -4139,23 +4083,28 @@ function FamilyInfoPanel({
             <input type="file" accept="image/*" className="hidden" onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)} />
           </label>
           <button type="button" onClick={handleSubmit} disabled={saving || !name.trim()} className={`${currentTheme.saveButton} flex-1`}>
-            {saving ? "Saving..." : "Save person"}
+            {saving ? "Saving..." : "Add person"}
           </button>
         </div>
       </div>
 
-      {/* ── Saved people — photo card style ── */}
       <div className="mt-5">
         {loading && <p className={currentTheme.miniText}>Loading...</p>}
-        {!loading && people.length === 0 && <p className={currentTheme.miniText}>No people saved yet.</p>}
+        {!loading && people.length === 0 && <p className={currentTheme.miniText}>No people saved yet. Add someone above.</p>}
         <div className="grid grid-cols-2 gap-3">
           {people.map((person) => (
             <div key={person.id} className={`${currentTheme.photoMemoryCard} flex flex-col items-center text-center gap-2 p-4 relative`}>
               <button type="button" onClick={() => onDeletePerson(person.id)} className="absolute top-2 right-2 text-base opacity-30 hover:opacity-80 hover:text-red-500 transition-opacity" title="Remove">🗑️</button>
-              {person.photo_url
-                ? <img src={person.photo_url} alt={person.name} className="h-20 w-20 rounded-full object-cover border-3 border-[#4ECDC4]" style={{ border: "3px solid #4ECDC4" }} />
-                : <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-full bg-[#4ECDC4] text-3xl">👤</div>
-              }
+              <div className="relative">
+                {person.photo_url
+                  ? <img src={person.photo_url} alt={person.name} className="h-20 w-20 rounded-full object-cover" style={{ border: "3px solid #4ECDC4" }} />
+                  : <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-full bg-[#4ECDC4] text-3xl">👤</div>
+                }
+                <label className="absolute bottom-0 right-0 cursor-pointer bg-white rounded-full w-7 h-7 flex items-center justify-center shadow text-sm" title="Change photo">
+                  📷
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpdatePhoto(person.id, f); e.target.value = ""; }} />
+                </label>
+              </div>
               <div>
                 <p className="font-bold text-sm leading-tight">{person.name}</p>
                 {person.relationship && <p className="text-xs font-semibold" style={{ color: "#4ECDC4" }}>{person.relationship}</p>}
@@ -4165,40 +4114,6 @@ function FamilyInfoPanel({
           ))}
         </div>
       </div>
-
-      {/* ── Photo memories ── */}
-      {photoMemories.length > 0 && (
-        <div className="mt-6">
-          <p className="mb-3 text-xs font-black uppercase tracking-widest opacity-50">📷 Photo memories — shown when patient says "I don't know anyone"</p>
-          <div className="space-y-3">
-            {photoMemories.map((photo) => (
-              <div key={photo.id} className={currentTheme.photoMemoryCard}>
-                <div className="flex items-center gap-3">
-                  <img src={photo.imageDataUrl} alt={photo.description || "Memory"} className="h-16 w-16 rounded-full object-cover flex-shrink-0 border-2 border-amber-300" />
-                  <div className="flex-1 min-w-0">
-                    <input value={photo.description} onChange={(e) => onUpdatePhoto(photo.id, "description", e.target.value)} placeholder="Who is this or what is this memory?" className={currentTheme.input} />
-                  </div>
-                  <button type="button" onClick={() => onRemovePhoto(photo.id)} className="text-lg opacity-40 hover:opacity-80 hover:text-red-500 transition-opacity px-1 flex-shrink-0" title="Remove">🗑️</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── Upload photo memories (only shown when memories exist or being added) ── */}
-      <div className="mt-5 flex gap-3">
-        <label className={`${currentTheme.uploadButton} flex-1 text-center`}>
-          Upload photo memories
-          <input type="file" accept="image/*" multiple onChange={onPhotoUpload} className="hidden" />
-        </label>
-        {photoMemories.length > 0 && (
-          <button type="button" onClick={onSave} className={`${currentTheme.saveButton} flex-1`}>
-            {saveButtonState === "saved" ? "Saved" : "Save updates"}
-          </button>
-        )}
-      </div>
-      {saveStatus && <p className={currentTheme.miniText}>{saveStatus}</p>}
     </Card>
   );
 }
@@ -4763,14 +4678,12 @@ function ResultPanel({
   theme,
   hideTranscript = false,
   people = [],
-  photoMemories = [],
   familyGalleryVisible = false
 }: {
   result: AssistResponse;
   theme: typeof lightTheme;
   hideTranscript?: boolean;
   people?: PersonRecord[];
-  photoMemories?: PhotoMemory[];
   familyGalleryVisible?: boolean;
 }) {
   return (
@@ -4821,7 +4734,7 @@ function ResultPanel({
       )}
 
       {/* Family gallery — shown when patient says "who am I" / "I don't know anyone" */}
-      {familyGalleryVisible && (people.length > 0 || photoMemories.length > 0) && (
+      {familyGalleryVisible && people.length > 0 && (
         <div style={{ marginTop: 12, borderRadius: 16, background: "linear-gradient(135deg,#f0f9ff,#e8f5e9)", padding: 16, boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}>
           <p style={{ margin: "0 0 12px 0", fontWeight: 700, fontSize: 14, color: "#374151", letterSpacing: 1 }}>
             YOUR FAMILY &amp; PEOPLE WHO CARE FOR YOU
@@ -4835,12 +4748,6 @@ function ResultPanel({
                 }
                 <p style={{ margin: 0, fontWeight: 700, fontSize: 13, color: "#111" }}>{p.name}</p>
                 {p.relationship && <p style={{ margin: "2px 0 0 0", fontSize: 11, color: "#4ECDC4", fontWeight: 600 }}>{p.relationship}</p>}
-              </div>
-            ))}
-            {photoMemories.map(m => (
-              <div key={m.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 90, textAlign: "center" }}>
-                <img src={m.imageDataUrl} alt={m.description || "Memory"} style={{ width: 72, height: 72, borderRadius: "50%", objectFit: "cover", border: "3px solid #f59e0b", marginBottom: 6 }} />
-                {m.description && <p style={{ margin: 0, fontSize: 11, color: "#555", lineHeight: 1.3 }}>{m.description.slice(0, 40)}</p>}
               </div>
             ))}
           </div>
