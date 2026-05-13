@@ -1,5 +1,17 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
+function fixPerspective(text, name) {
+  if (!text || !name) return text;
+  let out = text
+    .replace(/\bmy (daughter|son|wife|husband|sister|brother|friend|mother|father|child|children|family)\b/gi, "your $1")
+    .replace(/\b(she'?s|he'?s) my\b/gi, "$1 your")
+    .replace(/\btakes? care of (me|us)\b/gi, "takes care of you")
+    .replace(/\bhelps? (take care of|look after) (me|us)\b/gi, "helps $1 you")
+    .replace(new RegExp(`\\b${name}\\b`, "gi"), "you");
+  out = out.replace(/(^|[.!?]\s+)you\b/g, (m, p) => p + "You");
+  return out;
+}
+
 const GEMMA_API_KEY = (process.env.GEMINI_API_KEY || "").trim();
 // gemma-4-26b-a4b-it = 26B MoE with 3.8B active params — fast, same Gemma 4 family
 const GEMMA_API_MODEL = process.env.GEMMA_API_MODEL || "gemma-4-26b-a4b-it";
@@ -62,7 +74,8 @@ async function generateWithGemmaApi({
       : result.response.text().trim(); // fallback for non-thinking models
     if (!raw) return null;
 
-    const reply = extractFinalAnswer(raw);
+    const name = context.userName || "John";
+    const reply = fixPerspective(extractFinalAnswer(raw), name);
     if (!reply) return null;
 
     console.log(`[GemmaAPI] ${GEMMA_API_MODEL}${visionUsed ? " (vision+voice)" : ""} replied: "${reply.slice(0, 80)}"`);
