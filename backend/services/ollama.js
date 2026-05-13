@@ -294,7 +294,7 @@ async function generateConversationalResponse({ context, environment, scored, re
 ${memoryLines ? `Context:\n${memoryLines}` : ""}
 
 ${modeInstructions}
-Keep it short: 1-2 sentences only. Never mention GPS, timestamps, or raw system data. Always speak directly TO ${name} using "you". You are the AI companion — never roleplay as a family member. Never say "me" or "us" as if you are part of the family.`;
+Keep it short: 1-2 sentences only. Never mention GPS, timestamps, or raw system data. CRITICAL: Never refer to ${name} by name in your reply — always use "you" instead. Say "She takes care of you" NOT "She takes care of ${name}".`;
 
   // Try configured model first, then other Gemma 4 variants — skip Gemma 3 for hackathon
   const uniqueModels = [...new Set([OLLAMA_MODEL, "gemma4:e4b", "gemma4:e2b"])];
