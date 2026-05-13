@@ -2401,7 +2401,9 @@ export default function Home() {
         ].slice(-10);
       }
       setLiveMonitoringStatus(
-        source === "quiet_check"
+        source === "speech" && transcript
+          ? `${userName || "Patient"} said: "${transcript}"`
+          : source === "quiet_check"
           ? "Silent pause support was generated."
           : "Live monitor generated support."
       );
@@ -3383,7 +3385,7 @@ export default function Home() {
             </h2>
             <p className="mt-3 text-sm font-bold leading-7 text-[#68766D]">
               Use voice, location, schedule, trusted family notes, and medicine
-              context to give Mary simple reassurance and safe next steps.
+              context to give {userName || "your patient"} simple reassurance and safe next steps.
             </p>
           </div>
           <div className={currentTheme.demoPanel}>
