@@ -3,18 +3,13 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 // Fix Gemma's tendency to use the patient name or wrong pronouns instead of "you"
 function fixPerspective(text, name) {
   if (!text || !name) return text;
-  // Replace patient name with "you" / "your" depending on context
   let out = text
-    .replace(new RegExp(`\\bmy (daughter|son|wife|husband|sister|brother|friend|mother|father)\\b`, "gi"),
-      "your $1")
-    .replace(new RegExp(`\\btakes care of me\\b`, "gi"), "takes care of you")
-    .replace(new RegExp(`\\bhelps? (take care of|look after) (me|us)\\b`, "gi"), "helps $1 you")
-    .replace(new RegExp(`\\bhere with us\\b`, "gi"), "there with you")
-    .replace(new RegExp(`\\bshall we\\b`, "gi"), "would you like to")
-    .replace(new RegExp(`\\bwe can\\b`, "gi"), "you can")
+    .replace(/\bmy (daughter|son|wife|husband|sister|brother|friend|mother|father|child|children|family)\b/gi, "your $1")
+    .replace(/\b(she'?s|he'?s) my\b/gi, "$1 your")
+    .replace(/\btakes? care of (me|us)\b/gi, "takes care of you")
+    .replace(/\bhelps? (take care of|look after) (me|us)\b/gi, "helps $1 you")
     .replace(new RegExp(`\\b${name}\\b`, "gi"), "you");
-  // Fix capitalisation after name-replacement at sentence start
-  out = out.replace(/\. you\b/g, ". You");
+  out = out.replace(/(^|[.!?]\s+)you\b/g, (m, p) => p + "You");
   return out;
 }
 
