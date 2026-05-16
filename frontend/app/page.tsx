@@ -1,246 +1,9 @@
 "use client";
 
-import Link from 'next/link';
 import { Dispatch, ReactNode, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
 import { apiUrl } from "../lib/api";
 
-function LegacyHome() {
-  return (
-    <div style={styles.container}>
-      <header style={styles.header}>
-        <h1 style={styles.title}>yourOwn</h1>
-        <p style={styles.subtitle}>Silent disorientation support for safer daily routines</p>
-      </header>
 
-      <main style={styles.main}>
-        <div style={styles.heroSection}>
-          <h2 style={styles.heroTitle}>
-            Privacy-First AI Support Powered by Gemma 4
-          </h2>
-          <p style={styles.heroText}>
-            Detects silent disorientation, restores reality, and escalates safely when the patient cannot respond
-          </p>
-        </div>
-
-        <div style={styles.cardsContainer}>
-          <Link href="/patient/dashboard" style={{ textDecoration: 'none' }}>
-            <div style={styles.card}>
-              <div style={{ ...styles.cardIcon, backgroundColor: '#4ECDC4' }}>
-                👤
-              </div>
-              <h3 style={styles.cardTitle}>Patient Companion</h3>
-              <p style={styles.cardDescription}>
-                Speak with your AI companion. Get personalized responses. Stay safe.
-              </p>
-              <p style={styles.cardLink}>Open Dashboard →</p>
-            </div>
-          </Link>
-
-          <Link href="/doctor/dashboard" style={{ textDecoration: 'none' }}>
-            <div style={styles.card}>
-              <div style={{ ...styles.cardIcon, backgroundColor: '#2196F3' }}>
-                🏥
-              </div>
-              <h3 style={styles.cardTitle}>Doctor Dashboard</h3>
-              <p style={styles.cardDescription}>
-                Live alerts, care reasoning timeline, MMSE score, medications, and clinical notes.
-              </p>
-              <p style={styles.cardLink}>Open Dashboard →</p>
-            </div>
-          </Link>
-        </div>
-
-        <section style={styles.featuresSection}>
-          <h2 style={styles.sectionTitle}>Key Features</h2>
-          <div style={styles.featuresGrid}>
-            <div style={styles.featureBox}>
-              <span style={styles.featureIcon}>🎤</span>
-              <h4 style={styles.featureTitle}>Voice Recognition</h4>
-              <p style={styles.featureText}>
-                Recognizes family members & responds with personalized care
-              </p>
-            </div>
-
-            <div style={styles.featureBox}>
-              <span style={styles.featureIcon}>📍</span>
-              <h4 style={styles.featureTitle}>Safety Monitoring</h4>
-              <p style={styles.featureText}>
-                GPS safe-place matching with automatic caregiver alert if patient leaves known locations
-              </p>
-            </div>
-
-            <div style={styles.featureBox}>
-              <span style={styles.featureIcon}>💊</span>
-              <h4 style={styles.featureTitle}>Medication Tracking</h4>
-              <p style={styles.featureText}>
-                Spoken medication reminders at the right time using doctor notes and daily schedule
-              </p>
-            </div>
-
-            <div style={styles.featureBox}>
-              <span style={styles.featureIcon}>🧠</span>
-              <h4 style={styles.featureTitle}>Gemma 4 Medical AI</h4>
-              <p style={styles.featureText}>
-                Local AI with medical knowledge. Privacy first.
-              </p>
-            </div>
-
-            <div style={styles.featureBox}>
-              <span style={styles.featureIcon}>📊</span>
-              <h4 style={styles.featureTitle}>Progression Tracking</h4>
-              <p style={styles.featureText}>
-                Doctors see cognitive scores & AI insights
-              </p>
-            </div>
-
-            <div style={styles.featureBox}>
-              <span style={styles.featureIcon}>🔒</span>
-              <h4 style={styles.featureTitle}>Privacy First</h4>
-              <p style={styles.featureText}>
-                Powered by Gemma 4. Voice, vision, and care reasoning — with full local Ollama mode for complete privacy.
-              </p>
-            </div>
-          </div>
-        </section>
-      </main>
-
-      <footer style={styles.footer}>
-        <p>yourOwn • Powered by Gemma 4 • Gemma 4 Good Hackathon 2026</p>
-      </footer>
-    </div>
-  );
-}
-
-const styles = {
-  container: {
-    minHeight: '100vh',
-    backgroundColor: '#ffffff',
-    fontFamily: 'system-ui, -apple-system, sans-serif'
-  },
-  header: {
-    background: 'linear-gradient(135deg, #4ECDC4 0%, #2196F3 100%)',
-    color: 'white',
-    padding: '60px 20px',
-    textAlign: 'center' as const,
-  },
-  title: {
-    margin: '0',
-    fontSize: '48px',
-    fontWeight: 'bold'
-  },
-  subtitle: {
-    margin: '10px 0 0 0',
-    fontSize: '18px',
-    opacity: 0.95
-  },
-  main: {
-    maxWidth: '1200px',
-    margin: '0 auto',
-    padding: '40px 20px'
-  },
-  heroSection: {
-    textAlign: 'center' as const,
-    marginBottom: '60px'
-  },
-  heroTitle: {
-    margin: '0 0 15px 0',
-    fontSize: '32px',
-    fontWeight: 'bold',
-    color: '#333'
-  },
-  heroText: {
-    margin: '0',
-    fontSize: '16px',
-    color: '#666'
-  },
-  cardsContainer: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-    gap: '30px',
-    marginBottom: '60px'
-  },
-  card: {
-    padding: '30px',
-    backgroundColor: '#f9f9f9',
-    borderRadius: '12px',
-    cursor: 'pointer',
-    transition: 'all 0.3s ease',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
-  },
-  cardIcon: {
-    width: '60px',
-    height: '60px',
-    borderRadius: '12px',
-    display: 'flex',
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    fontSize: '32px',
-    marginBottom: '15px'
-  },
-  cardTitle: {
-    margin: '0 0 10px 0',
-    fontSize: '20px',
-    fontWeight: 'bold',
-    color: '#333'
-  },
-  cardDescription: {
-    margin: '0 0 15px 0',
-    fontSize: '14px',
-    color: '#666',
-    lineHeight: '1.6'
-  },
-  cardLink: {
-    margin: '0',
-    color: '#4ECDC4',
-    fontSize: '14px',
-    fontWeight: 'bold'
-  },
-  featuresSection: {
-    marginBottom: '60px'
-  },
-  sectionTitle: {
-    margin: '0 0 40px 0',
-    fontSize: '28px',
-    fontWeight: 'bold',
-    textAlign: 'center' as const,
-    color: '#333'
-  },
-  featuresGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '30px'
-  },
-  featureBox: {
-    padding: '25px',
-    backgroundColor: '#f9f9f9',
-    borderRadius: '10px',
-    textAlign: 'center' as const,
-  },
-  featureIcon: {
-    fontSize: '40px',
-    display: 'block',
-    marginBottom: '15px'
-  },
-  featureTitle: {
-    margin: '0 0 10px 0',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    color: '#333'
-  },
-  featureText: {
-    margin: '0',
-    fontSize: '13px',
-    color: '#666',
-    lineHeight: '1.6'
-  },
-  footer: {
-    backgroundColor: '#333',
-    color: 'white',
-    padding: '30px 20px',
-    textAlign: 'center' as const,
-    fontSize: '14px'
-  }
-};
 
 type ThemeName = "light" | "dark";
 type ViewMode = "laptop" | "mobile";
@@ -435,11 +198,6 @@ type GemmaStatus = {
   error?: string;
 };
 
-const roleOptions: { value: RoleName; label: string; emoji: string }[] = [
-  { value: "patient", label: "Patient", emoji: "💛" },
-  { value: "family", label: "Family", emoji: "👨‍👩‍👧" },
-  { value: "doctor", label: "Doctor", emoji: "🩺" }
-];
 
 
 const demoSchedule: CareScheduleItem[] = [
@@ -589,7 +347,6 @@ export default function Home() {
   const audioMonitorStreamRef = useRef<MediaStream | null>(null);
   const audioMonitorContextRef = useRef<AudioContext | null>(null);
   const audioMonitorTimerRef = useRef<number | null>(null);
-  const lastVoiceActivityStatusAtRef = useRef(0);
   const quietCheckIntervalRef = useRef<number | null>(null);
   const lastLiveSpeechAtRef = useRef(0);
   const lastQuietAssistAtRef = useRef(0);
@@ -601,9 +358,9 @@ export default function Home() {
   const quietCheckCountRef = useRef(0);
   const telegramAlertSentRef = useRef(false);
   const telegramAlertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastMarySeenRef = useRef(Date.now());
-  const maryNotVisibleCountRef = useRef(0);
-  const maryNotVisibleTimestampRef = useRef(0);
+  const lastPatientSeenRef = useRef(Date.now());
+  const patientNotVisibleCountRef = useRef(0);
+  const patientNotVisibleTimestampRef = useRef(0);
   const alarmInProgressRef = useRef(false);
   const rolePanelRef = useRef<HTMLDivElement | null>(null);
   const conversationHistoryRef = useRef<Array<{role: "patient"|"assistant", text: string}>>([]);
@@ -749,7 +506,7 @@ export default function Home() {
 
   const fetchFamilyAlerts = async () => {
     try {
-      const res = await fetch(apiUrl("/api/care-settings/alerts/mary"));
+      const res = await fetch(apiUrl(`/api/care-settings/alerts/${(userName || "john").toLowerCase()}`));
       if (!res.ok) return;
       const data: { alerts: FamilyAlert[] } = await res.json();
       setFamilyAlerts(data.alerts || []);
@@ -791,16 +548,6 @@ export default function Home() {
     return "night";
   }, [now]);
 
-  const nextScheduleItem = useMemo(() => {
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-    return (
-      careSchedule.find((item) => {
-        const [hour, minute] = item.time.split(":").map(Number);
-        return hour * 60 + minute >= currentMinutes;
-      }) || careSchedule[0]
-    );
-  }, [now, careSchedule]);
 
   const routineStatus = useMemo(() => {
     const hour = now.getHours();
@@ -1055,17 +802,21 @@ export default function Home() {
   };
 
   const handleUpdatePersonPhoto = async (id: string, file: File) => {
+    // Show local preview immediately so the photo appears even if upload fails
+    const localUrl = URL.createObjectURL(file);
+    setPeople((prev) => prev.map((p) => p.id === id ? { ...p, photo_url: localUrl } : p));
+
     const fd = new FormData();
     fd.append("patientName", userName);
     fd.append("photo", file);
     try {
       const res = await fetch(apiUrl(`/api/people/${id}/photo`), { method: "PATCH", body: fd });
       const data = await res.json();
-      if (data.ok && data.person) {
+      if (data.ok && data.person?.photo_url) {
         setPeople((prev) => prev.map((p) => p.id === id ? { ...p, photo_url: data.person.photo_url } : p));
       }
-    } catch (err) {
-      console.error("Photo update failed:", err);
+    } catch {
+      // Local preview already shown — upload failure is non-fatal
     }
   };
 
@@ -1203,33 +954,6 @@ export default function Home() {
       `${currentClock} - ${text}`,
       ...prev.slice(0, 9)
     ]);
-  };
-
-  const playReminderAlarm = () => {
-    const AudioContextClass =
-      window.AudioContext ||
-      (window as typeof window & { webkitAudioContext?: typeof AudioContext })
-        .webkitAudioContext;
-
-    if (!AudioContextClass) return;
-
-    try {
-      const audioContext = new AudioContextClass();
-      const gain = audioContext.createGain();
-      gain.gain.value = 0.08;
-      gain.connect(audioContext.destination);
-
-      [0, 0.35, 0.7].forEach((offset) => {
-        const oscillator = audioContext.createOscillator();
-        oscillator.type = "sine";
-        oscillator.frequency.value = 880;
-        oscillator.connect(gain);
-        oscillator.start(audioContext.currentTime + offset);
-        oscillator.stop(audioContext.currentTime + offset + 0.2);
-      });
-    } catch {
-      setActiveReminder((current) => current);
-    }
   };
 
   const enableCareAlarms = () => {
@@ -1601,8 +1325,6 @@ export default function Home() {
     // 1 idle frame = fire immediately the moment task → idle transition is detected
     const STALL_FRAMES = 1;
     const ABSENT_SPEAK_MS = 3000;
-    const patientName = userName || "John";
-
     const patientPresent = analysis.patient_present !== false;
     const rawTask = (analysis.task_name || "").trim().toLowerCase();
     const isIdle = !rawTask || rawTask === "idle" || rawTask === "none";
@@ -1723,9 +1445,9 @@ export default function Home() {
 
     // If camera is streaming video, patient is physically near the device — reset not-visible timer.
     if (cameraActiveRef.current && videoRef.current && videoRef.current.videoWidth > 0) {
-      lastMarySeenRef.current = Date.now();
-      if (maryNotVisibleCountRef.current > 0 && maryNotVisibleCountRef.current < 3) {
-        maryNotVisibleCountRef.current = 0;
+      lastPatientSeenRef.current = Date.now();
+      if (patientNotVisibleCountRef.current > 0 && patientNotVisibleCountRef.current < 3) {
+        patientNotVisibleCountRef.current = 0;
       }
     }
 
@@ -1781,15 +1503,15 @@ export default function Home() {
       if (analysis.labels?.length) setImageLabels(analysis.labels.join(", "));
       if (analysis.concern && analysis.concern !== "none") setVisualConcern(analysis.concern);
 
-      // Track whether Mary (a person) is visible in frame
+      // Track whether the patient is visible in frame
       const personKeywords = ["person", "woman", "man", "human", "face", "patient", "elderly", "girl", "boy"];
-      const maryVisible = analysis.labels?.some((label: string) =>
+      const patientVisible = analysis.labels?.some((label: string) =>
         personKeywords.some(kw => label.toLowerCase().includes(kw))
       );
-      if (maryVisible) {
-        lastMarySeenRef.current = Date.now();
-        if (maryNotVisibleCountRef.current > 0) {
-          maryNotVisibleCountRef.current = 0;
+      if (patientVisible) {
+        lastPatientSeenRef.current = Date.now();
+        if (patientNotVisibleCountRef.current > 0) {
+          patientNotVisibleCountRef.current = 0;
         }
       }
 
@@ -1962,57 +1684,6 @@ export default function Home() {
   };
 
   // ── Phone motion sensors (DeviceMotionEvent — Android + iOS) ─────────────
-  const startMotionDetection = async () => {
-    if (motionDetectionActiveRef.current) return;
-    if (typeof DeviceMotionEvent === "undefined") return;
-
-    // iOS 13+ requires explicit permission before DeviceMotionEvent fires
-    if (typeof (DeviceMotionEvent as any).requestPermission === "function") {
-      try {
-        const permission = await (DeviceMotionEvent as any).requestPermission();
-        if (permission !== "granted") {
-          setLiveMonitoringStatus("Motion sensor permission denied — camera pixel-diff will be used instead.");
-          return;
-        }
-      } catch {
-        // requestPermission can throw if called outside a user gesture; fall through silently
-        return;
-      }
-    }
-
-    let prevMagnitude: number | null = null;
-
-    const handler = (e: DeviceMotionEvent) => {
-      const now = Date.now();
-      // Throttle to one sample per 2500ms to match camera pixel-diff cadence
-      if (now - lastMotionSampleAtRef.current < 2500) return;
-      lastMotionSampleAtRef.current = now;
-
-      const a = e.accelerationIncludingGravity;
-      if (!a || a.x == null) return;
-
-      const magnitude = Math.sqrt((a.x ?? 0) ** 2 + (a.y ?? 0) ** 2 + (a.z ?? 0) ** 2);
-      const moved = prevMagnitude !== null && Math.abs(magnitude - prevMagnitude) > 1.5;
-      prevMagnitude = magnitude;
-
-      activityHistoryRef.current = [...activityHistoryRef.current.slice(-23), moved];
-
-      if (moved) {
-        noMovementCountRef.current = 0;
-        lastActiveAtRef.current = now;
-      } else {
-        noMovementCountRef.current += 1;
-      }
-
-      activityStateRef.current = computeActivityState();
-    };
-
-    motionHandlerRef.current = handler;
-    motionDetectionActiveRef.current = true;
-    window.addEventListener("devicemotion", handler);
-    setLiveMonitoringStatus("Motion sensor active (phone accelerometer).");
-  };
-
   const stopMotionDetection = () => {
     if (!motionDetectionActiveRef.current) return;
     if (motionHandlerRef.current) {
@@ -2136,7 +1807,7 @@ export default function Home() {
     }
   };
 
-  const speakMaryCheck = (text: string) => { speakWithElevenLabs(text); };
+  const speakPatientCheck = (text: string) => { speakWithElevenLabs(text); };
 
   // Awaitable TTS — resolves when audio finishes playing
   const speakAndWait = (text: string): Promise<void> => {
@@ -2404,8 +2075,10 @@ export default function Home() {
         source === "speech" && transcript
           ? `${userName || "Patient"} said: "${transcript}"`
           : source === "quiet_check"
-          ? "Silent pause support was generated."
-          : "Live monitor generated support."
+          ? "Silent pause check-in sent."
+          : source === "task_stall"
+          ? "Task check-in sent."
+          : "Live monitor support sent."
       );
       addLog(
         source === "quiet_check"
@@ -2452,62 +2125,6 @@ export default function Home() {
     audioMonitorContextRef.current = null;
   };
 
-  const startAudioActivityMonitor = async () => {
-    stopAudioActivityMonitor();
-
-    if (!navigator.mediaDevices?.getUserMedia) return false;
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const AudioContextClass =
-        window.AudioContext ||
-        (window as typeof window & { webkitAudioContext?: typeof AudioContext })
-          .webkitAudioContext;
-
-      if (!AudioContextClass) {
-        stream.getTracks().forEach((track) => track.stop());
-        return false;
-      }
-
-      const audioContext = new AudioContextClass();
-      const source = audioContext.createMediaStreamSource(stream);
-      const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 1024;
-      source.connect(analyser);
-
-      const samples = new Uint8Array(analyser.fftSize);
-      audioMonitorStreamRef.current = stream;
-      audioMonitorContextRef.current = audioContext;
-      liveSpeechReadyRef.current = true;
-      lastLiveSpeechAtRef.current = Date.now();
-
-      audioMonitorTimerRef.current = window.setInterval(() => {
-        if (!liveMonitoringRef.current || assistantSpeakingRef.current) return;
-
-        analyser.getByteTimeDomainData(samples);
-        let sum = 0;
-        for (const sample of samples) {
-          const centered = sample - 128;
-          sum += centered * centered;
-        }
-
-        const rms = Math.sqrt(sum / samples.length);
-        if (rms < 8) return;
-
-        lastLiveSpeechAtRef.current = Date.now();
-        const nowMs = Date.now();
-        if (nowMs - lastVoiceActivityStatusAtRef.current > 3000) {
-          lastVoiceActivityStatusAtRef.current = nowMs;
-          setLiveMonitoringStatus("Voice activity detected. Listening for words...");
-        }
-      }, 250);
-
-      return true;
-    } catch {
-      return false;
-    }
-  };
-
   const startQuietCheckTimer = () => {
     clearQuietCheckTimer();
     lastLiveSpeechAtRef.current = Date.now();
@@ -2515,8 +2132,8 @@ export default function Home() {
     quietCheckCountRef.current = 0;
     telegramAlertSentRef.current = false;
     if (telegramAlertTimerRef.current) { clearTimeout(telegramAlertTimerRef.current); telegramAlertTimerRef.current = null; }
-    lastMarySeenRef.current = Date.now();
-    maryNotVisibleCountRef.current = 0;
+    lastPatientSeenRef.current = Date.now();
+    patientNotVisibleCountRef.current = 0;
 
     quietCheckIntervalRef.current = window.setInterval(() => {
       if (!liveMonitoringRef.current || liveAssistInFlightRef.current) return;
@@ -2524,26 +2141,26 @@ export default function Home() {
       // Suppress silent pause checks while patient is actively doing a task or we're waiting for their reply
       if (activeTaskRef.current || taskInquiryPendingRef.current) return;
 
-      // Mary not visible check — only when camera is on
+      // Patient not visible check — only when camera is on
       if (cameraActiveRef.current && !cameraFailedRef.current) {
-        const notSeenMs = Date.now() - lastMarySeenRef.current;
+        const notSeenMs = Date.now() - lastPatientSeenRef.current;
         const patient = userName || "John";
 
-        if (maryNotVisibleCountRef.current === 0 && notSeenMs >= 30_000) {
-          maryNotVisibleCountRef.current = 1;
-          maryNotVisibleTimestampRef.current = Date.now();
-          speakMaryCheck(`${patient}, where are you? I don't see you. Are you okay or nearby? If I don't hear back from you, I will notify your family.`);
+        if (patientNotVisibleCountRef.current === 0 && notSeenMs >= 30_000) {
+          patientNotVisibleCountRef.current = 1;
+          patientNotVisibleTimestampRef.current = Date.now();
+          speakPatientCheck(`${patient}, where are you? I don't see you. Are you okay or nearby? If I don't hear back from you, I will notify your family.`);
           setCameraStatus(`${patient} not visible — checking`);
           addLog(`${patient} not visible 30s — first inquiry sent`);
-        } else if (maryNotVisibleCountRef.current === 1 &&
-                   Date.now() - maryNotVisibleTimestampRef.current >= 15_000) {
-          maryNotVisibleCountRef.current = 2;
-          maryNotVisibleTimestampRef.current = Date.now();
-          speakMaryCheck(`${patient}, are you there? I still cannot see you. Please let me know you are okay.`);
+        } else if (patientNotVisibleCountRef.current === 1 &&
+                   Date.now() - patientNotVisibleTimestampRef.current >= 15_000) {
+          patientNotVisibleCountRef.current = 2;
+          patientNotVisibleTimestampRef.current = Date.now();
+          speakPatientCheck(`${patient}, are you there? I still cannot see you. Please let me know you are okay.`);
           addLog(`${patient} not visible — second inquiry sent`);
-        } else if (maryNotVisibleCountRef.current === 2 &&
-                   Date.now() - maryNotVisibleTimestampRef.current >= 10_000) {
-          maryNotVisibleCountRef.current = 3;
+        } else if (patientNotVisibleCountRef.current === 2 &&
+                   Date.now() - patientNotVisibleTimestampRef.current >= 10_000) {
+          patientNotVisibleCountRef.current = 3;
           addLog(`${patient} not visible — notifying family`);
           sendTelegramAlert(
             `${patient} has not been visible on camera for over 55 seconds and did not respond to two check-ins`,
@@ -2703,8 +2320,8 @@ export default function Home() {
           return;
         }
 
-        lastMarySeenRef.current = Date.now();
-        maryNotVisibleCountRef.current = 0;
+        lastPatientSeenRef.current = Date.now();
+        patientNotVisibleCountRef.current = 0;
 
         if (patientQuietModeRef.current) {
           patientQuietModeRef.current = false;
@@ -2811,7 +2428,7 @@ export default function Home() {
       speechResumeTimerRef.current = null;
     }
     patientQuietModeRef.current = false;
-    maryNotVisibleCountRef.current = 0;
+    patientNotVisibleCountRef.current = 0;
     activeTaskRef.current = null;
     taskPatientAbsentSinceRef.current = null;
     taskInquiryPendingRef.current = false;
@@ -2850,11 +2467,6 @@ export default function Home() {
 
   const isIdentityConfusion = (text: string) =>
     /\b(who am i|i don'?t know anyone|i don'?t recognize|who are these people|i don'?t know my family|who is my family|i don'?t remember anyone|i forgot everyone|who are you all|i don'?t know who|these people|i don'?t know them)\b/i.test(text);
-
-  const isConfusionOrSafetySpeech = (text: string) =>
-    /\b(where am i|who am i|who are you|lost|scared|afraid|confused|unsure|don't know|dont know|what was i|what do i|help|hurt|fall|fell|pain|medicine|pill|dose|home)\b/i.test(
-      text
-    ) || hasHesitationPattern(text);
 
   const isRestOrStopSpeech = (text: string) =>
     /\b(i am okay|i'm okay|im okay|i am fine|i'm fine|im fine|i will sleep|i'm going to sleep|im going to sleep|going to sleep|i want to sleep|let me sleep|i am resting|i'm resting|im resting|i will rest|i am watching tv|watching tv|stop talking|be quiet|quiet please|don't talk|dont talk|no more help|i don't need help|i dont need help)\b/i.test(

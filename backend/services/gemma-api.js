@@ -74,7 +74,6 @@ async function generateWithGemmaApi({
       : result.response.text().trim(); // fallback for non-thinking models
     if (!raw) return null;
 
-    const name = context.userName || "John";
     const reply = fixPerspective(extractFinalAnswer(raw), name);
     if (!reply) return null;
 
@@ -278,7 +277,7 @@ function extractFinalAnswer(text) {
   lastLine = lastLine.replace(/^["'"']|["'"']$/g, '').trim();
 
   // Detect full-paragraph duplication: model outputs the whole response twice
-  // e.g. "Hi Mary, are you okay? Hi Mary, are you okay?"
+  // e.g. "Hi John, are you okay? Hi John, are you okay?"
   // Try splitting at every word boundary from the middle and check if second half starts with first half
   const words = lastLine.split(' ');
   if (words.length >= 6) {

@@ -1,4 +1,16 @@
 const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434";
+
+function fixPerspective(text, name) {
+  if (!text || !name) return text;
+  let out = text
+    .replace(/\bmy (daughter|son|wife|husband|sister|brother|friend|mother|father|child|children|family)\b/gi, "your $1")
+    .replace(/\b(she'?s|he'?s) my\b/gi, "$1 your")
+    .replace(/\btakes? care of (me|us)\b/gi, "takes care of you")
+    .replace(/\bhelps? (take care of|look after) (me|us)\b/gi, "helps $1 you")
+    .replace(new RegExp(`\\b${name}\\b`, "gi"), "you");
+  out = out.replace(/(^|[.!?]\s+)you\b/g, (m, p) => p + "You");
+  return out;
+}
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "gemma4:e2b";
 const OLLAMA_TIMEOUT_MS = 90000;       // full care JSON response
 const OLLAMA_CONV_TIMEOUT_MS = 15000;  // fail fast to Gemma 4 API on CPU-only machines
@@ -328,13 +340,14 @@ Keep it short: 1-2 sentences only. Never mention GPS, timestamps, or raw system 
       }
 
       const data = await res.json();
-      const reply = (data.message?.content || "").trim();
+      const rawReply = (data.message?.content || "").trim();
 
-      if (!reply) {
+      if (!rawReply) {
         console.warn(`[Ollama conv] ${model} returned empty reply`);
         continue;
       }
 
+      const reply = fixPerspective(rawReply, name);
       console.log(`[Ollama conv] ${model} replied: "${reply.slice(0, 80)}"`);
 
       const response = { reassurance: reply, context: "", next_step: "" };
@@ -914,7 +927,7 @@ function buildConversationFallback({ context, environment, timeText, scheduleSen
 }
 
 function isRepetitiveSafeLine(text) {
-  return /^mary,\s*(you are safe|i am here|you are okay)/i.test(String(text || "").trim());
+  return /^[a-z]+,\s*(you are safe|i am here|you are okay)/i.test(String(text || "").trim());
 }
 
 function normalizeCareReasoning(modelReasoning, deterministicReasoning, { response }) {

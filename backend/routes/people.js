@@ -15,7 +15,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 // List all saved people for a patient
 router.get("/", async (req, res) => {
   try {
-    const patientName = req.query.patient || "Mary";
+    const patientName = req.query.patient || "John";
     const people = await listPeople(patientName);
     res.json({ people });
   } catch (err) {
@@ -30,7 +30,7 @@ router.post("/", upload.single("photo"), async (req, res) => {
     if (!name) return res.status(400).json({ error: "name is required" });
 
     const person = await addPerson({
-      patientName: patientName || "Mary",
+      patientName: patientName || "John",
       name,
       relationship: relationship || "",
       notes: notes || "",
@@ -49,7 +49,7 @@ router.get("/find", async (req, res) => {
   try {
     const { patient, name } = req.query;
     if (!name) return res.status(400).json({ error: "name is required" });
-    const person = await findPerson(patient || "Mary", name);
+    const person = await findPerson(patient || "John", name);
     res.json({ person: person || null });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -63,7 +63,7 @@ router.patch("/:id/photo", upload.single("photo"), async (req, res) => {
     const { patientName } = req.body;
     const person = await updatePersonPhoto(
       req.params.id,
-      patientName || "Mary",
+      patientName || "John",
       req.file.buffer,
       req.file.mimetype
     );
@@ -86,7 +86,7 @@ router.delete("/:id", async (req, res) => {
 // Recent activity memories
 router.get("/memories", async (req, res) => {
   try {
-    const patientName = req.query.patient || "Mary";
+    const patientName = req.query.patient || "John";
     const memories = await getRecentMemories(patientName, 20);
     res.json({ memories });
   } catch (err) {

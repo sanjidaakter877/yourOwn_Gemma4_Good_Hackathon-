@@ -159,15 +159,15 @@ function getGemmaInstruction(stage, patientName, task, room) {
   }
 
   if (stage === STAGES.CHECK_IN) {
-    return `Ask if ${patientName} is okay and whether she needs help.`;
+    return `Ask if ${patientName} is okay and whether they need help.`;
   }
 
   if (stage === STAGES.HEARING_CHECK) {
-    return `Ask ${patientName} to answer with a simple yes or no so you know she can hear you.`;
+    return `Ask ${patientName} to answer with a simple yes or no so you know they can hear you.`;
   }
 
   if (stage === STAGES.CAREGIVER_WARNING) {
-    return `Tell ${patientName} that a caregiver may be contacted if she cannot respond.`;
+    return `Tell ${patientName} that a caregiver may be contacted if they cannot respond.`;
   }
 
   if (stage === STAGES.ALERT_SENT) {

@@ -9,19 +9,7 @@ const careSettingsRoute = require("./routes/care-settings");
 const visionRoute = require("./routes/vision");
 const notesRoute = require("./routes/notes");
 
-// Import new services
-let MultimodalDetector;
-try {
-  MultimodalDetector = require("./services/multimodal-detector");
-} catch (err) {
-  console.warn("⚠️  Multimodal detector not available (TensorFlow build skipped)");
-  MultimodalDetector = null;
-}
-const HealthcareIntegration = require("./services/healthcare-integration");
-const AdvancedAlertML = require("./services/advanced-alert-ml");
-const DoctorAnalytics = require("./services/doctor-analytics");
 const SecurityHardeningService = require("./services/security-hardening");
-const RealtimeAlertService = require("./services/realtime-alerts");
 const hume = require("./services/hume");
 
 const app = express();
@@ -29,13 +17,7 @@ const httpServer = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 const BACKEND_PREFIX = "/_/backend";
 
-// Initialize services
-const multimodalDetector = MultimodalDetector ? new MultimodalDetector() : null;
-const healthcareIntegration = new HealthcareIntegration();
-const advancedAlertML = new AdvancedAlertML();
-const doctorAnalytics = new DoctorAnalytics();
 const securityService = new SecurityHardeningService();
-const realtimeAlerts = new RealtimeAlertService(httpServer);
 
 // Middleware
 app.use(cors());
@@ -54,13 +36,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Make services globally available
-app.locals.multimodalDetector = multimodalDetector;
-app.locals.healthcareIntegration = healthcareIntegration;
-app.locals.advancedAlertML = advancedAlertML;
-app.locals.doctorAnalytics = doctorAnalytics;
 app.locals.securityService = securityService;
-app.locals.realtimeAlerts = realtimeAlerts;
 
 // Root endpoint
 app.get("/", (req, res) => {
@@ -90,7 +66,7 @@ app.get("/", (req, res) => {
       security: "/api/security"
     },
     gemmaInfo: {
-      model: process.env.OLLAMA_MODEL || "gemma4:e4b",
+      model: process.env.OLLAMA_MODEL || "gemma4:e2b",
       temperature: 0.3,
       ollama_url: process.env.OLLAMA_URL || "http://localhost:11434",
       fine_tuning_script_available: true,
@@ -105,69 +81,10 @@ app.get("/health", (req, res) => {
     status: "healthy",
     timestamp: new Date().toISOString(),
     services: {
-      multimodal: "ready",
-      healthcare_integration: "ready",
-      advanced_alerts: "ready",
-      analytics: "ready",
-      security: "ready",
-      realtime: "ready",
       hume: hume.isConfigured() ? "configured" : "not_configured",
       ollama: process.env.OLLAMA_URL ? "connected" : "not_configured"
     }
   });
-});
-
-// FHIR Export endpoint
-app.get("/api/fhir/patient/:patientId", (req, res) => {
-  try {
-    // In production, fetch actual patient data
-    const patientData = {
-      patientId: req.params.patientId,
-      firstName: "John",
-      lastName: "Doe",
-      dateOfBirth: "1950-01-15",
-      gender: "male",
-      diagnosis: "Alzheimer's Disease",
-      medicalHistory: {
-        mmseScores: [],
-        medications: []
-      }
-    };
-
-    const fhirBundle = healthcareIntegration.generateFhirPatient(patientData);
-    res.json(fhirBundle);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Analytics endpoint
-app.get("/api/analytics/patient/:patientId", (req, res) => {
-  try {
-    // In production, fetch real patient data
-    const patientData = {
-      patientId: req.params.patientId,
-      firstName: "John",
-      lastName: "Doe",
-      dateOfBirth: "1950-01-15",
-      medicalHistory: {
-        mmseScores: [
-          { date: "2024-01-15", value: 24 },
-          { date: "2024-02-15", value: 22 },
-          { date: "2024-03-15", value: 20 }
-        ],
-        medications: [
-          { name: "Donepezil", dosage: "10mg daily" }
-        ]
-      },
-      alertHistory: []
-    };
-
-    const analytics = doctorAnalytics.generateDashboardSummary(patientData);
-    res.json(analytics);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
 });
 
 // Security compliance endpoint
@@ -180,20 +97,6 @@ app.get("/api/security/hipaa-compliance", (req, res) => {
   }
 });
 
-// SMS alert endpoint (HEALTHCARE INTEGRATION)
-app.post("/api/alerts/:patientId/notify", async (req, res) => {
-  try {
-    const { doctorPhone, message } = req.body;
-    const result = await healthcareIntegration.sendSmsAlert(
-      doctorPhone,
-      message,
-      req.params.patientId
-    );
-    res.json(result);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
 // Care data export for fine-tuning (anonymised — no PII)
 app.get("/api/care-data/export", async (req, res) => {
@@ -317,9 +220,6 @@ async function initializeServices() {
   console.log("YOUROWN BACKEND INITIALIZATION");
   console.log("=".repeat(60));
   
-  if (multimodalDetector) {
-    await multimodalDetector.initialize();
-  }
   await securityService.initialize();
   
   console.log("✅ All services initialized");

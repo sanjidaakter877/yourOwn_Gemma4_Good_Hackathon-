@@ -31,14 +31,14 @@ Existing solutions are passive alarms — they detect crisis *after* it starts. 
 ### Live Monitoring — Silent Pause Detection
 - **Continuous microphone listening** — Detects when the patient has gone quiet
 - **Two check-ins before alerting** — First check-in: gentle spoken question. Second check-in: follow-up if still no reply
-- **5-second reply window** — After the second check-in, waits 5 seconds for the patient to respond before sending a Telegram alert
+- **3-second reply window** — After the second check-in, waits 3 seconds for the patient to respond before sending a Telegram alert
 - **Reset on speech** — Any patient speech immediately cancels the pending alert and resets the check-in counter
-- **Telegram notification** — If no reply after both check-ins + 5 seconds, family receives an instant Telegram message with patient name, check-in count, last camera observation, and timestamp
+- **Telegram notification** — If no reply after both check-ins + 3 seconds, family receives an instant Telegram message with patient name, check-in count, last camera observation, and timestamp
 
 ### Live Monitoring — Task Detection
 - **Camera-based task recognition** — Gemma 4 vision identifies what the patient is doing: writing, eating, drinking tea, reading, brushing teeth, folding clothes, watching TV, doing puzzle, and more
 - **Task stall detection** — If the patient stops doing the task (first idle camera frame), the app immediately asks if they finished or need help — without waiting for the silent pause timer
-- **Task inquiry flow** — Sends a warm spoken question naming the specific task. Starts a 15-second timer waiting for a reply. If no reply, escalates as a silent pause
+- **Task inquiry flow** — Sends a warm spoken question naming the specific task. Waits 3 seconds for a reply. If no reply, asks once more about the same task (not a generic silent pause check)
 - **Suppresses silent pause during tasks** — While a task is active or a task inquiry is pending, the regular silent pause timer is paused so the patient isn't bombarded
 - **Reduced API calls** — Gemma vision runs every 6 seconds during active tasks (every 2 seconds otherwise) and is skipped entirely while waiting for a task reply
 
@@ -63,7 +63,6 @@ Existing solutions are passive alarms — they detect crisis *after* it starts. 
 - **Identity confusion detection** — Detects phrases like "who am I", "I don't know anyone", "I don't recognize these people", "I forgot everyone"
 - **Family gallery shown in response** — When confusion is detected, the AI response card includes the full family photo gallery directly on screen
 - **Gemma narrates the faces** — Gemma 4 responds by naming and describing the family members from context
-- **Photo memories** — Separate memory photos with custom descriptions can be uploaded by family, shown when patient says they don't know anyone
 
 ### Telegram Notifications
 - **All alerts go to Telegram** — No email required. Notifications arrive instantly on the family member's phone via Telegram bot
@@ -73,8 +72,7 @@ Existing solutions are passive alarms — they detect crisis *after* it starts. 
 - **Single bot setup** — Family sets up once with a bot token and chat ID. No per-user configuration needed
 
 ### Family Dashboard
-- **Family members panel** — Add people the patient knows: name, relationship, notes, and optional photo. Displayed as a photo card grid
-- **Photo memories** — Upload photos with a description. Shown to the patient when they express identity confusion ("I don't know anyone")
+- **Family members panel** — Add people the patient knows: name, relationship, notes, and optional photo. Displayed as a photo card grid. Photos can be updated inline without deleting the record
 - **Home GPS setup** — Set home coordinates, safe radius, and address note. Used to detect if the patient leaves a known safe area
 - **Recent alerts log** — Shows the last 5 GPS-related alerts with timestamp and message
 
@@ -93,7 +91,7 @@ Existing solutions are passive alarms — they detect crisis *after* it starts. 
 
 | Layer | Technology |
 |---|---|
-| Frontend | Next.js 15, React, TypeScript, Tailwind CSS |
+| Frontend | Next.js 16, React, TypeScript, Tailwind CSS |
 | Backend | Node.js, Express |
 | AI — primary | Gemma 4 via Google Gemini API |
 | AI — local/private | Ollama (any local model) |
@@ -167,11 +165,11 @@ Memory (Supabase)
 ```env
 # Gemma 4 (required)
 GEMINI_API_KEY=
-GEMMA_API_MODEL=gemma-2.0-flash
+GEMMA_API_MODEL=gemma-4-26b-a4b-it
 
 # Ollama local mode (optional)
 OLLAMA_URL=http://localhost:11434
-OLLAMA_MODEL=gemma3
+OLLAMA_MODEL=gemma4:e2b
 
 # Supabase (required for memory + people)
 SUPABASE_URL=

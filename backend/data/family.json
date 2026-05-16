@@ -4,7 +4,7 @@
       "name": "Anna",
       "relationship": "daughter",
       "phone": "",
-      "email": "istiaqnuha@gmail.com",
+      "email": "",
       "language": "English",
       "notes": "She is your daughter and lives in the same house with you. She takes care of you",
       "notify": true
@@ -15,7 +15,7 @@
       "phone": "",
       "email": "",
       "language": "English",
-      "notes": "Often greets Mary in the morning",
+      "notes": "Often greets the patient in the morning",
       "notify": false
     },
     {

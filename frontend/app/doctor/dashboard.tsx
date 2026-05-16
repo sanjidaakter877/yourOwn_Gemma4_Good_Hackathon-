@@ -78,9 +78,9 @@ export default function DoctorDashboard() {
     const fetchData = async (initial = false) => {
       try {
         const [summaryRes, alertsRes, careEventsRes] = await Promise.all([
-          fetch(apiUrl('/doctor/patient_001/summary')).then(r => r.json()),
-          fetch(apiUrl('/doctor/patient_001/alerts')).then(r => r.json()),
-          fetch(apiUrl('/doctor/patient_001/care-events')).then(r => r.json())
+          fetch(apiUrl('/doctor/john/summary')).then(r => r.json()),
+          fetch(apiUrl('/doctor/john/alerts')).then(r => r.json()),
+          fetch(apiUrl('/doctor/john/care-events')).then(r => r.json())
         ]);
 
         setPatientSummary(summaryRes);
@@ -110,7 +110,7 @@ export default function DoctorDashboard() {
 
     try {
       setNoteSaveState('saving');
-      await fetch(apiUrl('/doctor/patient_001/doctor-note'), {
+      await fetch(apiUrl('/doctor/john/doctor-note'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
