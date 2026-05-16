@@ -1,0 +1,13 @@
+{
+  "userName": "John",
+  "nearbyPerson": "",
+  "lastEvent": "",
+  "careNote": "",
+  "doctorNote": "",
+  "clinicalAssessment": "",
+  "medicationPlan": "",
+  "followUpPlan": "",
+  "careSchedule": [],
+  "patientNotes": [],
+  "medicines": []
+}

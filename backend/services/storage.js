@@ -14,6 +14,13 @@ function getClient() {
 }
 
 async function readData(key, fallback = null) {
+  // Local file takes priority — keeps locally-saved settings stable across deploys
+  try {
+    const raw = fs.readFileSync(path.join(dataDir, key), "utf8");
+    return JSON.parse(raw);
+  } catch {}
+
+  // Fall back to Supabase (used on Vercel where local FS is read-only)
   const db = getClient();
   if (db) {
     try {
@@ -25,13 +32,8 @@ async function readData(key, fallback = null) {
       if (!error && data?.value !== undefined) return data.value;
     } catch {}
   }
-  // Fall back to local JSON file (works locally, not on Vercel)
-  try {
-    const raw = fs.readFileSync(path.join(dataDir, key), "utf8");
-    return JSON.parse(raw);
-  } catch {
-    return fallback;
-  }
+
+  return fallback;
 }
 
 async function writeData(key, value) {

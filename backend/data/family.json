@@ -6,7 +6,7 @@
       "phone": "",
       "email": "",
       "language": "English",
-      "notes": "She is your daughter and lives in the same house with you. She takes care of you",
+      "notes": "She lives in the same house with you and takes care of you.",
       "notify": true
     },
     {
@@ -15,7 +15,7 @@
       "phone": "",
       "email": "",
       "language": "English",
-      "notes": "Often greets the patient in the morning",
+      "notes": "Often greets you in the morning.",
       "notify": false
     },
     {

@@ -204,6 +204,7 @@ async function runAssistFlow(body, app) {
             name: match.name,
             relationship: match.relationship || "",
             notes: match.notes || (personResult?.notes || ""),
+            photo_url: personResult?.photo_url || null,
             patient_name: context.userName
           };
         }

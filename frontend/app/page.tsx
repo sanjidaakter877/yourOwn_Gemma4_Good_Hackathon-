@@ -3,7 +3,11 @@
 import { Dispatch, ReactNode, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
 import { apiUrl } from "../lib/api";
 
-
+function resolvePhotoUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith("http") || url.startsWith("blob:") || url.startsWith("data:")) return url;
+  return apiUrl(url);
+}
 
 type ThemeName = "light" | "dark";
 type ViewMode = "laptop" | "mobile";
@@ -801,22 +805,20 @@ export default function Home() {
     }).catch(() => {});
   };
 
-  const handleUpdatePersonPhoto = async (id: string, file: File) => {
-    // Show local preview immediately so the photo appears even if upload fails
-    const localUrl = URL.createObjectURL(file);
-    setPeople((prev) => prev.map((p) => p.id === id ? { ...p, photo_url: localUrl } : p));
-
+  const handleUpdatePersonPhoto = async (id: string, file: File, localPreviewUrl: string): Promise<string> => {
     const fd = new FormData();
     fd.append("patientName", userName);
     fd.append("photo", file);
     try {
       const res = await fetch(apiUrl(`/api/people/${id}/photo`), { method: "PATCH", body: fd });
       const data = await res.json();
-      if (data.ok && data.person?.photo_url) {
-        setPeople((prev) => prev.map((p) => p.id === id ? { ...p, photo_url: data.person.photo_url } : p));
-      }
+      const confirmedUrl = data?.person?.photo_url ?? null;
+      const finalUrl = confirmedUrl ? (resolvePhotoUrl(confirmedUrl) ?? localPreviewUrl) : localPreviewUrl;
+      setPeople((prev) => prev.map((p) => p.id === id ? { ...p, photo_url: finalUrl } : p));
+      return finalUrl;
     } catch {
-      // Local preview already shown — upload failure is non-fatal
+      setPeople((prev) => prev.map((p) => p.id === id ? { ...p, photo_url: localPreviewUrl } : p));
+      return localPreviewUrl;
     }
   };
 
@@ -2868,7 +2870,7 @@ export default function Home() {
               >
                 {viewMode === "mobile"
                   ? "Patient demo"
-                  : "Silent disorientation demo"}
+                  : "Alzheimer's companion demo"}
               </p>
               <h1
                 className={
@@ -2878,8 +2880,8 @@ export default function Home() {
                 }
               >
                 {viewMode === "mobile"
-                  ? "Detect silent disorientation, restore reality, escalate safely."
-                  : "Detect silent disorientation, restore reality, escalate safely."}
+                  ? "Voice, vision, and care — always present, always calm."
+                  : "Voice, vision, and care — always present, always calm."}
               </h1>
               <p
                 className={
@@ -2889,8 +2891,8 @@ export default function Home() {
                 }
               >
                 {viewMode === "mobile"
-                  ? "John pauses while making tea. yourOwn checks in and alerts family if he cannot respond."
-                  : "Powered by Gemma 4. Voice, vision, and care reasoning — with full local Ollama mode for complete privacy."}
+                  ? "Listens continuously. Detects confusion, task stalls, and emergencies. Alerts family instantly."
+                  : "Powered by Gemma 4. Detects silent disorientation, task stalls, and emergencies — responds with calm voice, escalates to family when needed."}
               </p>
               <div
                 className={
@@ -2901,13 +2903,7 @@ export default function Home() {
               >
                 <StatusPill
                   label="🧠 Gemma"
-                  value={
-                    gemmaStatus?.local_inference
-                      ? `${gemmaStatus.model} local`
-                      : gemmaStatus?.api_ready
-                      ? `${gemmaStatus.api_model} API`
-                      : "gemma-4-26b-a4b-it"
-                  }
+                  value={gemmaStatus?.api_model ? `${gemmaStatus.api_model} API` : "gemma-4-26b-a4b-it API"}
                   tone="low"
                 />
                 <StatusPill
@@ -3340,7 +3336,7 @@ export default function Home() {
                   {alarmEnabled ? "Disable alarms" : "Enable alarms"}
                 </button>
                 <div className={currentTheme.statusBox}>
-                  Next alarm: {nextAlarmReminder.time} - {nextAlarmReminder.label}
+                  {nextAlarmReminder ? `Next alarm: ${nextAlarmReminder.time} - ${nextAlarmReminder.label}` : "No alarms scheduled"}
                 </div>
               </div>
 
@@ -3654,13 +3650,15 @@ function FamilyInfoPanel({
   userName: string;
   onAddPerson: (formData: FormData) => Promise<void>;
   onDeletePerson: (id: string) => Promise<void>;
-  onUpdatePhoto: (id: string, file: File) => Promise<void>;
+  onUpdatePhoto: (id: string, file: File, localPreviewUrl: string) => Promise<string>;
 }) {
   const [name, setName] = useState("");
   const [relationship, setRelationship] = useState("");
   const [notes, setNotes] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [pendingPhotos, setPendingPhotos] = useState<Record<string, { file: File; localUrl: string }>>({});
+  const [savingPhoto, setSavingPhoto] = useState<string | null>(null);
 
   const handleSubmit = async () => {
     if (!name.trim()) return;
@@ -3706,26 +3704,50 @@ function FamilyInfoPanel({
         {loading && <p className={currentTheme.miniText}>Loading...</p>}
         {!loading && people.length === 0 && <p className={currentTheme.miniText}>No people saved yet. Add someone above.</p>}
         <div className="grid grid-cols-2 gap-3">
-          {people.map((person) => (
-            <div key={person.id} className={`${currentTheme.photoMemoryCard} flex flex-col items-center text-center gap-2 p-4 relative`}>
-              <button type="button" onClick={() => onDeletePerson(person.id)} className="absolute top-2 right-2 text-base opacity-30 hover:opacity-80 hover:text-red-500 transition-opacity" title="Remove">🗑️</button>
-              <div className="relative">
-                {person.photo_url
-                  ? <img src={person.photo_url} alt={person.name} className="h-20 w-20 rounded-full object-cover" style={{ border: "3px solid #4ECDC4" }} />
-                  : <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-full bg-[#4ECDC4] text-3xl">👤</div>
-                }
-                <label className="absolute bottom-0 right-0 cursor-pointer bg-white rounded-full w-7 h-7 flex items-center justify-center shadow text-sm" title="Change photo">
-                  📷
-                  <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpdatePhoto(person.id, f); e.target.value = ""; }} />
-                </label>
+          {people.map((person) => {
+            const pending = pendingPhotos[person.id];
+            const displayUrl = pending ? pending.localUrl : resolvePhotoUrl(person.photo_url);
+            return (
+              <div key={person.id} className={`${currentTheme.photoMemoryCard} flex flex-col items-center text-center gap-2 p-4 relative`}>
+                <button type="button" onClick={() => onDeletePerson(person.id)} className="absolute top-2 right-2 text-base opacity-30 hover:opacity-80 hover:text-red-500 transition-opacity" title="Remove">🗑️</button>
+                <div className="relative">
+                  {displayUrl
+                    ? <img src={displayUrl} alt={person.name} className="h-20 w-20 rounded-full object-cover" style={{ border: `3px solid ${pending ? "#f59e0b" : "#4ECDC4"}` }} />
+                    : <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-full bg-[#4ECDC4] text-3xl">👤</div>
+                  }
+                  <label className="absolute bottom-0 right-0 cursor-pointer bg-white rounded-full w-7 h-7 flex items-center justify-center shadow text-sm" title="Change photo">
+                    📷
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) setPendingPhotos(prev => ({ ...prev, [person.id]: { file: f, localUrl: URL.createObjectURL(f) } }));
+                      e.target.value = "";
+                    }} />
+                  </label>
+                </div>
+                <div>
+                  <p className="font-bold text-sm leading-tight">{person.name}</p>
+                  {person.relationship && <p className="text-xs font-semibold" style={{ color: "#4ECDC4" }}>{person.relationship}</p>}
+                  {person.notes && <p className="text-xs opacity-50 mt-1 leading-snug">{person.notes}</p>}
+                </div>
+                {pending && (
+                  <button
+                    type="button"
+                    disabled={savingPhoto === person.id}
+                    onClick={async () => {
+                      setSavingPhoto(person.id);
+                      await onUpdatePhoto(person.id, pending.file, pending.localUrl);
+                      setPendingPhotos(prev => { const n = { ...prev }; delete n[person.id]; return n; });
+                      setSavingPhoto(null);
+                    }}
+                    className="w-full mt-1 rounded-lg py-1.5 text-xs font-bold text-white"
+                    style={{ background: "#f59e0b" }}
+                  >
+                    {savingPhoto === person.id ? "Saving..." : "Save photo"}
+                  </button>
+                )}
               </div>
-              <div>
-                <p className="font-bold text-sm leading-tight">{person.name}</p>
-                {person.relationship && <p className="text-xs font-semibold" style={{ color: "#4ECDC4" }}>{person.relationship}</p>}
-                {person.notes && <p className="text-xs opacity-50 mt-1 leading-snug">{person.notes}</p>}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </Card>
@@ -4326,7 +4348,7 @@ function ResultPanel({
         }}>
           {result.person_result.photo_url ? (
             <img
-              src={result.person_result.photo_url}
+              src={resolvePhotoUrl(result.person_result.photo_url)!}
               alt={result.person_result.name}
               style={{ width: 80, height: 80, borderRadius: "50%", objectFit: "cover", border: "3px solid #4ECDC4" }}
             />
@@ -4357,7 +4379,7 @@ function ResultPanel({
             {people.map(p => (
               <div key={p.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 90, textAlign: "center" }}>
                 {p.photo_url
-                  ? <img src={p.photo_url} alt={p.name} style={{ width: 72, height: 72, borderRadius: "50%", objectFit: "cover", border: "3px solid #4ECDC4", marginBottom: 6 }} />
+                  ? <img src={resolvePhotoUrl(p.photo_url)!} alt={p.name} style={{ width: 72, height: 72, borderRadius: "50%", objectFit: "cover", border: "3px solid #4ECDC4", marginBottom: 6 }} />
                   : <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#4ECDC4", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, marginBottom: 6 }}>👤</div>
                 }
                 <p style={{ margin: 0, fontWeight: 700, fontSize: 13, color: "#111" }}>{p.name}</p>

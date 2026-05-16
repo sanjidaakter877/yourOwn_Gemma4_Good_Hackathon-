@@ -61,14 +61,17 @@ router.patch("/:id/photo", upload.single("photo"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No photo provided" });
     const { patientName } = req.body;
+    console.log(`[photo] PATCH id=${req.params.id} patient=${patientName} size=${req.file.size}`);
     const person = await updatePersonPhoto(
       req.params.id,
       patientName || "John",
       req.file.buffer,
       req.file.mimetype
     );
+    console.log(`[photo] saved ok, photo_url length=${person?.photo_url?.length}`);
     res.json({ ok: true, person });
   } catch (err) {
+    console.error(`[photo] FAILED:`, err.message);
     res.status(500).json({ error: err.message });
   }
 });

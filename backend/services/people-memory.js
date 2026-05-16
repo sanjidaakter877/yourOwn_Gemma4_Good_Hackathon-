@@ -1,7 +1,12 @@
 const { createClient } = require("@supabase/supabase-js");
+const fs = require("fs");
+const path = require("path");
+const crypto = require("crypto");
 
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || "";
+
+const LOCAL_PEOPLE_FILE = path.join(__dirname, "../data/people.json");
 
 let _client = null;
 
@@ -15,24 +20,51 @@ function isAvailable() {
   return Boolean(SUPABASE_URL && SUPABASE_KEY);
 }
 
+// ── Local file helpers ────────────────────────────────────────────────────────
+
+function readLocalPeople() {
+  try {
+    if (!fs.existsSync(LOCAL_PEOPLE_FILE)) return [];
+    return JSON.parse(fs.readFileSync(LOCAL_PEOPLE_FILE, "utf8"));
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalPeople(people) {
+  try {
+    fs.mkdirSync(path.dirname(LOCAL_PEOPLE_FILE), { recursive: true });
+    fs.writeFileSync(LOCAL_PEOPLE_FILE, JSON.stringify(people, null, 2), "utf8");
+  } catch {
+    // Read-only filesystem (Vercel) — skip local write
+  }
+}
+
+// Convert photo buffer to base64 data URI — works everywhere, no storage bucket needed
+function toDataUri(buffer, mimeType) {
+  return `data:${mimeType || "image/jpeg"};base64,${buffer.toString("base64")}`;
+}
+
 // ── People ────────────────────────────────────────────────────────────────────
 
 async function addPerson({ patientName, name, relationship, notes, photoBuffer, mimeType }) {
   const db = getClient();
-  if (!db) throw new Error("Supabase not configured");
+  const photoUrl = photoBuffer ? toDataUri(photoBuffer, mimeType) : null;
 
-  let photoUrl = null;
-
-  if (photoBuffer) {
-    const fileName = `${patientName}/${Date.now()}_${name.replace(/\s+/g, "_")}.jpg`;
-    const { error: uploadError } = await db.storage
-      .from("people-photos")
-      .upload(fileName, photoBuffer, { contentType: mimeType || "image/jpeg", upsert: true });
-
-    if (!uploadError) {
-      const { data } = db.storage.from("people-photos").getPublicUrl(fileName);
-      photoUrl = data.publicUrl;
-    }
+  if (!db) {
+    const people = readLocalPeople();
+    const person = {
+      id: crypto.randomUUID(),
+      patient_name: patientName,
+      name,
+      relationship: relationship || "",
+      notes: notes || "",
+      photo_url: photoUrl,
+      created_at: new Date().toISOString()
+    };
+    people.push(person);
+    writeLocalPeople(people);
+    return person;
   }
 
   const { data, error } = await db
@@ -42,12 +74,20 @@ async function addPerson({ patientName, name, relationship, notes, photoBuffer, 
     .single();
 
   if (error) throw new Error(error.message);
+
+  // Mirror to local JSON
+  const localPeople = readLocalPeople();
+  localPeople.push(data);
+  writeLocalPeople(localPeople);
+
   return data;
 }
 
 async function listPeople(patientName) {
   const db = getClient();
-  if (!db) return [];
+  const localPeople = readLocalPeople().filter(p => p.patient_name === patientName);
+
+  if (!db) return localPeople;
 
   const { data, error } = await db
     .from("people")
@@ -55,15 +95,30 @@ async function listPeople(patientName) {
     .eq("patient_name", patientName)
     .order("name");
 
-  if (error) return [];
-  return data || [];
+  if (error) return localPeople;
+  const supabasePeople = data || [];
+
+  // Merge: for each Supabase record, prefer local photo_url if set locally
+  const merged = supabasePeople.map(sp => {
+    const local = localPeople.find(lp => lp.id === sp.id);
+    return local ? { ...sp, photo_url: local.photo_url ?? sp.photo_url } : sp;
+  });
+  console.log(`[listPeople] supabase=${supabasePeople.length} local=${localPeople.length} merged photo_urls=${merged.filter(p => p.photo_url).length}`);
+  return merged;
 }
 
 async function findPerson(patientName, nameQuery) {
   const db = getClient();
-  if (!db) return null;
-
   const clean = nameQuery.trim().toLowerCase();
+
+  if (!db) {
+    const people = readLocalPeople().filter(p => p.patient_name === patientName);
+    return (
+      people.find(p => p.name.toLowerCase() === clean) ||
+      people.find(p => p.name.toLowerCase().includes(clean)) ||
+      null
+    );
+  }
 
   // Exact match first
   const { data: exact } = await db
@@ -88,32 +143,53 @@ async function findPerson(patientName, nameQuery) {
 
 async function updatePersonPhoto(id, patientName, photoBuffer, mimeType) {
   const db = getClient();
-  if (!db) throw new Error("Supabase not configured");
+  const photoUrl = toDataUri(photoBuffer, mimeType);
 
-  const fileName = `${patientName}/${Date.now()}_${id}.jpg`;
-  const { error: uploadError } = await db.storage
-    .from("people-photos")
-    .upload(fileName, photoBuffer, { contentType: mimeType || "image/jpeg", upsert: true });
+  // Update Supabase people record directly with the data URI
+  if (db) {
+    const { data: updated, error } = await db
+      .from("people")
+      .update({ photo_url: photoUrl })
+      .eq("id", id)
+      .select()
+      .single();
 
-  if (uploadError) throw new Error(uploadError.message);
+    if (!error && updated) {
+      // Mirror to local JSON
+      const localPeople = readLocalPeople();
+      const idx = localPeople.findIndex(p => p.id === id);
+      if (idx >= 0) {
+        localPeople[idx] = { ...localPeople[idx], photo_url: photoUrl };
+      } else {
+        localPeople.push({ ...updated });
+      }
+      writeLocalPeople(localPeople);
+      return updated;
+    }
+  }
 
-  const { data } = db.storage.from("people-photos").getPublicUrl(fileName);
-  const photoUrl = data.publicUrl;
+  // Local-only fallback (no Supabase)
+  const localPeople = readLocalPeople();
+  const idx = localPeople.findIndex(p => p.id === id);
+  const person = idx >= 0
+    ? { ...localPeople[idx], photo_url: photoUrl }
+    : { id, patient_name: patientName, name: "", photo_url: photoUrl };
 
-  const { data: updated, error } = await db
-    .from("people")
-    .update({ photo_url: photoUrl })
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) throw new Error(error.message);
-  return updated;
+  if (idx >= 0) localPeople[idx] = person;
+  else localPeople.push(person);
+  writeLocalPeople(localPeople);
+  return person;
 }
 
 async function deletePerson(id) {
   const db = getClient();
-  if (!db) throw new Error("Supabase not configured");
+
+  if (!db) {
+    const people = readLocalPeople().filter(p => p.id !== id);
+    writeLocalPeople(people);
+    return;
+  }
+
   const { error } = await db.from("people").delete().eq("id", id);
   if (error) throw new Error(error.message);
 }
@@ -141,7 +217,6 @@ async function findEpisodicMemories(patientName, query, limit = 5) {
   const db = getClient();
   if (!db) return [];
 
-  // Simple keyword search — upgrade to pgvector later
   const { data, error } = await db
     .from("episodic_memories")
     .select("*")
