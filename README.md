@@ -1,7 +1,5 @@
 # yourOwn — AI Companion for Alzheimer's Patients
 
-> *"It is 2 PM. John is making tea. He pauses, looks around, and goes quiet. yourOwn is already there."*
-
 **yourOwn** is a voice-first, camera-aware AI companion powered by **Gemma 4** that watches, listens, and responds — not just when something goes wrong, but continuously, like a calm presence in the room.
 
 Built for the **[Gemma 4 Good Hackathon 2026](https://www.kaggle.com/competitions/gemma-4-good-hackathon)**
